@@ -9,7 +9,7 @@ GET /api/user/analyses/{id} — full saved analysis result
 from fastapi import APIRouter, Request, HTTPException, Query
 
 from api.services.supabase import get_supabase_admin
-from api.services.credits import get_usage
+from api.services.credits import get_usage, ensure_profile
 
 router = APIRouter()
 
@@ -18,6 +18,7 @@ router = APIRouter()
 async def get_profile(request: Request):
     """Get current user's profile and credit info."""
     user_id = request.state.user_id
+    await ensure_profile(user_id)
     usage = await get_usage(user_id)
     return usage
 
@@ -30,6 +31,7 @@ async def list_analyses(
 ):
     """Get paginated list of user's past analyses."""
     user_id = request.state.user_id
+    await ensure_profile(user_id)
     sb = get_supabase_admin()
 
     offset = (page - 1) * limit

@@ -12,6 +12,8 @@ async def check_credits(user_id: str) -> tuple[bool, int]:
     """Check if user has credits remaining. Returns (has_credits, credits_remaining)."""
     sb = get_supabase_admin()
     result = sb.from_("profiles").select("credits_remaining").eq("id", user_id).single().execute()
+    if not result.data:
+        return False, 0
     credits = result.data["credits_remaining"]
     return credits > 0, credits
 
@@ -22,6 +24,8 @@ async def deduct_credit(user_id: str, analysis_id: str) -> int:
 
     # Get current balance
     profile = sb.from_("profiles").select("credits_remaining").eq("id", user_id).single().execute()
+    if not profile.data:
+        return 0
     new_balance = profile.data["credits_remaining"] - 1
 
     # Decrement credits_remaining
@@ -45,6 +49,15 @@ async def get_usage(user_id: str) -> dict:
     profile = sb.from_("profiles").select(
         "credits_remaining, tier, credits_reset_at, created_at"
     ).eq("id", user_id).single().execute()
+
+    if not profile.data:
+        return {
+            "credits_remaining": 0,
+            "tier": "free",
+            "credits_reset_at": None,
+            "member_since": None,
+            "total_analyses": 0,
+        }
 
     # Count total analyses
     analysis_count = sb.from_("analyses").select(
