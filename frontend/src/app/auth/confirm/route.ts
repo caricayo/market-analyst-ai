@@ -2,6 +2,7 @@ import { type EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { headers } from "next/headers";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -9,8 +10,13 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type") as EmailOtpType | null;
   const next = searchParams.get("next") ?? "/";
 
-  const redirectTo = request.nextUrl.clone();
-  redirectTo.pathname = next;
+  // Derive external origin from forwarded headers (handles reverse proxies like Railway)
+  const headerStore = await headers();
+  const forwardedProto = headerStore.get("x-forwarded-proto") ?? "https";
+  const forwardedHost = headerStore.get("x-forwarded-host") ?? headerStore.get("host") ?? "localhost:3000";
+  const origin = `${forwardedProto}://${forwardedHost}`;
+
+  const redirectTo = new URL(next, origin);
   redirectTo.searchParams.delete("token_hash");
   redirectTo.searchParams.delete("type");
   redirectTo.searchParams.delete("next");
