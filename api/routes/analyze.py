@@ -4,13 +4,11 @@ arfour — Analysis Routes
 POST /api/analyze — start a new analysis
 GET /api/analyze/{id}/stream — SSE event stream
 POST /api/analyze/{id}/cancel — cancel running analysis
-GET /api/analyze/status — check if analysis is in progress
+GET /api/analyze/status — returns inactive (kept for backward compat)
 """
 
 import asyncio
 import json
-import time
-from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -18,8 +16,8 @@ from pydantic import BaseModel
 
 from api.services.event_bus import (
     create_session,
-    get_current_session,
-    clear_session,
+    get_session,
+    remove_session,
     PipelineEvent,
 )
 from api.services.pipeline_runner import execute_pipeline
@@ -38,18 +36,7 @@ async def start_analysis(request: AnalyzeRequest):
     if not ticker:
         raise HTTPException(status_code=400, detail="Ticker is required")
 
-    # Check for existing session
-    current = get_current_session()
-    if current and not current.is_complete:
-        raise HTTPException(
-            status_code=409,
-            detail="An analysis is already in progress",
-        )
-
-    try:
-        session = create_session(ticker)
-    except RuntimeError as e:
-        raise HTTPException(status_code=409, detail=str(e))
+    session = create_session(ticker)
 
     # Launch pipeline as background task
     session.task = asyncio.create_task(execute_pipeline(session))
@@ -75,8 +62,8 @@ def _event_to_sse(event: PipelineEvent) -> str:
 @router.get("/api/analyze/{analysis_id}/stream")
 async def stream_analysis(analysis_id: str):
     """SSE endpoint for streaming analysis events."""
-    session = get_current_session()
-    if not session or session.id != analysis_id:
+    session = get_session(analysis_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Analysis not found")
 
     async def event_generator():
@@ -85,7 +72,6 @@ async def stream_analysis(analysis_id: str):
             yield _event_to_sse(event)
 
         # Stream new events
-        last_keepalive = time.time()
         while not session.is_complete:
             try:
                 event = await asyncio.wait_for(session.queue.get(), timeout=30.0)
@@ -93,7 +79,11 @@ async def stream_analysis(analysis_id: str):
             except asyncio.TimeoutError:
                 # Send keepalive
                 yield f"data: {json.dumps({'event_type': 'keepalive'})}\n\n"
-                last_keepalive = time.time()
+
+        # Drain any remaining events (e.g. terminal event enqueued just before is_complete)
+        while not session.queue.empty():
+            event = session.queue.get_nowait()
+            yield _event_to_sse(event)
 
     return StreamingResponse(
         event_generator(),
@@ -109,8 +99,8 @@ async def stream_analysis(analysis_id: str):
 @router.post("/api/analyze/{analysis_id}/cancel")
 async def cancel_analysis(analysis_id: str):
     """Cancel a running analysis."""
-    session = get_current_session()
-    if not session or session.id != analysis_id:
+    session = get_session(analysis_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Analysis not found")
 
     if session.is_complete:
@@ -120,23 +110,12 @@ async def cancel_analysis(analysis_id: str):
     if session.task:
         session.task.cancel()
     session.is_complete = True
-    clear_session()
+    remove_session(analysis_id)
 
     return {"status": "cancelled"}
 
 
 @router.get("/api/analyze/status")
 async def get_analysis_status():
-    """Check if an analysis is currently in progress."""
-    session = get_current_session()
-    if not session:
-        return {"active": False}
-
-    return {
-        "active": not session.is_complete,
-        "analysis_id": session.id,
-        "ticker": session.ticker,
-        "is_complete": session.is_complete,
-        "is_cancelled": session.is_cancelled,
-        "elapsed": round(time.time() - session.start_time, 1) if not session.is_complete else None,
-    }
+    """Backward-compat stub. Always returns inactive."""
+    return {"active": False}

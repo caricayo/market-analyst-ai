@@ -2,7 +2,7 @@
 arfour — Event Bus
 
 Manages analysis sessions with asyncio.Queue-based event streaming.
-Enforces one-at-a-time concurrency.
+Supports concurrent sessions keyed by session ID.
 """
 
 import asyncio
@@ -10,6 +10,9 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
+
+# Auto-cleanup: remove completed sessions older than this (seconds)
+_SESSION_TTL = 600  # 10 minutes
 
 
 @dataclass
@@ -30,6 +33,7 @@ class AnalysisSession:
         self.queue: asyncio.Queue[PipelineEvent] = asyncio.Queue()
         self.event_history: list[PipelineEvent] = []
         self.start_time = time.time()
+        self.completed_at: float | None = None
         self.is_complete = False
         self.is_cancelled = False
         self.result: dict[str, Any] | None = None
@@ -52,7 +56,6 @@ class AnalysisSession:
         ))
 
     def emit_complete(self, data: dict[str, Any]) -> None:
-        self.is_complete = True
         self.result = data
         elapsed = time.time() - self.start_time
         self.emit(PipelineEvent(
@@ -60,9 +63,11 @@ class AnalysisSession:
             elapsed=elapsed,
             data=data,
         ))
+        # Set is_complete AFTER enqueueing so SSE consumers see the event
+        self.is_complete = True
+        self.completed_at = time.time()
 
     def emit_error(self, error_msg: str) -> None:
-        self.is_complete = True
         self.error = error_msg
         elapsed = time.time() - self.start_time
         self.emit(PipelineEvent(
@@ -70,25 +75,37 @@ class AnalysisSession:
             detail=error_msg,
             elapsed=elapsed,
         ))
+        # Set is_complete AFTER enqueueing so SSE consumers see the event
+        self.is_complete = True
+        self.completed_at = time.time()
 
 
-# Global session — one at a time
-_current_session: AnalysisSession | None = None
+# Session store — keyed by session ID
+_sessions: dict[str, AnalysisSession] = {}
+
+
+def _cleanup_stale_sessions() -> None:
+    """Remove completed sessions older than _SESSION_TTL."""
+    now = time.time()
+    stale = [
+        sid for sid, s in _sessions.items()
+        if s.is_complete and s.completed_at and (now - s.completed_at) > _SESSION_TTL
+    ]
+    for sid in stale:
+        del _sessions[sid]
 
 
 def create_session(ticker: str) -> AnalysisSession:
-    global _current_session
-    if _current_session and not _current_session.is_complete:
-        raise RuntimeError("An analysis is already in progress")
+    _cleanup_stale_sessions()
     session_id = uuid.uuid4().hex[:12]
-    _current_session = AnalysisSession(session_id, ticker)
-    return _current_session
+    session = AnalysisSession(session_id, ticker)
+    _sessions[session_id] = session
+    return session
 
 
-def get_current_session() -> AnalysisSession | None:
-    return _current_session
+def get_session(session_id: str) -> AnalysisSession | None:
+    return _sessions.get(session_id)
 
 
-def clear_session() -> None:
-    global _current_session
-    _current_session = None
+def remove_session(session_id: str) -> None:
+    _sessions.pop(session_id, None)

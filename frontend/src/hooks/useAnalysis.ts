@@ -8,7 +8,7 @@ import type {
   StageState,
 } from "@/lib/types";
 import { createInitialStages } from "@/lib/constants";
-import { startAnalysis, cancelAnalysis, getAnalysisStatus } from "@/lib/api";
+import { startAnalysis, cancelAnalysis } from "@/lib/api";
 
 export function useAnalysis() {
   const [phase, setPhase] = useState<AnalysisPhase>("idle");
@@ -144,25 +144,9 @@ export function useAnalysis() {
     setTicker("");
   }, []);
 
-  // Check for in-progress analysis on mount (page refresh reconnection)
+  // Clean up EventSource on unmount
   useEffect(() => {
-    async function checkExisting() {
-      try {
-        const status = await getAnalysisStatus();
-        if (status.active && status.analysis_id) {
-          setPhase("running");
-          setAnalysisId(status.analysis_id);
-          setTicker(status.ticker || "");
-          connectToStream(status.analysis_id);
-        }
-      } catch {
-        // Server not available yet, that's fine
-      }
-    }
-    checkExisting();
-
     return () => closeEventSource();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
