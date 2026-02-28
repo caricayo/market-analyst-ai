@@ -11,7 +11,6 @@ import PipelineTracker from "@/components/PipelineTracker";
 import ReportView from "@/components/ReportView";
 import AnalysisHistory from "@/components/AnalysisHistory";
 import { useAnalysis } from "@/hooks/useAnalysis";
-import { useTickerSearch } from "@/hooks/useTickerSearch";
 import { useHistory } from "@/hooks/useHistory";
 import { fetchProfile } from "@/lib/api";
 import type { AnalysisResult } from "@/lib/types";
@@ -27,7 +26,6 @@ export default function Home() {
 }
 
 function AppContent({ userEmail }: { userEmail?: string }) {
-  const { tickers } = useTickerSearch();
   const {
     phase,
     stages,
@@ -135,7 +133,6 @@ function AppContent({ userEmail }: { userEmail?: string }) {
         {/* Ticker Input — always visible */}
         <div className="mb-6">
           <TickerInput
-            tickers={tickers}
             disabled={phase === "running"}
             onSubmit={start}
             onCancel={cancel}

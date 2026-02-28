@@ -178,6 +178,16 @@ def resolve_ticker(sanitized: str) -> tuple[str, str]:
         if name.lower() == lower or name.lower().startswith(lower):
             return ticker, name
 
+    # Check loaded ticker data (available when running inside the server)
+    try:
+        from api.services.ticker_data import get_ticker_name
+
+        loaded_name = get_ticker_name(upper)
+        if loaded_name:
+            return upper, loaded_name
+    except ImportError:
+        pass
+
     # Not found in lookup — treat input as-is (could be a valid but unlisted ticker)
     return sanitized.upper(), sanitized
 

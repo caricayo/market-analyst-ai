@@ -54,6 +54,18 @@ export async function fetchTickers(): Promise<TickerInfo[]> {
   return data.tickers;
 }
 
+export async function searchTickers(
+  query: string,
+  limit = 8,
+  signal?: AbortSignal
+): Promise<TickerInfo[]> {
+  const params = new URLSearchParams({ q: query, limit: String(limit) });
+  const res = await fetch(`/api/tickers/search?${params}`, { signal });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.results;
+}
+
 export async function startAnalysis(
   ticker: string
 ): Promise<{ analysis_id: string; credits_remaining?: number }> {

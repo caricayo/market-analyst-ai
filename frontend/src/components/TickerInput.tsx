@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { TickerInfo } from "@/lib/types";
+import { useTickerSearch } from "@/hooks/useTickerSearch";
 
 interface TickerInputProps {
-  tickers: TickerInfo[];
   disabled: boolean;
   onSubmit: (ticker: string) => void;
   onCancel: () => void;
@@ -12,74 +12,64 @@ interface TickerInputProps {
 }
 
 export default function TickerInput({
-  tickers,
   disabled,
   onSubmit,
   onCancel,
   isRunning,
 }: TickerInputProps) {
   const [value, setValue] = useState("");
-  const [suggestions, setSuggestions] = useState<TickerInfo[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const fuseRef = useRef<import("fuse.js").default<TickerInfo> | null>(null);
-
-  // Initialize fuse.js
-  useEffect(() => {
-    if (tickers.length === 0) return;
-    import("fuse.js").then((Fuse) => {
-      fuseRef.current = new Fuse.default(tickers, {
-        keys: ["ticker", "name"],
-        threshold: 0.4,
-      });
-    });
-  }, [tickers]);
-
-  const search = useCallback(
-    (query: string) => {
-      if (!query.trim() || !fuseRef.current) {
-        setSuggestions([]);
-        setShowDropdown(false);
-        return;
-      }
-      const results = fuseRef.current.search(query).map((r) => r.item);
-      setSuggestions(results.slice(0, 8));
-      setShowDropdown(results.length > 0);
-      setSelectedIdx(-1);
-    },
-    []
-  );
+  const { results, search, clear } = useTickerSearch();
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
     setValue(v);
-    search(v);
+    if (v.trim()) {
+      search(v);
+      setShowDropdown(true);
+      setSelectedIdx(-1);
+    } else {
+      clear();
+      setShowDropdown(false);
+    }
   }
+
+  // Update dropdown visibility when results arrive
+  useEffect(() => {
+    if (results.length > 0 && value.trim()) {
+      setShowDropdown(true);
+    } else if (results.length === 0) {
+      setShowDropdown(false);
+    }
+  }, [results, value]);
 
   function handleSelect(ticker: TickerInfo) {
     setValue(ticker.ticker);
     setShowDropdown(false);
+    clear();
     inputRef.current?.focus();
   }
 
   function handleSubmit() {
     if (!value.trim() || disabled) return;
     setShowDropdown(false);
+    clear();
     onSubmit(value.trim());
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") {
       if (showDropdown && selectedIdx >= 0) {
-        handleSelect(suggestions[selectedIdx]);
+        handleSelect(results[selectedIdx]);
       } else {
         handleSubmit();
       }
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedIdx((i) => Math.min(i + 1, suggestions.length - 1));
+      setSelectedIdx((i) => Math.min(i + 1, results.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setSelectedIdx((i) => Math.max(i - 1, -1));
@@ -144,13 +134,13 @@ export default function TickerInput({
         </div>
 
         {/* Autocomplete dropdown */}
-        {showDropdown && suggestions.length > 0 && (
+        {showDropdown && results.length > 0 && (
           <div
             ref={dropdownRef}
             className="absolute z-50 w-full border border-t-border border-t-0 bg-t-dark max-h-64 overflow-y-auto"
             role="listbox"
           >
-            {suggestions.map((s, i) => (
+            {results.map((s, i) => (
               <button
                 key={s.ticker}
                 className={`w-full text-left px-3 py-1.5 flex justify-between items-center hover:bg-t-green/10 ${

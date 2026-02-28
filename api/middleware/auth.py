@@ -66,6 +66,7 @@ def _get_signing_key(token: str) -> tuple:
 PUBLIC_PATHS = {
     "/api/health",
     "/api/tickers",
+    "/api/tickers/search",
     "/api/analyze/status",
     "/api/checkout/webhook",
     "/docs",

@@ -8,6 +8,7 @@ import logging
 import os
 import sys
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 # Ensure project root is in path
@@ -25,6 +26,7 @@ from api.routes.analyze import router as analyze_router
 from api.routes.checkout import router as checkout_router
 from api.routes.tickers import router as tickers_router
 from api.routes.user import router as user_router
+from api.services.ticker_data import load_ticker_data
 
 log = logging.getLogger(__name__)
 
@@ -36,10 +38,17 @@ if _missing:
     # Don't crash on import (allows health check), but log loudly
     print(f"WARNING: Missing required env vars: {', '.join(_missing)}", file=sys.stderr)
 
+@asynccontextmanager
+async def lifespan(app_instance: FastAPI):
+    load_ticker_data()
+    yield
+
+
 app = FastAPI(
     title="arfour",
     description="Multi-perspective investment intelligence",
     version="0.2.0",
+    lifespan=lifespan,
 )
 
 # --- Rate Limiting Middleware ---
