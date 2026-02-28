@@ -8,7 +8,7 @@ import type {
   StageState,
 } from "@/lib/types";
 import { createInitialStages } from "@/lib/constants";
-import { startAnalysis, cancelAnalysis, fetchProfile } from "@/lib/api";
+import { startAnalysis, cancelAnalysis, fetchProfile, getBackendUrl } from "@/lib/api";
 
 export function useAnalysis() {
   const [phase, setPhase] = useState<AnalysisPhase>("idle");
@@ -83,13 +83,7 @@ export function useAnalysis() {
     closeEventSource();
     retryCountRef.current = 0;
 
-    // In production, use relative URL (goes through Next.js rewrite proxy).
-    // In dev, connect directly to backend to avoid proxy buffering SSE.
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || (
-      typeof window !== "undefined" && window.location.hostname === "localhost"
-        ? "http://localhost:8000"
-        : ""
-    );
+    const backendUrl = getBackendUrl();
     const es = new EventSource(`${backendUrl}/api/analyze/${id}/stream`);
     eventSourceRef.current = es;
 

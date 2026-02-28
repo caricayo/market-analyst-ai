@@ -1,6 +1,15 @@
 import type { TickerInfo } from "./types";
 import { createSupabaseClient } from "./supabase";
 
+export function getBackendUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_API_URL ||
+    (typeof window !== "undefined" && window.location.hostname === "localhost"
+      ? "http://localhost:8000"
+      : "")
+  );
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const sb = createSupabaseClient();
   const { data: { session } } = await sb.auth.getSession();
@@ -8,13 +17,34 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${session.access_token}` };
 }
 
-function getBackendUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_API_URL ||
-    (typeof window !== "undefined" && window.location.hostname === "localhost"
-      ? "http://localhost:8000"
-      : "")
-  );
+/**
+ * Refresh the Supabase session and return new auth headers.
+ * Returns empty headers if refresh fails (user must re-login).
+ */
+async function refreshAndGetHeaders(): Promise<Record<string, string>> {
+  const sb = createSupabaseClient();
+  const { data, error } = await sb.auth.refreshSession();
+  if (error || !data.session) return {};
+  return { Authorization: `Bearer ${data.session.access_token}` };
+}
+
+/**
+ * Fetch wrapper that retries once with a refreshed token on 401.
+ */
+async function authFetch(url: string, init?: RequestInit): Promise<Response> {
+  const auth = await getAuthHeaders();
+  const headers = { ...init?.headers, ...auth };
+  const res = await fetch(url, { ...init, headers });
+
+  if (res.status === 401) {
+    // Token may be expired — refresh and retry once
+    const freshAuth = await refreshAndGetHeaders();
+    if (freshAuth.Authorization) {
+      return fetch(url, { ...init, headers: { ...init?.headers, ...freshAuth } });
+    }
+  }
+
+  return res;
 }
 
 export async function fetchTickers(): Promise<TickerInfo[]> {
@@ -27,12 +57,11 @@ export async function fetchTickers(): Promise<TickerInfo[]> {
 export async function startAnalysis(
   ticker: string
 ): Promise<{ analysis_id: string; credits_remaining?: number }> {
-  const auth = await getAuthHeaders();
   const backendUrl = getBackendUrl();
 
-  const res = await fetch(`${backendUrl}/api/analyze`, {
+  const res = await authFetch(`${backendUrl}/api/analyze`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...auth },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ticker }),
   });
 
@@ -49,11 +78,9 @@ export async function startAnalysis(
 }
 
 export async function cancelAnalysis(analysisId: string): Promise<void> {
-  const auth = await getAuthHeaders();
   const backendUrl = getBackendUrl();
-  await fetch(`${backendUrl}/api/analyze/${analysisId}/cancel`, {
+  await authFetch(`${backendUrl}/api/analyze/${analysisId}/cancel`, {
     method: "POST",
-    headers: auth,
   });
 }
 
@@ -63,12 +90,31 @@ export async function fetchProfile(): Promise<{
   total_analyses: number;
   member_since: string;
 }> {
-  const auth = await getAuthHeaders();
   const backendUrl = getBackendUrl();
-
-  const res = await fetch(`${backendUrl}/api/user/profile`, {
-    headers: auth,
-  });
+  const res = await authFetch(`${backendUrl}/api/user/profile`);
   if (!res.ok) throw new Error("Failed to fetch profile");
+  return res.json();
+}
+
+export async function fetchAnalysesList(limit = 50): Promise<{
+  analyses: Array<{
+    id: string;
+    ticker: string;
+    status: string;
+    cost_usd: number | null;
+    created_at: string;
+  }>;
+  total: number;
+}> {
+  const backendUrl = getBackendUrl();
+  const res = await authFetch(`${backendUrl}/api/user/analyses?limit=${limit}`);
+  if (!res.ok) throw new Error("Failed to fetch analyses");
+  return res.json();
+}
+
+export async function fetchAnalysisById(id: string): Promise<Record<string, unknown> | null> {
+  const backendUrl = getBackendUrl();
+  const res = await authFetch(`${backendUrl}/api/user/analyses/${id}`);
+  if (!res.ok) return null;
   return res.json();
 }

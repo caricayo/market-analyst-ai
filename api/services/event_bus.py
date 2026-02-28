@@ -31,6 +31,7 @@ class AnalysisSession:
         self.id = session_id
         self.ticker = ticker
         self.user_id: str | None = None
+        self.analysis_db_id: str | None = None
         self.queue: asyncio.Queue[PipelineEvent] = asyncio.Queue()
         self.event_history: list[PipelineEvent] = []
         self.start_time = time.time()

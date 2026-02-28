@@ -56,14 +56,18 @@ create policy "Users read own ledger"
   using (auth.uid() = user_id);
 
 -- Auto-create profile on user signup
-create or replace function handle_new_user()
-returns trigger as $$
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
-  insert into profiles (id, tier, credits_remaining)
+  insert into public.profiles (id, tier, credits_remaining)
   values (new.id, 'free', 3);
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 create trigger on_auth_user_created
   after insert on auth.users

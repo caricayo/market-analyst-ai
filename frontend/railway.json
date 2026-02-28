@@ -3,7 +3,12 @@
   "build": {
     "builder": "NIXPACKS",
     "watchPatterns": [
-      "**"
+      "frontend/src/**",
+      "frontend/public/**",
+      "frontend/package.json",
+      "frontend/tsconfig.json",
+      "frontend/next.config.ts",
+      "frontend/tailwind.config.ts"
     ]
   },
   "deploy": {

@@ -5,12 +5,15 @@ Validates Supabase JWT tokens on protected routes.
 Injects user_id into request state for downstream handlers.
 """
 
+import logging
 import os
 import re
 from jose import jwt, JWTError
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+
+log = logging.getLogger(__name__)
 
 # Routes that don't require authentication
 PUBLIC_PATHS = {
@@ -65,12 +68,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 audience="authenticated",
             )
             request.state.user_id = payload["sub"]
-        except JWTError:
+        except JWTError as e:
+            log.warning("Auth failed for %s %s: %s", request.method, request.url.path, e)
             return JSONResponse(
                 status_code=401,
                 content={"detail": "Invalid or expired token"},
             )
         except KeyError:
+            log.warning("Auth token missing claims for %s %s", request.method, request.url.path)
             return JSONResponse(
                 status_code=401,
                 content={"detail": "Token missing required claims"},

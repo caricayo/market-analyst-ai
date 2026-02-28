@@ -9,6 +9,8 @@ GET /api/analyze/status — returns inactive (kept for backward compat)
 
 import asyncio
 import json
+import logging
+import re
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -21,9 +23,15 @@ from api.services.event_bus import (
     PipelineEvent,
 )
 from api.services.pipeline_runner import execute_pipeline
-from api.services.credits import check_credits, deduct_credit, ensure_profile
+from api.services.credits import deduct_credit, ensure_profile
+from api.services.supabase import get_supabase_admin
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Valid ticker: 1-10 uppercase letters/digits, optional dot (e.g. BRK.B)
+_TICKER_RE = re.compile(r"^[A-Z0-9]{1,10}(\.[A-Z])?$")
 
 
 class AnalyzeRequest(BaseModel):
@@ -38,9 +46,32 @@ async def start_analysis(body: AnalyzeRequest, request: Request):
     # Ensure profile exists (first-time users)
     await ensure_profile(user_id)
 
-    # Check credits before starting
-    has_credits, credits_remaining = await check_credits(user_id)
-    if not has_credits:
+    ticker = body.ticker.strip().upper()
+    if not ticker or not _TICKER_RE.match(ticker):
+        raise HTTPException(status_code=400, detail="Invalid ticker symbol")
+
+    # Create analysis record FIRST (before deducting credit)
+    sb = get_supabase_admin()
+    try:
+        analysis_row = sb.from_("analyses").insert({
+            "user_id": user_id,
+            "ticker": ticker,
+            "status": "running",
+            "cost_usd": 0.29,
+        }).execute()
+        analysis_db_id = analysis_row.data[0]["id"]
+    except Exception as e:
+        log.error("Failed to create analysis record: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to start analysis")
+
+    # Deduct credit atomically BEFORE starting the pipeline
+    new_balance = await deduct_credit(user_id, analysis_db_id)
+    if new_balance < 0:
+        # No credits — clean up the analysis record
+        try:
+            sb.from_("analyses").delete().eq("id", analysis_db_id).execute()
+        except Exception:
+            pass
         return JSONResponse(
             status_code=402,
             content={
@@ -50,12 +81,9 @@ async def start_analysis(body: AnalyzeRequest, request: Request):
             },
         )
 
-    ticker = body.ticker.strip()
-    if not ticker:
-        raise HTTPException(status_code=400, detail="Ticker is required")
-
     session = create_session(ticker)
     session.user_id = user_id
+    session.analysis_db_id = analysis_db_id
 
     # Launch pipeline as background task
     session.task = asyncio.create_task(execute_pipeline(session))
@@ -63,7 +91,7 @@ async def start_analysis(body: AnalyzeRequest, request: Request):
     return {
         "analysis_id": session.id,
         "ticker": ticker,
-        "credits_remaining": credits_remaining - 1,
+        "credits_remaining": new_balance,
     }
 
 

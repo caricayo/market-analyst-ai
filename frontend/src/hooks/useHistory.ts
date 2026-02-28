@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { createSupabaseClient } from "@/lib/supabase";
+import { fetchAnalysesList, fetchAnalysisById } from "@/lib/api";
 
 export interface AnalysisSummary {
   id: string;
@@ -37,27 +37,17 @@ export interface AnalysisFull extends AnalysisSummary {
 export function useHistory() {
   const [analyses, setAnalyses] = useState<AnalysisSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchHistory = useCallback(async () => {
     try {
-      const sb = createSupabaseClient();
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) return;
-
-      const backendUrl =
-        process.env.NEXT_PUBLIC_API_URL ||
-        (typeof window !== "undefined" && window.location.hostname === "localhost"
-          ? "http://localhost:8000"
-          : "");
-
-      const res = await fetch(`${backendUrl}/api/user/analyses?limit=50`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
+      setError(null);
+      const data = await fetchAnalysesList(50);
       setAnalyses(data.analyses);
-    } catch {
-      // Silently fail — history is non-critical
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to load history";
+      setError(msg);
+      console.warn("History fetch failed:", msg);
     } finally {
       setLoading(false);
     }
@@ -70,27 +60,15 @@ export function useHistory() {
   const loadAnalysis = useCallback(
     async (id: string): Promise<AnalysisFull | null> => {
       try {
-        const sb = createSupabaseClient();
-        const { data: { session } } = await sb.auth.getSession();
-        if (!session) return null;
-
-        const backendUrl =
-          process.env.NEXT_PUBLIC_API_URL ||
-          (typeof window !== "undefined" && window.location.hostname === "localhost"
-            ? "http://localhost:8000"
-            : "");
-
-        const res = await fetch(`${backendUrl}/api/user/analyses/${id}`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (!res.ok) return null;
-        return await res.json();
-      } catch {
+        const data = await fetchAnalysisById(id);
+        return data as AnalysisFull | null;
+      } catch (e) {
+        console.warn("Failed to load analysis:", e);
         return null;
       }
     },
     []
   );
 
-  return { analyses, loading, fetchHistory, loadAnalysis };
+  return { analyses, loading, error, fetchHistory, loadAnalysis };
 }

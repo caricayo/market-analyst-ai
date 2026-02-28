@@ -96,28 +96,17 @@ async def execute_pipeline(session: AnalysisSession) -> None:
             "persona_verdicts": persona_verdicts,
         }
 
-        # Save to Supabase and deduct credit if user is authenticated
-        if session.user_id:
+        # Update analysis record with result (record + credit deducted in analyze.py)
+        if session.user_id and hasattr(session, "analysis_db_id"):
             try:
                 from api.services.supabase import get_supabase_admin
-                from api.services.credits import deduct_credit
-
                 sb = get_supabase_admin()
-
-                # Insert analysis record
-                analysis_row = sb.from_("analyses").insert({
-                    "user_id": session.user_id,
-                    "ticker": session.ticker,
+                sb.from_("analyses").update({
                     "status": "complete",
                     "result": result_data,
-                    "cost_usd": 0.29,
-                }).execute()
-
-                # Deduct credit
-                analysis_db_id = analysis_row.data[0]["id"]
-                await deduct_credit(session.user_id, analysis_db_id)
+                }).eq("id", session.analysis_db_id).execute()
             except Exception as e:
-                log.warning("Failed to save analysis to Supabase: %s", e)
+                log.warning("Failed to update analysis in Supabase: %s", e)
 
         # Emit completion
         session.emit_complete(result_data)
@@ -126,17 +115,17 @@ async def execute_pipeline(session: AnalysisSession) -> None:
         session.is_cancelled = True
         session.is_complete = True
     except Exception as e:
-        # Record error in Supabase if authenticated
-        if session.user_id:
+        # Update analysis record to error status and refund credit
+        if session.user_id and hasattr(session, "analysis_db_id"):
             try:
                 from api.services.supabase import get_supabase_admin
+                from api.services.credits import refund_credit
                 sb = get_supabase_admin()
-                sb.from_("analyses").insert({
-                    "user_id": session.user_id,
-                    "ticker": session.ticker,
+                sb.from_("analyses").update({
                     "status": "error",
                     "result": {"error": str(e)},
-                }).execute()
-            except Exception:
-                pass
+                }).eq("id", session.analysis_db_id).execute()
+                await refund_credit(session.user_id, session.analysis_db_id)
+            except Exception as refund_err:
+                log.error("Failed to refund credit on error: %s", refund_err)
         session.emit_error(str(e))
