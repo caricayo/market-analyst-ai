@@ -70,7 +70,13 @@ function AuthForm() {
           });
           if (error) throw error;
         } else {
-          const { error } = await sb.auth.signUp({ email, password });
+          const { error } = await sb.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
+            },
+          });
           if (error) throw error;
           setCheckEmail(true);
         }
