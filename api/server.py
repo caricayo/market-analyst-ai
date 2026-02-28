@@ -22,6 +22,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from api.middleware.auth import AuthMiddleware
 from api.routes.analyze import router as analyze_router
+from api.routes.checkout import router as checkout_router
 from api.routes.tickers import router as tickers_router
 from api.routes.user import router as user_router
 
@@ -109,6 +110,7 @@ app.add_middleware(
 
 # --- Routes ---
 app.include_router(analyze_router)
+app.include_router(checkout_router)
 app.include_router(tickers_router)
 app.include_router(user_router)
 

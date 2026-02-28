@@ -5,9 +5,10 @@ import { createSupabaseClient } from "@/lib/supabase";
 interface HeaderProps {
   userEmail?: string;
   creditsRemaining?: number | null;
+  onOpenStore?: () => void;
 }
 
-export default function Header({ userEmail, creditsRemaining }: HeaderProps) {
+export default function Header({ userEmail, creditsRemaining, onOpenStore }: HeaderProps) {
   const handleSignOut = async () => {
     const sb = createSupabaseClient();
     await sb.auth.signOut();
@@ -27,13 +28,23 @@ export default function Header({ userEmail, creditsRemaining }: HeaderProps) {
         {userEmail && (
           <div className="flex items-center gap-4">
             {creditsRemaining !== null && creditsRemaining !== undefined && (
-              <span
-                className={`text-xs ${
-                  creditsRemaining > 0 ? "text-t-green" : "text-t-red"
-                }`}
-              >
-                {creditsRemaining} credit{creditsRemaining !== 1 ? "s" : ""}
-              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-xs ${
+                    creditsRemaining > 0 ? "text-t-green" : "text-t-red"
+                  }`}
+                >
+                  {creditsRemaining} credit{creditsRemaining !== 1 ? "s" : ""}
+                </span>
+                {creditsRemaining <= 1 && onOpenStore && (
+                  <button
+                    onClick={onOpenStore}
+                    className="text-xs text-t-cyan hover:text-t-cyan/80 transition-colors"
+                  >
+                    GET CREDITS
+                  </button>
+                )}
+              </div>
             )}
             <span className="text-xs text-t-dim">{userEmail}</span>
             <button

@@ -30,6 +30,7 @@ create table credit_ledger (
   delta int not null,
   reason text not null,
   analysis_id uuid references analyses(id),
+  stripe_session_id text,
   created_at timestamptz default now()
 );
 
@@ -77,3 +78,5 @@ create trigger on_auth_user_created
 create index idx_analyses_user_id on analyses(user_id);
 create index idx_analyses_created_at on analyses(created_at desc);
 create index idx_credit_ledger_user_id on credit_ledger(user_id);
+create unique index idx_credit_ledger_stripe_session
+  on credit_ledger(stripe_session_id) where stripe_session_id is not null;

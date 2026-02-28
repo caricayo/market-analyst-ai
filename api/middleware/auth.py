@@ -67,6 +67,7 @@ PUBLIC_PATHS = {
     "/api/health",
     "/api/tickers",
     "/api/analyze/status",
+    "/api/checkout/webhook",
     "/docs",
     "/openapi.json",
 }

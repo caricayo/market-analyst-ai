@@ -153,6 +153,17 @@ export function useAnalysis() {
     setTicker("");
   }, []);
 
+  /** Re-fetch profile to update credit balance (e.g. after purchase) */
+  const refreshCredits = useCallback(async () => {
+    try {
+      const p = await fetchProfile();
+      setCreditsRemaining(p.credits_remaining);
+      return p;
+    } catch {
+      return null;
+    }
+  }, []);
+
   /** Load a saved analysis result directly (from history) */
   const loadSavedResult = useCallback((savedResult: AnalysisResult) => {
     setResult(savedResult);
@@ -182,5 +193,6 @@ export function useAnalysis() {
     cancel,
     reset,
     loadSavedResult,
+    refreshCredits,
   };
 }

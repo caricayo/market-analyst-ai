@@ -235,7 +235,7 @@ function AuthForm() {
 
         {/* Free tier note */}
         <p className="text-center text-xs text-t-dim mt-4">
-          Free tier: 3 analyses/month
+          Free tier: 3 analyses/week
         </p>
       </div>
     </div>

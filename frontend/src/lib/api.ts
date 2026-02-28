@@ -89,6 +89,7 @@ export async function fetchProfile(): Promise<{
   tier: string;
   total_analyses: number;
   member_since: string;
+  next_reset: string | null;
 }> {
   const backendUrl = getBackendUrl();
   const res = await authFetch(`${backendUrl}/api/user/profile`);
@@ -117,4 +118,36 @@ export async function fetchAnalysisById(id: string): Promise<Record<string, unkn
   const res = await authFetch(`${backendUrl}/api/user/analyses/${id}`);
   if (!res.ok) return null;
   return res.json();
+}
+
+export interface CreditPack {
+  id: string;
+  credits: number;
+  price_cents: number;
+  price_display: string;
+  per_credit: string;
+  label: string;
+}
+
+export async function fetchCreditPacks(): Promise<CreditPack[]> {
+  const backendUrl = getBackendUrl();
+  const res = await authFetch(`${backendUrl}/api/checkout/packs`);
+  if (!res.ok) throw new Error("Failed to fetch credit packs");
+  const data = await res.json();
+  return data.packs;
+}
+
+export async function createCheckoutSession(packId: string): Promise<string> {
+  const backendUrl = getBackendUrl();
+  const res = await authFetch(`${backendUrl}/api/checkout/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pack_id: packId }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || "Failed to create checkout session");
+  }
+  const data = await res.json();
+  return data.checkout_url;
 }

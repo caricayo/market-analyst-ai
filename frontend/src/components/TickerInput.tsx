@@ -22,7 +22,6 @@ export default function TickerInput({
   const [suggestions, setSuggestions] = useState<TickerInfo[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(-1);
-  const [warning, setWarning] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fuseRef = useRef<import("fuse.js").default<TickerInfo> | null>(null);
@@ -56,37 +55,18 @@ export default function TickerInput({
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
     setValue(v);
-    setWarning("");
     search(v);
   }
 
   function handleSelect(ticker: TickerInfo) {
     setValue(ticker.ticker);
     setShowDropdown(false);
-    setWarning("");
     inputRef.current?.focus();
   }
 
   function handleSubmit() {
     if (!value.trim() || disabled) return;
-    const upper = value.trim().toUpperCase();
-    const isKnown = tickers.some(
-      (t) => t.ticker === upper || t.name.toLowerCase() === value.trim().toLowerCase()
-    );
-    if (!isKnown) {
-      // Check for fuzzy matches to suggest
-      const fuzzy = fuseRef.current?.search(value.trim()).slice(0, 3) || [];
-      if (fuzzy.length > 0 && !warning) {
-        setWarning(
-          `"${value.trim()}" not found. Did you mean: ${fuzzy
-            .map((r) => r.item.ticker)
-            .join(", ")}? Press Enter again to proceed anyway.`
-        );
-        return;
-      }
-    }
     setShowDropdown(false);
-    setWarning("");
     onSubmit(value.trim());
   }
 
@@ -188,12 +168,6 @@ export default function TickerInput({
         )}
       </div>
 
-      {/* Warning for unrecognized tickers */}
-      {warning && (
-        <div className="mt-2 px-3 py-2 border border-t-amber/40 bg-t-amber/5 text-t-amber text-xs">
-          {warning}
-        </div>
-      )}
     </div>
   );
 }
