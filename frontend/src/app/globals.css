@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+:root {
+  --terminal-black: #0a0a0a;
+  --terminal-dark: #111111;
+  --terminal-gray: #1a1a1a;
+  --terminal-border: #2a2a2a;
+  --terminal-dim: #555555;
+  --terminal-text: #cccccc;
+  --terminal-green: #00ff41;
+  --terminal-green-dim: #00cc33;
+  --terminal-amber: #ffb000;
+  --terminal-amber-dim: #cc8800;
+  --terminal-red: #ff3333;
+  --terminal-red-dim: #cc2222;
+  --terminal-cyan: #00d4ff;
+  --terminal-white: #e0e0e0;
+}
+
+@theme inline {
+  --color-t-black: var(--terminal-black);
+  --color-t-dark: var(--terminal-dark);
+  --color-t-gray: var(--terminal-gray);
+  --color-t-border: var(--terminal-border);
+  --color-t-dim: var(--terminal-dim);
+  --color-t-text: var(--terminal-text);
+  --color-t-green: var(--terminal-green);
+  --color-t-green-dim: var(--terminal-green-dim);
+  --color-t-amber: var(--terminal-amber);
+  --color-t-amber-dim: var(--terminal-amber-dim);
+  --color-t-red: var(--terminal-red);
+  --color-t-red-dim: var(--terminal-red-dim);
+  --color-t-cyan: var(--terminal-cyan);
+  --color-t-white: var(--terminal-white);
+  --font-mono: var(--font-jetbrains);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--terminal-black);
+  color: var(--terminal-text);
+  font-size: 13px;
+}
+
+body {
+  background: var(--terminal-black);
+  color: var(--terminal-text);
+  font-family: var(--font-jetbrains), "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--terminal-black);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--terminal-border);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--terminal-dim);
+}
+
+/* Selection */
+::selection {
+  background: var(--terminal-green);
+  color: var(--terminal-black);
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 1px solid var(--terminal-green);
+  outline-offset: 2px;
+}
+
+/* Glow effect utility */
+.glow-green {
+  text-shadow: 0 0 10px rgba(0, 255, 65, 0.5), 0 0 20px rgba(0, 255, 65, 0.2);
+}
+
+.glow-amber {
+  text-shadow: 0 0 10px rgba(255, 176, 0, 0.5), 0 0 20px rgba(255, 176, 0, 0.2);
+}
+
+/* Blinking cursor animation */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor-blink::after {
+  content: "█";
+  animation: blink 1s step-end infinite;
+  color: var(--terminal-green);
+}
+
+/* Pulse animation for active stage */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(0, 255, 65, 0.4); }
+  50% { box-shadow: 0 0 12px rgba(0, 255, 65, 0.8); }
+}
+
+.pulse-active {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
