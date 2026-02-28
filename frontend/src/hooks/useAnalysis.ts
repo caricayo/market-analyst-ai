@@ -71,9 +71,13 @@ export function useAnalysis() {
     closeEventSource();
     retryCountRef.current = 0;
 
-    // Connect directly to backend for SSE — Next.js rewrite proxy buffers
-    // streaming responses, which breaks real-time event delivery.
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    // In production, use relative URL (goes through Next.js rewrite proxy).
+    // In dev, connect directly to backend to avoid proxy buffering SSE.
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || (
+      typeof window !== "undefined" && window.location.hostname === "localhost"
+        ? "http://localhost:8000"
+        : ""
+    );
     const es = new EventSource(`${backendUrl}/api/analyze/${id}/stream`);
     eventSourceRef.current = es;
 
