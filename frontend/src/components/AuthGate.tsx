@@ -93,7 +93,7 @@ function AuthForm() {
     const sb = createSupabaseClient();
     const { error } = await sb.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
     if (error) setError(error.message);
   }, []);
