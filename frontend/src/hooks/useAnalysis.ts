@@ -8,7 +8,7 @@ import type {
   StageState,
 } from "@/lib/types";
 import { createInitialStages } from "@/lib/constants";
-import { startAnalysis, cancelAnalysis } from "@/lib/api";
+import { startAnalysis, cancelAnalysis, fetchProfile } from "@/lib/api";
 
 export function useAnalysis() {
   const [phase, setPhase] = useState<AnalysisPhase>("idle");
@@ -17,8 +17,16 @@ export function useAnalysis() {
   const [error, setError] = useState<string | null>(null);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [ticker, setTicker] = useState<string>("");
+  const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const retryCountRef = useRef(0);
+
+  // Load credit balance on mount
+  useEffect(() => {
+    fetchProfile()
+      .then((p) => setCreditsRemaining(p.credits_remaining))
+      .catch(() => {});
+  }, []);
 
   function updateStage(stageId: string, updates: Partial<StageState>) {
     setStages((prev) =>
@@ -52,6 +60,10 @@ export function useAnalysis() {
     } else if (event.event_type === "analysis_complete" && event.data) {
       setResult(event.data);
       setPhase("complete");
+      // Refresh credit balance after completed analysis
+      fetchProfile()
+        .then((p) => setCreditsRemaining(p.credits_remaining))
+        .catch(() => {});
       closeEventSource();
     } else if (event.event_type === "analysis_error") {
       setError(event.detail || "Analysis failed");
@@ -111,9 +123,12 @@ export function useAnalysis() {
       setTicker(tickerInput);
 
       try {
-        const { analysis_id } = await startAnalysis(tickerInput);
-        setAnalysisId(analysis_id);
-        connectToStream(analysis_id);
+        const response = await startAnalysis(tickerInput);
+        setAnalysisId(response.analysis_id);
+        if (response.credits_remaining !== undefined) {
+          setCreditsRemaining(response.credits_remaining);
+        }
+        connectToStream(response.analysis_id);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to start analysis");
         setPhase("error");
@@ -144,6 +159,19 @@ export function useAnalysis() {
     setTicker("");
   }, []);
 
+  /** Load a saved analysis result directly (from history) */
+  const loadSavedResult = useCallback((savedResult: AnalysisResult) => {
+    setResult(savedResult);
+    setTicker(savedResult.ticker);
+    setPhase("complete");
+    setStages(
+      createInitialStages().map((s) => ({
+        ...s,
+        status: "complete" as const,
+      }))
+    );
+  }, []);
+
   // Clean up EventSource on unmount
   useEffect(() => {
     return () => closeEventSource();
@@ -155,8 +183,10 @@ export function useAnalysis() {
     result,
     error,
     ticker,
+    creditsRemaining,
     start,
     cancel,
     reset,
+    loadSavedResult,
   };
 }

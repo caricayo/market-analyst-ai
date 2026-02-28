@@ -10,8 +10,8 @@ GET /api/analyze/status — returns inactive (kept for backward compat)
 import asyncio
 import json
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from api.services.event_bus import (
@@ -21,6 +21,7 @@ from api.services.event_bus import (
     PipelineEvent,
 )
 from api.services.pipeline_runner import execute_pipeline
+from api.services.credits import check_credits, deduct_credit, ensure_profile
 
 router = APIRouter()
 
@@ -30,18 +31,40 @@ class AnalyzeRequest(BaseModel):
 
 
 @router.post("/api/analyze")
-async def start_analysis(request: AnalyzeRequest):
-    """Start a new analysis pipeline."""
-    ticker = request.ticker.strip()
+async def start_analysis(body: AnalyzeRequest, request: Request):
+    """Start a new analysis pipeline. Requires auth and available credits."""
+    user_id = request.state.user_id
+
+    # Ensure profile exists (first-time users)
+    await ensure_profile(user_id)
+
+    # Check credits before starting
+    has_credits, credits_remaining = await check_credits(user_id)
+    if not has_credits:
+        return JSONResponse(
+            status_code=402,
+            content={
+                "error": "no_credits",
+                "detail": "No analysis credits remaining",
+                "credits_remaining": 0,
+            },
+        )
+
+    ticker = body.ticker.strip()
     if not ticker:
         raise HTTPException(status_code=400, detail="Ticker is required")
 
     session = create_session(ticker)
+    session.user_id = user_id
 
     # Launch pipeline as background task
     session.task = asyncio.create_task(execute_pipeline(session))
 
-    return {"analysis_id": session.id, "ticker": ticker}
+    return {
+        "analysis_id": session.id,
+        "ticker": ticker,
+        "credits_remaining": credits_remaining - 1,
+    }
 
 
 def _event_to_sse(event: PipelineEvent) -> str:

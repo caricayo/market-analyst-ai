@@ -2,9 +2,11 @@
 arfour — Pipeline Runner
 
 Wraps run_pipeline() from main.py with event emission to the analysis session.
+Saves completed results to Supabase and deducts credits.
 """
 
 import asyncio
+import logging
 import re
 import sys
 from pathlib import Path
@@ -14,6 +16,8 @@ from dataclasses import asdict
 _project_root = str(Path(__file__).resolve().parent.parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
+
+log = logging.getLogger(__name__)
 
 from main import run_pipeline
 from config import PERSONAS
@@ -85,16 +89,54 @@ async def execute_pipeline(session: AnalysisSession) -> None:
             )
             persona_verdicts.append(asdict(verdict))
 
-        # Emit completion
-        session.emit_complete({
+        result_data = {
             "ticker": session.ticker,
             "filepath": str(filepath),
             "sections": sections,
             "persona_verdicts": persona_verdicts,
-        })
+        }
+
+        # Save to Supabase and deduct credit if user is authenticated
+        if session.user_id:
+            try:
+                from api.services.supabase import get_supabase_admin
+                from api.services.credits import deduct_credit
+
+                sb = get_supabase_admin()
+
+                # Insert analysis record
+                analysis_row = sb.from_("analyses").insert({
+                    "user_id": session.user_id,
+                    "ticker": session.ticker,
+                    "status": "complete",
+                    "result": result_data,
+                    "cost_usd": 0.29,
+                }).execute()
+
+                # Deduct credit
+                analysis_db_id = analysis_row.data[0]["id"]
+                await deduct_credit(session.user_id, analysis_db_id)
+            except Exception as e:
+                log.warning("Failed to save analysis to Supabase: %s", e)
+
+        # Emit completion
+        session.emit_complete(result_data)
 
     except asyncio.CancelledError:
         session.is_cancelled = True
         session.is_complete = True
     except Exception as e:
+        # Record error in Supabase if authenticated
+        if session.user_id:
+            try:
+                from api.services.supabase import get_supabase_admin
+                sb = get_supabase_admin()
+                sb.from_("analyses").insert({
+                    "user_id": session.user_id,
+                    "ticker": session.ticker,
+                    "status": "error",
+                    "result": {"error": str(e)},
+                }).execute()
+            except Exception:
+                pass
         session.emit_error(str(e))

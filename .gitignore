@@ -1,5 +1,7 @@
 # Secrets
 .env
+.env.local
+frontend/.env.local
 
 # Python
 __pycache__/

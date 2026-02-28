@@ -1,21 +1,57 @@
 "use client";
 
+import AuthGate from "@/components/AuthGate";
 import Header from "@/components/Header";
 import Disclaimer from "@/components/Disclaimer";
 import TickerInput from "@/components/TickerInput";
 import PipelineTracker from "@/components/PipelineTracker";
 import ReportView from "@/components/ReportView";
+import AnalysisHistory from "@/components/AnalysisHistory";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useTickerSearch } from "@/hooks/useTickerSearch";
+import { useHistory } from "@/hooks/useHistory";
+import type { AnalysisResult } from "@/lib/types";
 
 export default function Home() {
+  return (
+    <AuthGate>
+      {(user, _session) => <AppContent userEmail={user.email} />}
+    </AuthGate>
+  );
+}
+
+function AppContent({ userEmail }: { userEmail?: string }) {
   const { tickers } = useTickerSearch();
-  const { phase, stages, result, error, ticker, start, cancel, reset } =
-    useAnalysis();
+  const {
+    phase,
+    stages,
+    result,
+    error,
+    ticker,
+    creditsRemaining,
+    start,
+    cancel,
+    reset,
+    loadSavedResult,
+  } = useAnalysis();
+  const { analyses, loading: historyLoading, loadAnalysis, fetchHistory } = useHistory();
+
+  const handleLoadSaved = async (id: string) => {
+    const full = await loadAnalysis(id);
+    if (full?.result) {
+      loadSavedResult(full.result as AnalysisResult);
+    }
+  };
+
+  // Refresh history after a completed analysis
+  const handleReset = () => {
+    reset();
+    fetchHistory();
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
+      <Header userEmail={userEmail} creditsRemaining={creditsRemaining} />
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-6">
         {/* Ticker Input — always visible */}
@@ -27,7 +63,26 @@ export default function Home() {
             onCancel={cancel}
             isRunning={phase === "running"}
           />
+          {/* Credit warning */}
+          {creditsRemaining !== null && creditsRemaining === 0 && phase === "idle" && (
+            <div className="mt-2 border border-t-amber bg-t-amber/5 px-3 py-2">
+              <p className="text-xs text-t-amber">
+                No credits remaining. Free tier includes 3 analyses/month.
+              </p>
+            </div>
+          )}
         </div>
+
+        {/* Analysis History — show when idle */}
+        {phase === "idle" && (
+          <div className="mb-6">
+            <AnalysisHistory
+              analyses={analyses}
+              loading={historyLoading}
+              onSelect={handleLoadSaved}
+            />
+          </div>
+        )}
 
         {/* Running state: show pipeline tracker */}
         {phase === "running" && (
@@ -58,7 +113,7 @@ export default function Home() {
             </div>
             <p className="text-xs text-t-text mb-3">{error}</p>
             <button
-              onClick={reset}
+              onClick={handleReset}
               className="px-4 py-1.5 border border-t-green text-t-green text-xs hover:bg-t-green/10 transition-colors"
             >
               TRY AGAIN
@@ -76,7 +131,7 @@ export default function Home() {
                   Report: {result.ticker}
                 </span>
                 <button
-                  onClick={reset}
+                  onClick={handleReset}
                   className="text-xs text-t-dim hover:text-t-text transition-colors"
                 >
                   NEW ANALYSIS
@@ -88,7 +143,7 @@ export default function Home() {
         )}
 
         {/* Idle state: show welcome message */}
-        {phase === "idle" && (
+        {phase === "idle" && analyses.length === 0 && !historyLoading && (
           <div className="text-center py-16">
             <div className="text-t-dim text-xs space-y-2">
               <p>Enter a ticker symbol or company name to begin analysis.</p>
