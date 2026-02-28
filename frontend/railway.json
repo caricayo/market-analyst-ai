@@ -3,11 +3,11 @@
   "build": {
     "builder": "NIXPACKS",
     "watchPatterns": [
-      "frontend/**"
+      "**"
     ]
   },
   "deploy": {
-    "startCommand": "npm run start -- -p $PORT",
+    "startCommand": "npm run start",
     "healthcheckPath": "/",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5
