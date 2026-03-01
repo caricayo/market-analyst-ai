@@ -62,8 +62,13 @@ async def execute_pipeline(session: AnalysisSession) -> None:
             session.emit_section(section_name, content, extra)
 
         # Run the pipeline with a 10-minute global timeout
-        filepath = await asyncio.wait_for(
-            run_pipeline(session.ticker, on_progress=on_progress, on_section=on_section),
+        filepath, usage = await asyncio.wait_for(
+            run_pipeline(
+                session.ticker,
+                on_progress=on_progress,
+                on_section=on_section,
+                return_usage=True,
+            ),
             timeout=600,
         )
 
@@ -102,6 +107,7 @@ async def execute_pipeline(session: AnalysisSession) -> None:
             "filepath": str(filepath),
             "sections": sections,
             "persona_verdicts": persona_verdicts,
+            "usage": usage,
         }
 
         # Update analysis record with result (record + credit deducted in analyze.py)
@@ -112,6 +118,7 @@ async def execute_pipeline(session: AnalysisSession) -> None:
                 await sb.from_("analyses").update({
                     "status": "complete",
                     "result": result_data,
+                    "cost_usd": usage.get("total_cost_usd", 0.0),
                 }).eq("id", session.analysis_db_id).execute()
             except Exception as e:
                 log.warning("Failed to update analysis in Supabase: %s", e)

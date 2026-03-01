@@ -15,9 +15,11 @@ Usage:
 
 import asyncio
 import json
+import logging
 import re
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from openai import AsyncOpenAI
@@ -57,6 +59,8 @@ from config import (
     RETRY_DELAY_SECONDS,
     PERSONAS,
     SYNTHESIS_PROMPT_PATH,
+    OPENAI_MODEL_PRICING_PER_1M,
+    OPENAI_WEB_SEARCH_PRICING_PER_1K,
 )
 from intake import run_intake, IntakeError
 from assembly import (
@@ -77,6 +81,127 @@ from deep_dive_prompts import (
 # OpenAI Client
 # ---------------------------------------------------------------------------
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+log = logging.getLogger(__name__)
+
+
+def _as_dict(value) -> dict:
+    """Convert OpenAI SDK objects/dicts into plain dicts."""
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    if hasattr(value, "model_dump"):
+        try:
+            return value.model_dump()
+        except Exception:
+            return {}
+    if hasattr(value, "dict"):
+        try:
+            return value.dict()
+        except Exception:
+            return {}
+    if hasattr(value, "__dict__"):
+        try:
+            return dict(value.__dict__)
+        except Exception:
+            return {}
+    return {}
+
+
+def _safe_int(value) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _resolve_model_pricing(model_name: str) -> dict[str, float]:
+    """Resolve pricing by exact model id or base prefix (e.g. gpt-4.1-mini-*)."""
+    if model_name in OPENAI_MODEL_PRICING_PER_1M:
+        return OPENAI_MODEL_PRICING_PER_1M[model_name]
+
+    for base_model, pricing in OPENAI_MODEL_PRICING_PER_1M.items():
+        if model_name.startswith(f"{base_model}-") or model_name.startswith(base_model):
+            return pricing
+
+    # Default to mini pricing when model name is unavailable.
+    return OPENAI_MODEL_PRICING_PER_1M.get("gpt-4.1-mini", {"input": 0.0, "cached_input": 0.0, "output": 0.0})
+
+
+def _count_web_search_calls(response) -> int:
+    """Count web search tool calls in a responses API result."""
+    output_items = getattr(response, "output", None) or []
+    count = 0
+    for item in output_items:
+        item_dict = _as_dict(item)
+        item_type = item_dict.get("type")
+        if not item_type and hasattr(item, "type"):
+            item_type = getattr(item, "type")
+        if isinstance(item_type, str) and "web_search" in item_type:
+            count += 1
+    return count
+
+
+@dataclass
+class UsageTracker:
+    """Accumulates token usage and estimated cost for one pipeline run."""
+    request_count: int = 0
+    input_tokens: int = 0
+    cached_input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    web_search_calls: int = 0
+    input_token_cost_usd: float = 0.0
+    output_token_cost_usd: float = 0.0
+    web_search_cost_usd: float = 0.0
+
+    def record_response(self, response) -> None:
+        usage = _as_dict(getattr(response, "usage", None))
+        input_tokens = _safe_int(usage.get("input_tokens"))
+        output_tokens = _safe_int(usage.get("output_tokens"))
+        total_tokens = _safe_int(usage.get("total_tokens")) or (input_tokens + output_tokens)
+
+        input_details = _as_dict(usage.get("input_tokens_details"))
+        cached_tokens = _safe_int(input_details.get("cached_tokens"))
+        billable_input_tokens = max(input_tokens - cached_tokens, 0)
+
+        model_name = str(getattr(response, "model", "") or "")
+        model_pricing = _resolve_model_pricing(model_name)
+
+        self.request_count += 1
+        self.input_tokens += input_tokens
+        self.cached_input_tokens += cached_tokens
+        self.output_tokens += output_tokens
+        self.total_tokens += total_tokens
+
+        self.input_token_cost_usd += (
+            (billable_input_tokens * model_pricing.get("input", 0.0))
+            + (cached_tokens * model_pricing.get("cached_input", 0.0))
+        ) / 1_000_000
+        self.output_token_cost_usd += (
+            output_tokens * model_pricing.get("output", 0.0)
+        ) / 1_000_000
+
+        search_calls = _count_web_search_calls(response)
+        self.web_search_calls += search_calls
+        self.web_search_cost_usd += (
+            search_calls * OPENAI_WEB_SEARCH_PRICING_PER_1K.get("web_search_preview_non_reasoning", 0.0)
+        ) / 1_000
+
+    def snapshot(self) -> dict[str, int | float]:
+        total_cost = self.input_token_cost_usd + self.output_token_cost_usd + self.web_search_cost_usd
+        return {
+            "request_count": self.request_count,
+            "input_tokens": self.input_tokens,
+            "cached_input_tokens": self.cached_input_tokens,
+            "output_tokens": self.output_tokens,
+            "total_tokens": self.total_tokens,
+            "web_search_calls": self.web_search_calls,
+            "input_token_cost_usd": round(self.input_token_cost_usd, 6),
+            "output_token_cost_usd": round(self.output_token_cost_usd, 6),
+            "web_search_cost_usd": round(self.web_search_cost_usd, 6),
+            "total_cost_usd": round(total_cost, 6),
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +225,7 @@ def progress(stage: str, detail: str = "", _on_progress=None, _start=None) -> No
 async def run_research_lane(
     lane_id: str,
     company: str,
+    usage_tracker: UsageTracker | None = None,
     on_progress=None,
     start_time=None,
 ) -> tuple[str, str]:
@@ -125,6 +251,8 @@ async def run_research_lane(
                 ),
                 timeout=RESEARCH_LANE_TIMEOUT,
             )
+            if usage_tracker:
+                usage_tracker.record_response(response)
 
             text = response.output_text
             if not text:
@@ -145,6 +273,7 @@ async def run_research_lane(
 async def merge_research_lanes(
     company: str,
     lane_results: dict[str, str],
+    usage_tracker: UsageTracker | None = None,
     on_progress=None,
     start_time=None,
 ) -> str:
@@ -179,6 +308,8 @@ async def merge_research_lanes(
             ),
             timeout=RESEARCH_MERGE_TIMEOUT,
         )
+        if usage_tracker:
+            usage_tracker.record_response(response)
 
         text = response.output_text
         if not text:
@@ -194,7 +325,10 @@ async def merge_research_lanes(
 
 
 async def run_research_phase(
-    company: str, on_progress=None, start_time=None
+    company: str,
+    usage_tracker: UsageTracker | None = None,
+    on_progress=None,
+    start_time=None,
 ) -> str:
     """
     Phase 2A: Scatter-gather research — launch 6 parallel focused lanes,
@@ -205,7 +339,7 @@ async def run_research_phase(
 
     # Launch all lanes in parallel with an outer timeout
     lane_tasks = [
-        run_research_lane(lid, company, on_progress, start_time)
+        run_research_lane(lid, company, usage_tracker, on_progress, start_time)
         for lid in RESEARCH_LANES
     ]
 
@@ -240,7 +374,13 @@ async def run_research_phase(
         )
 
     # Merge lane outputs into unified brief
-    brief = await merge_research_lanes(company, lane_results, on_progress, start_time)
+    brief = await merge_research_lanes(
+        company,
+        lane_results,
+        usage_tracker=usage_tracker,
+        on_progress=on_progress,
+        start_time=start_time,
+    )
     _p("Stage 2", f"Research complete ({len(brief):,} chars)")
     return brief
 
@@ -251,6 +391,7 @@ async def run_section_group(
     research_brief: str,
     sections: list[int],
     templates: dict[int, str],
+    usage_tracker: UsageTracker | None = None,
     on_progress=None,
     start_time=None,
 ) -> tuple[str, str]:
@@ -277,6 +418,8 @@ async def run_section_group(
                 ),
                 timeout=SECTION_WRITE_TIMEOUT,
             )
+            if usage_tracker:
+                usage_tracker.record_response(response)
 
             text = response.output_text
             if not text:
@@ -300,6 +443,7 @@ async def run_bookend_phase(
     research_brief: str,
     prior_sections_text: str,
     templates: dict[int, str],
+    usage_tracker: UsageTracker | None = None,
     on_progress=None,
     start_time=None,
 ) -> str:
@@ -327,6 +471,8 @@ async def run_bookend_phase(
                 ),
                 timeout=BOOKEND_TIMEOUT,
             )
+            if usage_tracker:
+                usage_tracker.record_response(response)
 
             text = response.output_text
             if not text:
@@ -351,6 +497,7 @@ async def run_bookend_phase(
 
 async def run_deep_dive(
     prepared_template: str,
+    usage_tracker: UsageTracker | None = None,
     on_progress=None,
     start_time=None,
     company_name: str = "",
@@ -370,7 +517,12 @@ async def run_deep_dive(
     templates = load_template_sections()
 
     # --- Phase 2A: Research ---
-    research_brief = await run_research_phase(company_name, on_progress, start_time)
+    research_brief = await run_research_phase(
+        company_name,
+        usage_tracker=usage_tracker,
+        on_progress=on_progress,
+        start_time=start_time,
+    )
 
     # --- Phase 2B: Parallel section writes ---
     _p("Stage 2", "Phase 2/3: Writing sections in parallel (4 groups)...")
@@ -381,7 +533,9 @@ async def run_deep_dive(
             run_section_group(
                 gid, company_name, research_brief,
                 ginfo["sections"], templates,
-                on_progress, start_time,
+                usage_tracker=usage_tracker,
+                on_progress=on_progress,
+                start_time=start_time,
             )
         )
     group_results = await asyncio.gather(*group_tasks, return_exceptions=True)
@@ -406,7 +560,10 @@ async def run_deep_dive(
     # --- Phase 2C: Bookend sections ---
     bookend_text = await run_bookend_phase(
         company_name, research_brief, prior_sections_text,
-        templates, on_progress, start_time,
+        templates,
+        usage_tracker=usage_tracker,
+        on_progress=on_progress,
+        start_time=start_time,
     )
 
     # --- Assemble final report: Section 0, then 1-11, then 12-13 ---
@@ -442,7 +599,11 @@ async def run_deep_dive(
 # Stage 3: Persona Evaluation
 # ---------------------------------------------------------------------------
 async def run_single_persona(
-    persona: dict, deep_dive: str, on_progress=None, start_time=None
+    persona: dict,
+    deep_dive: str,
+    usage_tracker: UsageTracker | None = None,
+    on_progress=None,
+    start_time=None,
 ) -> tuple[str, str | None]:
     """
     Run a single persona evaluation.
@@ -478,6 +639,8 @@ async def run_single_persona(
                 ),
                 timeout=PERSONA_TIMEOUT,
             )
+            if usage_tracker:
+                usage_tracker.record_response(response)
 
             text = response.output_text
             if not text:
@@ -498,7 +661,12 @@ async def run_single_persona(
                 return persona_id, None
 
 
-async def run_personas(deep_dive: str, on_progress=None, start_time=None) -> dict[str, str | None]:
+async def run_personas(
+    deep_dive: str,
+    usage_tracker: UsageTracker | None = None,
+    on_progress=None,
+    start_time=None,
+) -> dict[str, str | None]:
     """
     Run all persona evaluations in parallel.
 
@@ -507,7 +675,10 @@ async def run_personas(deep_dive: str, on_progress=None, start_time=None) -> dic
     _p = lambda s, d="": progress(s, d, _on_progress=on_progress, _start=start_time)
     _p("Stage 3", "Launching 3 persona evaluations in parallel...")
 
-    tasks = [run_single_persona(p, deep_dive, on_progress, start_time) for p in PERSONAS]
+    tasks = [
+        run_single_persona(p, deep_dive, usage_tracker, on_progress, start_time)
+        for p in PERSONAS
+    ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     persona_outputs: dict[str, str | None] = {}
@@ -532,6 +703,7 @@ async def run_personas(deep_dive: str, on_progress=None, start_time=None) -> dic
 async def run_synthesis(
     executive_summary: str,
     persona_outputs: dict[str, str | None],
+    usage_tracker: UsageTracker | None = None,
     on_progress=None,
     start_time=None,
 ) -> str | None:
@@ -581,6 +753,8 @@ async def run_synthesis(
                 ),
                 timeout=SYNTHESIS_TIMEOUT,
             )
+            if usage_tracker:
+                usage_tracker.record_response(response)
 
             text = response.output_text
             if not text:
@@ -603,7 +777,12 @@ async def run_synthesis(
 # ---------------------------------------------------------------------------
 # Main Pipeline
 # ---------------------------------------------------------------------------
-async def run_pipeline(raw_input: str, on_progress=None, on_section=None) -> Path:
+async def run_pipeline(
+    raw_input: str,
+    on_progress=None,
+    on_section=None,
+    return_usage: bool = False,
+) -> Path | tuple[Path, dict[str, int | float]]:
     """
     Execute the full TriView Capital analysis pipeline.
 
@@ -613,9 +792,10 @@ async def run_pipeline(raw_input: str, on_progress=None, on_section=None) -> Pat
         on_section: Optional callback(section_name, content, extra_data) for streaming partial results
 
     Returns:
-        Path to the saved report file
+        Path to the saved report file, or (path, usage_snapshot) when return_usage=True
     """
     pipeline_start = time.time()
+    usage_tracker = UsageTracker()
     _p = lambda s, d="": progress(s, d, _on_progress=on_progress, _start=pipeline_start)
 
     # ---- Stage 1: Intake ----
@@ -633,7 +813,11 @@ async def run_pipeline(raw_input: str, on_progress=None, on_section=None) -> Pat
     if on_progress:
         on_progress("Stage 2", "running", "Starting deep dive analysis...")
     deep_dive = await run_deep_dive(
-        prepared_template, on_progress, pipeline_start, company_name=company_name
+        prepared_template,
+        usage_tracker=usage_tracker,
+        on_progress=on_progress,
+        start_time=pipeline_start,
+        company_name=company_name,
     )
     if on_progress:
         on_progress("Stage 2", "complete", f"Deep dive complete ({len(deep_dive):,} chars)")
@@ -643,7 +827,12 @@ async def run_pipeline(raw_input: str, on_progress=None, on_section=None) -> Pat
     # ---- Stage 3: Personas (parallel) ----
     if on_progress:
         on_progress("Stage 3", "running", "Launching persona evaluations...")
-    persona_outputs = await run_personas(deep_dive, on_progress, pipeline_start)
+    persona_outputs = await run_personas(
+        deep_dive,
+        usage_tracker=usage_tracker,
+        on_progress=on_progress,
+        start_time=pipeline_start,
+    )
     if on_progress:
         available = sum(1 for v in persona_outputs.values() if v is not None)
         on_progress("Stage 3", "complete", f"{available}/{len(persona_outputs)} personas complete")
@@ -658,7 +847,13 @@ async def run_pipeline(raw_input: str, on_progress=None, on_section=None) -> Pat
     if on_progress:
         on_progress("Stage 4", "running", "Starting synthesis...")
     executive_summary = extract_executive_summary(deep_dive)
-    synthesis = await run_synthesis(executive_summary, persona_outputs, on_progress, pipeline_start)
+    synthesis = await run_synthesis(
+        executive_summary,
+        persona_outputs,
+        usage_tracker=usage_tracker,
+        on_progress=on_progress,
+        start_time=pipeline_start,
+    )
     if on_progress:
         on_progress("Stage 4", "complete", "Synthesis complete")
     if on_section and synthesis:
@@ -688,6 +883,11 @@ async def run_pipeline(raw_input: str, on_progress=None, on_section=None) -> Pat
         for w in warnings:
             print(f"           - {w}")
 
+    usage_snapshot = usage_tracker.snapshot()
+    _p("Usage", f"Estimated OpenAI cost: ${usage_snapshot['total_cost_usd']:.4f}")
+
+    if return_usage:
+        return filepath, usage_snapshot
     return filepath
 
 

@@ -121,7 +121,7 @@ async def start_analysis(body: AnalyzeRequest, request: Request):
             "user_id": user_id,
             "ticker": ticker,
             "status": "running",
-            "cost_usd": 0.29,
+            "cost_usd": 0.0,
         }).execute()
         analysis_db_id = analysis_row.data[0]["id"]
     except Exception as e:

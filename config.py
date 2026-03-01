@@ -10,6 +10,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def _env_float(name: str, default: float) -> float:
+    """Parse float env vars safely with a fallback."""
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -23,6 +34,33 @@ OUTPUT_DIR = PROJECT_ROOT / "reports"
 # OpenAI API
 # ---------------------------------------------------------------------------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+# Standard token pricing (USD per 1M tokens), aligned with docs pricing.
+# Override via env vars if your account tier differs (batch/flex/priority).
+OPENAI_MODEL_PRICING_PER_1M = {
+    "gpt-4.1": {
+        "input": _env_float("OPENAI_GPT41_INPUT_PER_1M", 2.00),
+        "cached_input": _env_float("OPENAI_GPT41_CACHED_INPUT_PER_1M", 0.50),
+        "output": _env_float("OPENAI_GPT41_OUTPUT_PER_1M", 8.00),
+    },
+    "gpt-4.1-mini": {
+        "input": _env_float("OPENAI_GPT41_MINI_INPUT_PER_1M", 0.40),
+        "cached_input": _env_float("OPENAI_GPT41_MINI_CACHED_INPUT_PER_1M", 0.10),
+        "output": _env_float("OPENAI_GPT41_MINI_OUTPUT_PER_1M", 1.60),
+    },
+    "gpt-4o-mini": {
+        "input": _env_float("OPENAI_GPT4O_MINI_INPUT_PER_1M", 0.15),
+        "cached_input": _env_float("OPENAI_GPT4O_MINI_CACHED_INPUT_PER_1M", 0.075),
+        "output": _env_float("OPENAI_GPT4O_MINI_OUTPUT_PER_1M", 0.60),
+    },
+}
+
+# Web search tool pricing (USD per 1K tool calls).
+OPENAI_WEB_SEARCH_PRICING_PER_1K = {
+    "web_search": _env_float("OPENAI_WEB_SEARCH_PER_1K", 10.0),
+    "web_search_preview_non_reasoning": _env_float("OPENAI_WEB_SEARCH_PREVIEW_NON_REASONING_PER_1K", 25.0),
+    "web_search_preview_reasoning": _env_float("OPENAI_WEB_SEARCH_PREVIEW_REASONING_PER_1K", 10.0),
+}
 
 # ---------------------------------------------------------------------------
 # Model Configuration
