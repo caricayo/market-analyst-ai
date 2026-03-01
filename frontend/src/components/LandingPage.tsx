@@ -222,7 +222,7 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
             <div className="text-xs text-t-amber uppercase tracking-wider mb-2">
               Starter Pack
             </div>
-            <div className="text-2xl font-bold text-t-green mb-1">$4.99</div>
+            <div className="text-2xl font-bold text-t-green mb-1">$5</div>
             <div className="text-xs text-t-text mb-3">10 credits</div>
             <div className="text-[10px] text-t-dim">
               $0.50 per analysis
@@ -233,8 +233,8 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
             <div className="text-xs text-t-amber uppercase tracking-wider mb-2">
               Pro Pack
             </div>
-            <div className="text-2xl font-bold text-t-green mb-1">$19.99</div>
-            <div className="text-xs text-t-text mb-3">50 credits</div>
+            <div className="text-2xl font-bold text-t-green mb-1">$12</div>
+            <div className="text-xs text-t-text mb-3">30 credits</div>
             <div className="text-[10px] text-t-dim">
               $0.40 per analysis
             </div>
