@@ -20,12 +20,32 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
     return localStorage.getItem("arfor_demo_used") === "1";
   });
 
-  const scrollToSample = () =>
-    sampleRef.current?.scrollIntoView({ behavior: "smooth" });
-  const scrollToAuth = () =>
-    authRef.current?.scrollIntoView({ behavior: "smooth" });
-  const scrollToDemo = () =>
-    demoRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToSection = (
+    ref: React.RefObject<HTMLDivElement | null>,
+    fallbackId: string
+  ) => {
+    const target = ref.current ?? document.getElementById(fallbackId);
+    if (!target) return;
+
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
+
+    // Mobile layout can still shift right after first paint; re-apply scroll once.
+    const doScroll = () => target.scrollIntoView({ behavior, block: "start" });
+    doScroll();
+    window.setTimeout(doScroll, 220);
+  };
+
+  const handleAnchorScroll = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    ref: React.RefObject<HTMLDivElement | null>,
+    fallbackId: string
+  ) => {
+    e.preventDefault();
+    scrollToSection(ref, fallbackId);
+  };
 
   const handleDemoSubmit = (t: string) => {
     localStorage.setItem("arfor_demo_used", "1");
@@ -55,26 +75,29 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <button
-            onClick={scrollToSample}
+          <a
+            href="#sample-report"
+            onClick={(e) => handleAnchorScroll(e, sampleRef, "sample-report")}
             className="px-6 py-2.5 border border-t-green text-t-green text-xs uppercase tracking-wider hover:bg-t-green/10 transition-colors"
           >
             See Sample Report
-          </button>
+          </a>
           {!demoUsed && (
-            <button
-              onClick={scrollToDemo}
+            <a
+              href="#free-analysis"
+              onClick={(e) => handleAnchorScroll(e, demoRef, "free-analysis")}
               className="px-6 py-2.5 border border-t-amber text-t-amber text-xs uppercase tracking-wider hover:bg-t-amber/10 transition-colors"
             >
               Try Free Analysis
-            </button>
+            </a>
           )}
-          <button
-            onClick={scrollToAuth}
+          <a
+            href="#auth-section"
+            onClick={(e) => handleAnchorScroll(e, authRef, "auth-section")}
             className="px-6 py-2.5 border border-t-border text-t-text text-xs uppercase tracking-wider hover:border-t-amber hover:text-t-amber transition-colors"
           >
             Sign In
-          </button>
+          </a>
         </div>
       </section>
 
@@ -108,7 +131,11 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
       </section>
 
       {/* ── Sample Report ── */}
-      <section ref={sampleRef} className="max-w-6xl mx-auto w-full px-6 py-16">
+      <section
+        id="sample-report"
+        ref={sampleRef}
+        className="max-w-6xl mx-auto w-full px-6 py-16 scroll-mt-6"
+      >
         <h2 className="text-xs text-t-dim uppercase tracking-widest mb-2 text-center">
           Sample Report
         </h2>
@@ -127,7 +154,11 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
       </section>
 
       {/* ── Try Free Analysis ── */}
-      <section ref={demoRef} className="px-6 py-16">
+      <section
+        id="free-analysis"
+        ref={demoRef}
+        className="px-6 py-16 scroll-mt-6"
+      >
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-sm text-t-amber uppercase tracking-widest mb-3">
             Try It Free
@@ -142,7 +173,7 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
                 You&apos;ve used your free demo. Sign up for 3 free analyses every week.
               </p>
               <button
-                onClick={scrollToAuth}
+                onClick={() => scrollToSection(authRef, "auth-section")}
                 className="px-6 py-2.5 border border-t-green text-t-green text-xs uppercase tracking-wider hover:bg-t-green/10 transition-colors"
               >
                 Create Free Account
@@ -238,8 +269,9 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
 
       {/* ── Auth ── */}
       <section
+        id="auth-section"
         ref={authRef}
-        className="flex flex-col items-center px-6 py-16"
+        className="flex flex-col items-center px-6 py-16 scroll-mt-6"
       >
         <h2 className="text-xs text-t-dim uppercase tracking-widest mb-2">
           Get Started
