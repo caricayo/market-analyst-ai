@@ -4,7 +4,6 @@ import { useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
 import type { PersonaVerdict } from "@/lib/types";
 import ComparisonTable from "./ComparisonTable";
 import VerdictBadge from "./VerdictBadge";
@@ -130,7 +129,6 @@ export default function PerspectiveTab({ content, verdicts }: PerspectiveTabProp
                 <div className="border border-t-0 border-t-border bg-t-black/50 px-4 py-3">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeRaw]}
                     components={markdownComponents}
                   >
                     {block.trim()}

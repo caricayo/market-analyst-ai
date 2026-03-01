@@ -6,8 +6,8 @@ Supports concurrent sessions keyed by session ID.
 """
 
 import asyncio
+import secrets
 import time
-import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -99,7 +99,7 @@ def _cleanup_stale_sessions() -> None:
 
 def create_session(ticker: str) -> AnalysisSession:
     _cleanup_stale_sessions()
-    session_id = uuid.uuid4().hex[:12]
+    session_id = secrets.token_hex(16)
     session = AnalysisSession(session_id, ticker)
     _sessions[session_id] = session
     return session

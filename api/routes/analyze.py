@@ -53,7 +53,7 @@ async def start_analysis(body: AnalyzeRequest, request: Request):
     # Create analysis record FIRST (before deducting credit)
     sb = get_supabase_admin()
     try:
-        analysis_row = sb.from_("analyses").insert({
+        analysis_row = await sb.from_("analyses").insert({
             "user_id": user_id,
             "ticker": ticker,
             "status": "running",
@@ -69,7 +69,7 @@ async def start_analysis(body: AnalyzeRequest, request: Request):
     if new_balance < 0:
         # No credits — clean up the analysis record
         try:
-            sb.from_("analyses").delete().eq("id", analysis_db_id).execute()
+            await sb.from_("analyses").delete().eq("id", analysis_db_id).execute()
         except Exception:
             pass
         return JSONResponse(

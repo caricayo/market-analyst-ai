@@ -126,4 +126,26 @@ app.include_router(user_router)
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "arfour"}
+    checks = {"supabase": "ok", "stripe": "ok"}
+    status = "ok"
+
+    # Check Supabase connectivity
+    try:
+        from api.services.supabase import get_supabase_admin
+        sb = get_supabase_admin()
+        await sb.from_("profiles").select("id").limit(1).execute()
+    except Exception:
+        checks["supabase"] = "error"
+        status = "degraded"
+
+    # Check Stripe key is configured
+    if not os.environ.get("STRIPE_SECRET_KEY"):
+        checks["stripe"] = "not_configured"
+        status = "degraded"
+
+    code = 200 if status == "ok" else 503
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=code,
+        content={"status": status, "service": "arfour", "checks": checks},
+    )

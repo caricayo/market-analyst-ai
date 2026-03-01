@@ -6,12 +6,12 @@ Injects user_id into request state for downstream handlers.
 Supports both HS256 (legacy) and ES256 (JWKS) token verification.
 """
 
-import json
 import logging
 import os
 import re
 import time
-import urllib.request
+
+import httpx
 from jose import jwt, jwk, JWTError
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -23,20 +23,30 @@ log = logging.getLogger(__name__)
 _jwks_cache: dict | None = None
 _jwks_cache_time: float = 0
 _JWKS_TTL = 3600  # refresh JWKS every hour
+_http_client: httpx.AsyncClient | None = None
 
 
-def _get_jwks() -> dict:
-    """Fetch and cache JWKS from Supabase."""
+def _get_http_client() -> httpx.AsyncClient:
+    global _http_client
+    if _http_client is None:
+        _http_client = httpx.AsyncClient(timeout=5.0)
+    return _http_client
+
+
+async def _get_jwks() -> dict:
+    """Fetch and cache JWKS from Supabase (async)."""
     global _jwks_cache, _jwks_cache_time
     if _jwks_cache and (time.time() - _jwks_cache_time) < _JWKS_TTL:
         return _jwks_cache
     supabase_url = os.environ.get("SUPABASE_URL", "")
     url = f"{supabase_url}/auth/v1/.well-known/jwks.json"
     try:
-        with urllib.request.urlopen(url, timeout=5) as resp:
-            _jwks_cache = json.loads(resp.read())
-            _jwks_cache_time = time.time()
-            log.info("Fetched JWKS from %s (%d keys)", url, len(_jwks_cache.get("keys", [])))
+        client = _get_http_client()
+        resp = await client.get(url)
+        resp.raise_for_status()
+        _jwks_cache = resp.json()
+        _jwks_cache_time = time.time()
+        log.info("Fetched JWKS from %s (%d keys)", url, len(_jwks_cache.get("keys", [])))
     except Exception as e:
         log.warning("Failed to fetch JWKS: %s", e)
         if _jwks_cache:
@@ -45,14 +55,14 @@ def _get_jwks() -> dict:
     return _jwks_cache
 
 
-def _get_signing_key(token: str) -> tuple:
+async def _get_signing_key(token: str) -> tuple:
     """Return (key, algorithms) for the token. Tries ES256 JWKS first, falls back to HS256."""
     header = jwt.get_unverified_header(token)
     alg = header.get("alg", "HS256")
 
     if alg == "ES256":
         kid = header.get("kid")
-        jwks_data = _get_jwks()
+        jwks_data = await _get_jwks()
         for key_data in jwks_data.get("keys", []):
             if key_data.get("kid") == kid:
                 key = jwk.construct(key_data, algorithm="ES256")
@@ -78,7 +88,7 @@ PUBLIC_PREFIXES = ("/api/auth/",)
 
 # SSE stream and cancel endpoints are secured by unguessable session IDs.
 # EventSource API cannot send Authorization headers, so these must be public.
-_ANALYZE_SESSION_RE = re.compile(r"^/api/analyze/[a-f0-9]+/(stream|cancel)$")
+_ANALYZE_SESSION_RE = re.compile(r"^/api/analyze/[a-f0-9]{12,32}/(stream|cancel)$")
 
 
 def _is_public(path: str, method: str) -> bool:
@@ -109,7 +119,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         token = auth_header[7:]  # Strip "Bearer "
 
         try:
-            key, algorithms = _get_signing_key(token)
+            key, algorithms = await _get_signing_key(token)
             payload = jwt.decode(
                 token,
                 key,

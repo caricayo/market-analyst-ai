@@ -36,14 +36,14 @@ async def list_analyses(
 
     offset = (page - 1) * limit
 
-    result = sb.from_("analyses").select(
+    result = await sb.from_("analyses").select(
         "id, ticker, status, cost_usd, created_at"
     ).eq("user_id", user_id).order(
         "created_at", desc=True
     ).range(offset, offset + limit - 1).execute()
 
     # Get total count
-    count_result = sb.from_("analyses").select(
+    count_result = await sb.from_("analyses").select(
         "id", count="exact"
     ).eq("user_id", user_id).execute()
 
@@ -61,7 +61,7 @@ async def get_analysis(request: Request, analysis_id: str):
     user_id = request.state.user_id
     sb = get_supabase_admin()
 
-    result = sb.from_("analyses").select("*").eq(
+    result = await sb.from_("analyses").select("*").eq(
         "id", analysis_id
     ).eq("user_id", user_id).single().execute()
 

@@ -2,7 +2,6 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
 import type { Components } from "react-markdown";
 
 interface SynthesisTabProps {
@@ -80,7 +79,6 @@ export default function SynthesisTab({ content }: SynthesisTabProps) {
     <div className="px-4 py-4">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
         components={markdownComponents}
       >
         {content}

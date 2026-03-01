@@ -101,7 +101,7 @@ async def execute_pipeline(session: AnalysisSession) -> None:
             try:
                 from api.services.supabase import get_supabase_admin
                 sb = get_supabase_admin()
-                sb.from_("analyses").update({
+                await sb.from_("analyses").update({
                     "status": "complete",
                     "result": result_data,
                 }).eq("id", session.analysis_db_id).execute()
@@ -114,6 +114,19 @@ async def execute_pipeline(session: AnalysisSession) -> None:
     except asyncio.CancelledError:
         session.is_cancelled = True
         session.is_complete = True
+        # Update DB status and refund credit for cancelled analyses
+        if session.user_id and hasattr(session, "analysis_db_id") and session.analysis_db_id:
+            try:
+                from api.services.supabase import get_supabase_admin
+                from api.services.credits import refund_credit
+                sb = get_supabase_admin()
+                await sb.from_("analyses").update({
+                    "status": "cancelled",
+                }).eq("id", session.analysis_db_id).execute()
+                await refund_credit(session.user_id, session.analysis_db_id)
+                log.info("Cancelled analysis %s: updated status and refunded credit", session.analysis_db_id)
+            except Exception as cancel_err:
+                log.error("Failed to cleanup cancelled analysis %s: %s", session.analysis_db_id, cancel_err)
     except Exception as e:
         # Update analysis record to error status and refund credit
         if session.user_id and hasattr(session, "analysis_db_id"):
@@ -121,7 +134,7 @@ async def execute_pipeline(session: AnalysisSession) -> None:
                 from api.services.supabase import get_supabase_admin
                 from api.services.credits import refund_credit
                 sb = get_supabase_admin()
-                sb.from_("analyses").update({
+                await sb.from_("analyses").update({
                     "status": "error",
                     "result": {"error": str(e)},
                 }).eq("id", session.analysis_db_id).execute()

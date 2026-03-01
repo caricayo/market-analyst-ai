@@ -5,6 +5,7 @@ Stripe credit pack purchase endpoints.
 """
 
 import logging
+import os
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -12,6 +13,8 @@ from fastapi.responses import JSONResponse
 from api.services.stripe_service import CREDIT_PACKS, create_checkout_session, verify_webhook
 from api.services.credits import add_purchased_credits
 from api.services.supabase import get_supabase_admin
+
+_FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/checkout", tags=["checkout"])
@@ -44,13 +47,8 @@ async def create_session(request: Request):
     if pack_id not in CREDIT_PACKS:
         return JSONResponse(status_code=400, content={"detail": f"Unknown pack: {pack_id}"})
 
-    # Build success/cancel URLs from Origin or Referer header
-    origin = request.headers.get("origin") or request.headers.get("referer", "").rstrip("/")
-    if not origin:
-        origin = "http://localhost:3000"
-
-    success_url = f"{origin}?checkout=success"
-    cancel_url = f"{origin}?checkout=cancelled"
+    success_url = f"{_FRONTEND_URL}?checkout=success"
+    cancel_url = f"{_FRONTEND_URL}?checkout=cancelled"
 
     try:
         checkout_url = create_checkout_session(
@@ -131,7 +129,7 @@ async def stripe_webhook(request: Request):
         if stripe_customer_id:
             try:
                 sb = get_supabase_admin()
-                sb.from_("profiles").update(
+                await sb.from_("profiles").update(
                     {"stripe_customer_id": stripe_customer_id}
                 ).eq("id", user_id).execute()
             except Exception as e:

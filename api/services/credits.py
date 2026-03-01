@@ -2,7 +2,7 @@
 arfour — Credit System
 
 Manages user credits: check balance, deduct on analysis, query usage.
-Uses optimistic locking for race-safe credit deduction.
+Uses Postgres RPC functions for atomic, race-safe credit operations.
 Weekly reset: free users auto-refill to 3 credits every 7 days (lazy check).
 """
 
@@ -18,57 +18,34 @@ RESET_INTERVAL_DAYS = 7
 
 
 async def maybe_reset_weekly_credits(user_id: str) -> None:
-    """Lazy weekly reset: if credits_reset_at is null or 7+ days old,
-    set credits_remaining = max(current, FREE_WEEKLY_CREDITS) and update timestamp.
+    """Lazy weekly reset using atomic Postgres RPC.
+    If credits_reset_at is null or 7+ days old, atomically reset credits.
     """
     sb = get_supabase_admin()
-    try:
-        profile = sb.from_("profiles").select(
-            "credits_remaining, credits_reset_at"
-        ).eq("id", user_id).single().execute()
-    except Exception as e:
-        log.error("Failed to read profile for weekly reset (%s): %s", user_id, e)
-        return
-
-    if not profile.data:
-        return
-
-    reset_at = profile.data.get("credits_reset_at")
-    now = datetime.now(timezone.utc)
-
-    needs_reset = False
-    if reset_at is None:
-        needs_reset = True
-    else:
-        # Parse ISO timestamp from Supabase
-        if isinstance(reset_at, str):
-            reset_at = datetime.fromisoformat(reset_at.replace("Z", "+00:00"))
-        if now - reset_at >= timedelta(days=RESET_INTERVAL_DAYS):
-            needs_reset = True
-
-    if not needs_reset:
-        return
-
-    current = profile.data["credits_remaining"]
-    new_balance = max(current, FREE_WEEKLY_CREDITS)
-    delta = new_balance - current
+    threshold = (datetime.now(timezone.utc) - timedelta(days=RESET_INTERVAL_DAYS)).isoformat()
 
     try:
-        sb.from_("profiles").update({
-            "credits_remaining": new_balance,
-            "credits_reset_at": now.isoformat(),
-        }).eq("id", user_id).execute()
+        result = await sb.rpc("weekly_credit_reset", {
+            "p_user_id": user_id,
+            "p_free_credits": FREE_WEEKLY_CREDITS,
+            "p_reset_threshold": threshold,
+        }).execute()
 
-        if delta > 0:
-            sb.from_("credit_ledger").insert({
-                "user_id": user_id,
-                "delta": delta,
-                "reason": "weekly_reset",
-            }).execute()
+        new_balance = result.data
+        if new_balance is not None and new_balance >= 0:
+            # Log the ledger entry for the reset
+            try:
+                await sb.from_("credit_ledger").insert({
+                    "user_id": user_id,
+                    "delta": FREE_WEEKLY_CREDITS,
+                    "reason": "weekly_reset",
+                }).execute()
+            except Exception as e:
+                log.warning("Failed to write weekly reset ledger for %s: %s", user_id, e)
 
-        log.info("Weekly reset for %s: %d -> %d (delta %d)", user_id, current, new_balance, delta)
+            log.info("Weekly reset for %s: new balance %d", user_id, new_balance)
     except Exception as e:
-        log.error("Failed to apply weekly reset for %s: %s", user_id, e)
+        log.error("Failed weekly reset RPC for %s: %s", user_id, e)
 
 
 async def check_credits(user_id: str) -> tuple[bool, int]:
@@ -77,7 +54,7 @@ async def check_credits(user_id: str) -> tuple[bool, int]:
 
     sb = get_supabase_admin()
     try:
-        result = sb.from_("profiles").select("credits_remaining").eq("id", user_id).single().execute()
+        result = await sb.from_("profiles").select("credits_remaining").eq("id", user_id).single().execute()
     except Exception as e:
         log.error("Failed to check credits for %s: %s", user_id, e)
         return False, 0
@@ -88,62 +65,41 @@ async def check_credits(user_id: str) -> tuple[bool, int]:
 
 
 async def deduct_credit(user_id: str, analysis_id: str) -> int:
-    """Atomically deduct one credit using optimistic locking. Returns new balance or -1 on failure."""
+    """Atomically deduct one credit via Postgres RPC. Returns new balance or -1 on failure."""
     sb = get_supabase_admin()
+    try:
+        result = await sb.rpc("deduct_credit_atomic", {"p_user_id": user_id}).execute()
+        new_balance = result.data
+        if new_balance is None or new_balance < 0:
+            return -1
 
-    for attempt in range(2):
+        # Log to ledger
         try:
-            profile = sb.from_("profiles").select("credits_remaining").eq("id", user_id).single().execute()
+            await sb.from_("credit_ledger").insert({
+                "user_id": user_id,
+                "delta": -1,
+                "reason": "analysis",
+                "analysis_id": analysis_id,
+            }).execute()
         except Exception as e:
-            log.error("Failed to read credits for %s: %s", user_id, e)
-            return -1
+            log.warning("Failed to write ledger entry for %s: %s", user_id, e)
 
-        if not profile.data or profile.data["credits_remaining"] <= 0:
-            return -1
-
-        current = profile.data["credits_remaining"]
-        new_balance = current - 1
-
-        # Optimistic lock: only update if balance hasn't changed since we read it
-        try:
-            result = sb.from_("profiles").update(
-                {"credits_remaining": new_balance}
-            ).eq("id", user_id).eq("credits_remaining", current).execute()
-        except Exception as e:
-            log.error("Failed to deduct credit for %s: %s", user_id, e)
-            return -1
-
-        if result.data:
-            # Success — log to ledger
-            try:
-                sb.from_("credit_ledger").insert({
-                    "user_id": user_id,
-                    "delta": -1,
-                    "reason": "analysis",
-                    "analysis_id": analysis_id,
-                }).execute()
-            except Exception as e:
-                log.warning("Failed to write ledger entry for %s: %s", user_id, e)
-
-            return new_balance
-
-        # Optimistic lock failed — another request changed the balance. Retry.
-        log.info("Credit deduction optimistic lock miss for %s (attempt %d)", user_id, attempt + 1)
-
-    return -1
+        return new_balance
+    except Exception as e:
+        log.error("Failed to deduct credit for %s: %s", user_id, e)
+        return -1
 
 
 async def refund_credit(user_id: str, analysis_id: str) -> int:
-    """Refund one credit (e.g. on pipeline error). Returns new balance or -1."""
+    """Atomically refund one credit via Postgres RPC. Returns new balance or -1."""
     sb = get_supabase_admin()
     try:
-        profile = sb.from_("profiles").select("credits_remaining").eq("id", user_id).single().execute()
-        if not profile.data:
+        result = await sb.rpc("refund_credit", {"p_user_id": user_id}).execute()
+        new_balance = result.data
+        if new_balance is None or new_balance < 0:
             return -1
-        new_balance = profile.data["credits_remaining"] + 1
-        sb.from_("profiles").update({"credits_remaining": new_balance}).eq("id", user_id).execute()
 
-        sb.from_("credit_ledger").insert({
+        await sb.from_("credit_ledger").insert({
             "user_id": user_id,
             "delta": 1,
             "reason": "refund_error",
@@ -164,7 +120,7 @@ async def get_usage(user_id: str) -> dict:
     sb = get_supabase_admin()
 
     try:
-        profile = sb.from_("profiles").select(
+        profile = await sb.from_("profiles").select(
             "credits_remaining, tier, credits_reset_at, created_at"
         ).eq("id", user_id).single().execute()
     except Exception as e:
@@ -183,7 +139,7 @@ async def get_usage(user_id: str) -> dict:
 
     # Count total analyses
     try:
-        analysis_count = sb.from_("analyses").select(
+        analysis_count = await sb.from_("analyses").select(
             "id", count="exact"
         ).eq("user_id", user_id).execute()
         total = analysis_count.count or 0
@@ -215,10 +171,10 @@ async def ensure_profile(user_id: str) -> None:
     """Create profile row if it doesn't exist (called on first authenticated request)."""
     sb = get_supabase_admin()
     try:
-        existing = sb.from_("profiles").select("id").eq("id", user_id).execute()
+        existing = await sb.from_("profiles").select("id").eq("id", user_id).execute()
         if not existing.data:
             now = datetime.now(timezone.utc).isoformat()
-            sb.from_("profiles").insert({
+            await sb.from_("profiles").insert({
                 "id": user_id,
                 "tier": "free",
                 "credits_remaining": FREE_WEEKLY_CREDITS,
@@ -229,14 +185,13 @@ async def ensure_profile(user_id: str) -> None:
 
 
 async def add_purchased_credits(user_id: str, amount: int, stripe_session_id: str) -> bool:
-    """Add purchased credits. Idempotent via unique stripe_session_id in ledger.
-    Uses optimistic locking for race-safe balance update.
+    """Add purchased credits atomically. Idempotent via unique stripe_session_id in ledger.
     Returns True if credits were added, False if already processed or error.
     """
     sb = get_supabase_admin()
     try:
         # Insert ledger entry — unique index on stripe_session_id prevents duplicates
-        sb.from_("credit_ledger").insert({
+        await sb.from_("credit_ledger").insert({
             "user_id": user_id,
             "delta": amount,
             "reason": "purchase",
@@ -251,31 +206,18 @@ async def add_purchased_credits(user_id: str, amount: int, stripe_session_id: st
         log.error("Failed to insert purchase ledger for %s: %s", user_id, e)
         return False
 
-    # Update balance with optimistic locking (retry up to 3 times)
-    for attempt in range(3):
-        try:
-            profile = sb.from_("profiles").select("credits_remaining").eq("id", user_id).single().execute()
-            if not profile.data:
-                log.error("No profile found for %s after purchase ledger insert", user_id)
-                return False
-
-            current = profile.data["credits_remaining"]
-            new_balance = current + amount
-
-            # Optimistic lock: only update if balance hasn't changed
-            result = sb.from_("profiles").update(
-                {"credits_remaining": new_balance}
-            ).eq("id", user_id).eq("credits_remaining", current).execute()
-
-            if result.data:
-                log.info("Added %d purchased credits for %s (new balance: %d)", amount, user_id, new_balance)
-                return True
-
-            # Lock miss — concurrent deduction changed the balance. Retry.
-            log.info("Purchase credit optimistic lock miss for %s (attempt %d)", user_id, attempt + 1)
-        except Exception as e:
-            log.error("Failed to update balance after purchase for %s: %s", user_id, e)
+    # Atomically add credits via Postgres RPC
+    try:
+        result = await sb.rpc("add_purchased_credits", {
+            "p_user_id": user_id,
+            "p_amount": amount,
+        }).execute()
+        new_balance = result.data
+        if new_balance is None or new_balance < 0:
+            log.error("No profile found for %s after purchase ledger insert", user_id)
             return False
-
-    log.error("Purchase credit update failed after 3 attempts for %s", user_id)
-    return False
+        log.info("Added %d purchased credits for %s (new balance: %d)", amount, user_id, new_balance)
+        return True
+    except Exception as e:
+        log.error("Failed to update balance after purchase for %s: %s", user_id, e)
+        return False
