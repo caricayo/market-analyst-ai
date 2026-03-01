@@ -17,7 +17,7 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
 
   const [demoUsed] = useState(() => {
     if (typeof window === "undefined") return false;
-    return localStorage.getItem("arfour_demo_used") === "1";
+    return localStorage.getItem("arfor_demo_used") === "1";
   });
 
   const scrollToSample = () =>
@@ -28,7 +28,7 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
     demoRef.current?.scrollIntoView({ behavior: "smooth" });
 
   const handleDemoSubmit = (t: string) => {
-    localStorage.setItem("arfour_demo_used", "1");
+    localStorage.setItem("arfor_demo_used", "1");
     onDemoStart?.(t);
   };
 
@@ -37,7 +37,7 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
       {/* ── Hero ── */}
       <section className="flex flex-col items-center justify-center min-h-[70vh] px-6 py-20">
         <h1 className="text-4xl sm:text-5xl font-bold text-t-green glow-green tracking-wider mb-2">
-          arfour
+          arfor
         </h1>
         <p className="text-xs sm:text-sm text-t-amber tracking-widest uppercase mb-8">
           multi-perspective investment intelligence

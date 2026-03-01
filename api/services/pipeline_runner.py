@@ -1,5 +1,5 @@
 """
-arfour — Pipeline Runner
+arfor — Pipeline Runner
 
 Wraps run_pipeline() from main.py with event emission to the analysis session.
 Saves completed results to Supabase and deducts credits.

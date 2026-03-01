@@ -1,5 +1,5 @@
 """
-arfour — Checkout Routes
+arfor — Checkout Routes
 
 Stripe credit pack purchase endpoints.
 """

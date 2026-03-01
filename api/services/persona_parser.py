@@ -1,5 +1,5 @@
 """
-arfour — Persona Parser
+arfor — Persona Parser
 
 Extracts structured data (rating, confidence, time_horizon, position_size)
 from persona markdown output. Reuses regex patterns from assembly.py.

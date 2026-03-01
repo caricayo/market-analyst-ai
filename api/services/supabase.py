@@ -1,5 +1,5 @@
 """
-arfour — Supabase Client
+arfor — Supabase Client
 
 Async Supabase REST API client using postgrest-py AsyncPostgrestClient.
 Uses service role key to bypass RLS for backend operations.

@@ -1,5 +1,5 @@
 """
-arfour — Ticker Data Service
+arfor — Ticker Data Service
 
 Loads ~8000+ US-listed securities from NASDAQ public data files at startup.
 Provides fast in-memory search for the frontend autocomplete.

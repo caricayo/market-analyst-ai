@@ -1,5 +1,5 @@
 """
-arfour — Stripe Service
+arfor — Stripe Service
 
 One-time credit pack purchases via Stripe Checkout (no subscriptions).
 """
@@ -73,7 +73,7 @@ def create_checkout_session(
                 "currency": "usd",
                 "unit_amount": pack["price_cents"],
                 "product_data": {
-                    "name": f"arfour — {pack['label']}",
+                    "name": f"arfor — {pack['label']}",
                     "description": f"{pack['credits']} analysis credits ({pack['per_credit']}/ea)",
                 },
             },

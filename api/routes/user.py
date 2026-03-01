@@ -1,5 +1,5 @@
 """
-arfour — User Routes
+arfor — User Routes
 
 GET  /api/user/profile      — credits, tier, member since
 GET  /api/user/analyses      — paginated analysis history

@@ -15,17 +15,17 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "arfour — multi-perspective investment intelligence",
+  title: "arfor — multi-perspective investment intelligence",
   description: "Institutional-quality investment analysis powered by multi-perspective AI evaluation",
   openGraph: {
-    title: "arfour — multi-perspective investment intelligence",
+    title: "arfor — multi-perspective investment intelligence",
     description: "Institutional-quality investment analysis powered by multi-perspective AI evaluation",
     type: "website",
-    siteName: "arfour",
+    siteName: "arfor",
   },
   twitter: {
     card: "summary",
-    title: "arfour — multi-perspective investment intelligence",
+    title: "arfor — multi-perspective investment intelligence",
     description: "Institutional-quality investment analysis powered by multi-perspective AI evaluation",
   },
   icons: {

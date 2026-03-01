@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy — arfour",
+  title: "Privacy Policy — arfor",
 };
 
 export default function PrivacyPage() {
@@ -12,7 +12,7 @@ export default function PrivacyPage() {
           href="/"
           className="text-t-green text-xs hover:underline mb-8 inline-block"
         >
-          &larr; Back to arfour
+          &larr; Back to arfor
         </Link>
 
         <h1 className="text-xl font-bold text-t-green mb-6 tracking-wider">
@@ -25,7 +25,7 @@ export default function PrivacyPage() {
             <h2 className="text-sm font-bold text-t-amber mb-2 uppercase tracking-wider">
               1. Information We Collect
             </h2>
-            <p>When you use arfour, we collect:</p>
+            <p>When you use arfor, we collect:</p>
             <ul className="list-none ml-2 mt-1 space-y-1">
               <li className="before:content-['›_'] before:text-t-green before:mr-1">
                 <strong className="text-t-green">Account information:</strong> email
@@ -148,7 +148,7 @@ export default function PrivacyPage() {
               8. Cookies
             </h2>
             <p>
-              arfour uses essential cookies only for authentication session
+              arfor uses essential cookies only for authentication session
               management (Supabase Auth tokens). We do not use tracking cookies,
               analytics cookies, or advertising cookies.
             </p>

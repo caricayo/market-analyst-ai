@@ -1,5 +1,5 @@
 """
-arfour — Ticker Lookup Routes
+arfor — Ticker Lookup Routes
 
 Serves ticker search and full lookup table for frontend autocomplete.
 """

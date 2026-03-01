@@ -1,5 +1,5 @@
 """
-arfour — Analysis Routes
+arfor — Analysis Routes
 
 POST /api/analyze — start a new analysis
 GET /api/analyze/{id}/stream — SSE event stream

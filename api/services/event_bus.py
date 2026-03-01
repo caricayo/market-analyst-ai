@@ -1,5 +1,5 @@
 """
-arfour — Event Bus
+arfor — Event Bus
 
 Manages analysis sessions with asyncio.Queue-based event streaming.
 Supports concurrent sessions keyed by session ID.

@@ -61,7 +61,7 @@ function DemoApp({ ticker, onBack }: { ticker: string; onBack: () => void }) {
   useEffect(() => {
     if (!started) {
       setStarted(true);
-      localStorage.setItem("arfour_demo_used", "1");
+      localStorage.setItem("arfor_demo_used", "1");
       startDemo(ticker);
     }
   }, [started, ticker, startDemo]);
@@ -83,7 +83,7 @@ function DemoApp({ ticker, onBack }: { ticker: string; onBack: () => void }) {
             &larr; BACK
           </button>
           <span className="text-sm font-bold text-t-green tracking-wider">
-            arfour
+            arfor
           </span>
           <span className="text-[10px] text-t-amber border border-t-amber/40 px-2 py-0.5 uppercase tracking-wider">
             Demo
@@ -464,7 +464,7 @@ function AppContent({ userEmail }: { userEmail?: string }) {
         {phase === "idle" && analyses.length === 0 && !historyLoading && (
           <div className="text-center py-16">
             <div className="text-t-dim text-xs space-y-4">
-              <p>Welcome to arfour. Try analyzing a popular stock:</p>
+              <p>Welcome to arfor. Try analyzing a popular stock:</p>
               <div className="flex items-center justify-center gap-3">
                 {["NVDA", "AAPL", "MSFT", "TSLA"].map((t) => (
                   <button

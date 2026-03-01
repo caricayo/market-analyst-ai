@@ -1,5 +1,5 @@
 """
-arfour — Credit System
+arfor — Credit System
 
 Manages user credits: check balance, deduct on analysis, query usage.
 Uses Postgres RPC functions for atomic, race-safe credit operations.

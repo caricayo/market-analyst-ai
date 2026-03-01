@@ -1,5 +1,5 @@
 """
-arfour — Auth Middleware
+arfor — Auth Middleware
 
 Validates Supabase JWT tokens on protected routes.
 Injects user_id into request state for downstream handlers.

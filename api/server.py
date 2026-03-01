@@ -1,5 +1,5 @@
 """
-arfour — FastAPI Server
+arfor — FastAPI Server
 
 Entry point: uvicorn api.server:app --reload --port 8000
 """
@@ -63,7 +63,7 @@ async def lifespan(app_instance: FastAPI):
 
 
 app = FastAPI(
-    title="arfour",
+    title="arfor",
     description="Multi-perspective investment intelligence",
     version="0.2.0",
     lifespan=lifespan,
@@ -178,5 +178,5 @@ async def health():
     from fastapi.responses import JSONResponse
     return JSONResponse(
         status_code=code,
-        content={"status": status, "service": "arfour", "checks": checks},
+        content={"status": status, "service": "arfor", "checks": checks},
     )

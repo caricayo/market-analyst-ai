@@ -50,7 +50,7 @@ export default function Header({ userEmail, creditsRemaining, onOpenStore }: Hea
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-t-green glow-green tracking-wider">
-              arfour
+              arfor
             </h1>
             <p className="text-xs text-t-amber mt-1 tracking-widest uppercase">
               multi-perspective investment intelligence
