@@ -83,7 +83,7 @@ export default function PerspectiveTab({ content, verdicts }: PerspectiveTabProp
   }
 
   return (
-    <div className="px-4 py-4 overflow-hidden break-words">
+    <div className="px-4 py-4 min-w-0 [overflow-wrap:anywhere]">
       {/* Comparison table at top */}
       <div className="mb-6 border border-t-border bg-t-dark p-3">
         <h3 className="text-xs font-bold text-t-amber uppercase tracking-wider mb-3">

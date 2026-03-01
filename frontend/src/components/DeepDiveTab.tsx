@@ -100,7 +100,7 @@ export default function DeepDiveTab({ content }: DeepDiveTabProps) {
   const sections = content.split(/(?=## Section \d+)/);
 
   return (
-    <div className="px-4 py-4 space-y-2 overflow-hidden break-words">
+    <div className="px-4 py-4 space-y-2 min-w-0 [overflow-wrap:anywhere]">
       {sections.map((section, i) => (
         <div key={i} style={{ contentVisibility: "auto" }}>
           <ReactMarkdown
