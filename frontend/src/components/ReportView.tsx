@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
 import type { AnalysisResult } from "@/lib/types";
 import DeepDiveTab from "./DeepDiveTab";
@@ -11,6 +12,26 @@ interface ReportViewProps {
 }
 
 export default function ReportView({ result }: ReportViewProps) {
+  const downloadSection = useCallback(
+    (sectionName: "deep-dive" | "perspectives" | "synthesis", content: string) => {
+      const trimmed = content.trim();
+      if (!trimmed) return;
+
+      const safeTicker = (result.ticker || "report").replace(/[^a-zA-Z0-9_-]/g, "_");
+      const fileName = `${safeTicker}-${sectionName}.md`;
+      const blob = new Blob([trimmed], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    },
+    [result.ticker]
+  );
+
   return (
     <div className="w-full">
       <div className="border border-t-amber/30 bg-t-amber/5 px-4 py-2 mx-4 mt-4">
@@ -20,46 +41,76 @@ export default function ReportView({ result }: ReportViewProps) {
           Consult a licensed financial advisor before making investment decisions.
         </p>
       </div>
-    <Tabs.Root defaultValue="deep-dive" className="w-full">
-      <Tabs.List
-        className="flex border-b border-t-border"
-        aria-label="Report sections"
-      >
-        <Tabs.Trigger
-          value="deep-dive"
-          className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-t-dim data-[state=active]:text-t-green data-[state=active]:border-b-2 data-[state=active]:border-t-green hover:text-t-text transition-colors"
+      <Tabs.Root defaultValue="deep-dive" className="w-full">
+        <Tabs.List
+          className="flex border-b border-t-border"
+          aria-label="Report sections"
         >
-          Deep Dive
-        </Tabs.Trigger>
-        <Tabs.Trigger
-          value="perspectives"
-          className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-t-dim data-[state=active]:text-t-green data-[state=active]:border-b-2 data-[state=active]:border-t-green hover:text-t-text transition-colors"
-        >
-          Perspective Panel
-        </Tabs.Trigger>
-        <Tabs.Trigger
-          value="synthesis"
-          className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-t-dim data-[state=active]:text-t-green data-[state=active]:border-b-2 data-[state=active]:border-t-green hover:text-t-text transition-colors"
-        >
-          Synthesis
-        </Tabs.Trigger>
-      </Tabs.List>
+          <Tabs.Trigger
+            value="deep-dive"
+            className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-t-dim data-[state=active]:text-t-green data-[state=active]:border-b-2 data-[state=active]:border-t-green hover:text-t-text transition-colors"
+          >
+            Deep Dive
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            value="perspectives"
+            className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-t-dim data-[state=active]:text-t-green data-[state=active]:border-b-2 data-[state=active]:border-t-green hover:text-t-text transition-colors"
+          >
+            Perspective Panel
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            value="synthesis"
+            className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-t-dim data-[state=active]:text-t-green data-[state=active]:border-b-2 data-[state=active]:border-t-green hover:text-t-text transition-colors"
+          >
+            Synthesis
+          </Tabs.Trigger>
+        </Tabs.List>
 
-      <Tabs.Content value="deep-dive" className="outline-none">
-        <DeepDiveTab content={result.sections.deep_dive} />
-      </Tabs.Content>
+        <Tabs.Content value="deep-dive" className="outline-none">
+          <div className="flex justify-end px-4 pt-3">
+            <button
+              type="button"
+              onClick={() => downloadSection("deep-dive", result.sections.deep_dive)}
+              disabled={!result.sections.deep_dive.trim()}
+              className="px-3 py-1.5 border border-t-green text-t-green text-[10px] uppercase tracking-wider hover:bg-t-green/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Download Deep Dive
+            </button>
+          </div>
+          <DeepDiveTab content={result.sections.deep_dive} />
+        </Tabs.Content>
 
-      <Tabs.Content value="perspectives" className="outline-none">
-        <PerspectiveTab
-          content={result.sections.perspectives}
-          verdicts={result.persona_verdicts}
-        />
-      </Tabs.Content>
+        <Tabs.Content value="perspectives" className="outline-none">
+          <div className="flex justify-end px-4 pt-3">
+            <button
+              type="button"
+              onClick={() => downloadSection("perspectives", result.sections.perspectives)}
+              disabled={!result.sections.perspectives.trim()}
+              className="px-3 py-1.5 border border-t-green text-t-green text-[10px] uppercase tracking-wider hover:bg-t-green/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Download Perspectives
+            </button>
+          </div>
+          <PerspectiveTab
+            content={result.sections.perspectives}
+            verdicts={result.persona_verdicts}
+          />
+        </Tabs.Content>
 
-      <Tabs.Content value="synthesis" className="outline-none">
-        <SynthesisTab content={result.sections.synthesis} />
-      </Tabs.Content>
-    </Tabs.Root>
+        <Tabs.Content value="synthesis" className="outline-none">
+          <div className="flex justify-end px-4 pt-3">
+            <button
+              type="button"
+              onClick={() => downloadSection("synthesis", result.sections.synthesis)}
+              disabled={!result.sections.synthesis.trim()}
+              className="px-3 py-1.5 border border-t-green text-t-green text-[10px] uppercase tracking-wider hover:bg-t-green/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Download Synthesis
+            </button>
+          </div>
+          <SynthesisTab content={result.sections.synthesis} />
+        </Tabs.Content>
+      </Tabs.Root>
       <div className="px-4 py-3 border-t border-t-border">
         <p className="text-[10px] text-t-dim">
           Coming soon: Ask AI questions about this report
