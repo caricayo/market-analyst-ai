@@ -6,13 +6,17 @@ Supports concurrent sessions keyed by session ID.
 """
 
 import asyncio
+import logging
 import secrets
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
+log = logging.getLogger(__name__)
+
 # Auto-cleanup: remove completed sessions older than this (seconds)
 _SESSION_TTL = 600  # 10 minutes
+_MAX_EVENT_HISTORY = 500  # Cap per-session event history to prevent memory leak
 
 
 @dataclass
@@ -45,6 +49,9 @@ class AnalysisSession:
     def emit(self, event: PipelineEvent) -> None:
         """Push event to queue and append to history for replay."""
         self.event_history.append(event)
+        # Cap history to prevent unbounded memory growth
+        if len(self.event_history) > _MAX_EVENT_HISTORY:
+            self.event_history = self.event_history[-(_MAX_EVENT_HISTORY - 100):]
         self.queue.put_nowait(event)
 
     def emit_stage(self, stage: str, status: str, detail: str = "") -> None:
@@ -111,3 +118,25 @@ def get_session(session_id: str) -> AnalysisSession | None:
 
 def remove_session(session_id: str) -> None:
     _sessions.pop(session_id, None)
+
+
+# --- Periodic cleanup ---
+
+_cleanup_task: asyncio.Task | None = None
+
+
+async def _periodic_cleanup() -> None:
+    """Background task that cleans up stale sessions every 60 seconds."""
+    while True:
+        await asyncio.sleep(60)
+        try:
+            _cleanup_stale_sessions()
+        except Exception as e:
+            log.warning("Session cleanup error: %s", e)
+
+
+def start_cleanup_loop() -> None:
+    """Start the periodic cleanup task. Called from server lifespan."""
+    global _cleanup_task
+    if _cleanup_task is None or _cleanup_task.done():
+        _cleanup_task = asyncio.create_task(_periodic_cleanup())

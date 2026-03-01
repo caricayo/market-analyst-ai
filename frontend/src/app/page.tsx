@@ -17,7 +17,7 @@ import type { AnalysisResult } from "@/lib/types";
 
 export default function Home() {
   return (
-    <Suspense>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="text-t-dim text-xs">Loading...</div></div>}>
       <AuthGate>
         {(user, _session) => <AppContent userEmail={user.email} />}
       </AuthGate>
@@ -65,13 +65,15 @@ function AppContent({ userEmail }: { userEmail?: string }) {
 
     if (checkout === "success") {
       // Poll for updated credits — webhook may arrive with slight delay.
-      // Try up to 4 times with increasing delays (1s, 2s, 3s, 4s).
+      // Exponential backoff: 1s, 2s, 4s, 5s, 5s, 5s (~22s total) + jitter.
       const pollCredits = async () => {
         const initialProfile = await refreshCredits();
         const initialCredits = initialProfile?.credits_remaining ?? 0;
+        const delays = [1000, 2000, 4000, 5000, 5000, 5000];
 
-        for (let i = 0; i < 4; i++) {
-          await new Promise((r) => setTimeout(r, (i + 1) * 1000));
+        for (const delay of delays) {
+          const jitter = Math.random() * 300;
+          await new Promise((r) => setTimeout(r, delay + jitter));
           const p = await refreshCredits();
           if (p) {
             setNextReset(p.next_reset);

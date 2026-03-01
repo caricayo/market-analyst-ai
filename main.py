@@ -384,11 +384,15 @@ async def run_deep_dive(
                 on_progress, start_time,
             )
         )
-    group_results = await asyncio.gather(*group_tasks)
+    group_results = await asyncio.gather(*group_tasks, return_exceptions=True)
 
     # Collect results ordered by group, then concatenate sections in order
     group_texts: dict[str, str] = {}
-    for gid, text in group_results:
+    for result in group_results:
+        if isinstance(result, Exception):
+            log.error("Section group failed with exception: %s", result)
+            continue
+        gid, text = result
         group_texts[gid] = text
 
     # Concatenate sections 1-11 in order (groups A, B, C, D)
@@ -504,11 +508,17 @@ async def run_personas(deep_dive: str, on_progress=None, start_time=None) -> dic
     _p("Stage 3", "Launching 3 persona evaluations in parallel...")
 
     tasks = [run_single_persona(p, deep_dive, on_progress, start_time) for p in PERSONAS]
-    results = await asyncio.gather(*tasks)
+    results = await asyncio.gather(*tasks, return_exceptions=True)
 
     persona_outputs: dict[str, str | None] = {}
-    for persona_id, output in results:
-        persona_outputs[persona_id] = output
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            persona_id = PERSONAS[i]["id"]
+            log.error("Persona %s failed with exception: %s", persona_id, result)
+            persona_outputs[persona_id] = None
+        else:
+            persona_id, output = result
+            persona_outputs[persona_id] = output
 
     available = sum(1 for v in persona_outputs.values() if v is not None)
     _p("Stage 3", f"Personas complete: {available}/{len(PERSONAS)} available")

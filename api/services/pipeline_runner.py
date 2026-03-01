@@ -56,8 +56,11 @@ async def execute_pipeline(session: AnalysisSession) -> None:
                 return
             session.emit_stage(stage, status, detail)
 
-        # Run the pipeline with progress callback
-        filepath = await run_pipeline(session.ticker, on_progress=on_progress)
+        # Run the pipeline with a 10-minute global timeout
+        filepath = await asyncio.wait_for(
+            run_pipeline(session.ticker, on_progress=on_progress),
+            timeout=600,
+        )
 
         if session.is_cancelled:
             return
@@ -127,6 +130,22 @@ async def execute_pipeline(session: AnalysisSession) -> None:
                 log.info("Cancelled analysis %s: updated status and refunded credit", session.analysis_db_id)
             except Exception as cancel_err:
                 log.error("Failed to cleanup cancelled analysis %s: %s", session.analysis_db_id, cancel_err)
+    except TimeoutError:
+        # Pipeline exceeded 10-minute global timeout
+        log.error("Pipeline timed out for %s after 600s", session.ticker)
+        if session.user_id and hasattr(session, "analysis_db_id"):
+            try:
+                from api.services.supabase import get_supabase_admin
+                from api.services.credits import refund_credit
+                sb = get_supabase_admin()
+                await sb.from_("analyses").update({
+                    "status": "error",
+                    "result": {"error": "Analysis timed out after 10 minutes"},
+                }).eq("id", session.analysis_db_id).execute()
+                await refund_credit(session.user_id, session.analysis_db_id)
+            except Exception as refund_err:
+                log.error("Failed to refund credit on timeout: %s", refund_err)
+        session.emit_error("Analysis timed out. Your credit has been refunded.")
     except Exception as e:
         # Update analysis record to error status and refund credit
         if session.user_id and hasattr(session, "analysis_db_id"):

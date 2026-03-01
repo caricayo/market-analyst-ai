@@ -23,7 +23,7 @@ from api.services.event_bus import (
     PipelineEvent,
 )
 from api.services.pipeline_runner import execute_pipeline
-from api.services.credits import deduct_credit, ensure_profile
+from api.services.credits import deduct_credit, refund_credit, ensure_profile
 from api.services.supabase import get_supabase_admin
 
 log = logging.getLogger(__name__)
@@ -50,8 +50,21 @@ async def start_analysis(body: AnalyzeRequest, request: Request):
     if not ticker or not _TICKER_RE.match(ticker):
         raise HTTPException(status_code=400, detail="Invalid ticker symbol")
 
-    # Create analysis record FIRST (before deducting credit)
     sb = get_supabase_admin()
+
+    # Deduct credit FIRST — prevents orphaned records on insufficient balance
+    new_balance = await deduct_credit(user_id, None)
+    if new_balance < 0:
+        return JSONResponse(
+            status_code=402,
+            content={
+                "error": "no_credits",
+                "detail": "No analysis credits remaining",
+                "credits_remaining": 0,
+            },
+        )
+
+    # Create analysis record AFTER credit was deducted
     try:
         analysis_row = await sb.from_("analyses").insert({
             "user_id": user_id,
@@ -61,25 +74,17 @@ async def start_analysis(body: AnalyzeRequest, request: Request):
         }).execute()
         analysis_db_id = analysis_row.data[0]["id"]
     except Exception as e:
-        log.error("Failed to create analysis record: %s", e)
+        log.error("Failed to create analysis record: %s — refunding credit", e)
+        await refund_credit(user_id)
         raise HTTPException(status_code=500, detail="Failed to start analysis")
 
-    # Deduct credit atomically BEFORE starting the pipeline
-    new_balance = await deduct_credit(user_id, analysis_db_id)
-    if new_balance < 0:
-        # No credits — clean up the analysis record
-        try:
-            await sb.from_("analyses").delete().eq("id", analysis_db_id).execute()
-        except Exception:
-            pass
-        return JSONResponse(
-            status_code=402,
-            content={
-                "error": "no_credits",
-                "detail": "No analysis credits remaining",
-                "credits_remaining": 0,
-            },
-        )
+    # Backfill analysis_id on the ledger entry created during deduction
+    try:
+        await sb.from_("credit_ledger").update({
+            "analysis_id": analysis_db_id,
+        }).eq("user_id", user_id).eq("reason", "analysis").is_("analysis_id", "null").execute()
+    except Exception as e:
+        log.warning("Failed to backfill ledger analysis_id: %s", e)
 
     session = create_session(ticker)
     session.user_id = user_id

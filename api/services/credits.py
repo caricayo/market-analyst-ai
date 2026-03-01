@@ -64,8 +64,11 @@ async def check_credits(user_id: str) -> tuple[bool, int]:
     return credits > 0, credits
 
 
-async def deduct_credit(user_id: str, analysis_id: str) -> int:
-    """Atomically deduct one credit via Postgres RPC. Returns new balance or -1 on failure."""
+async def deduct_credit(user_id: str, analysis_id: str | None = None) -> int:
+    """Atomically deduct one credit via Postgres RPC. Returns new balance or -1 on failure.
+    analysis_id can be None when deducting before the analysis record exists.
+    Call backfill_ledger_analysis_id() after creating the analysis record.
+    """
     sb = get_supabase_admin()
     try:
         result = await sb.rpc("deduct_credit_atomic", {"p_user_id": user_id}).execute()
@@ -75,12 +78,14 @@ async def deduct_credit(user_id: str, analysis_id: str) -> int:
 
         # Log to ledger
         try:
-            await sb.from_("credit_ledger").insert({
+            ledger_row: dict = {
                 "user_id": user_id,
                 "delta": -1,
                 "reason": "analysis",
-                "analysis_id": analysis_id,
-            }).execute()
+            }
+            if analysis_id is not None:
+                ledger_row["analysis_id"] = analysis_id
+            await sb.from_("credit_ledger").insert(ledger_row).execute()
         except Exception as e:
             log.warning("Failed to write ledger entry for %s: %s", user_id, e)
 
@@ -90,7 +95,7 @@ async def deduct_credit(user_id: str, analysis_id: str) -> int:
         return -1
 
 
-async def refund_credit(user_id: str, analysis_id: str) -> int:
+async def refund_credit(user_id: str, analysis_id: str | None = None) -> int:
     """Atomically refund one credit via Postgres RPC. Returns new balance or -1."""
     sb = get_supabase_admin()
     try:
@@ -99,12 +104,17 @@ async def refund_credit(user_id: str, analysis_id: str) -> int:
         if new_balance is None or new_balance < 0:
             return -1
 
-        await sb.from_("credit_ledger").insert({
-            "user_id": user_id,
-            "delta": 1,
-            "reason": "refund_error",
-            "analysis_id": analysis_id,
-        }).execute()
+        try:
+            ledger_row: dict = {
+                "user_id": user_id,
+                "delta": 1,
+                "reason": "refund_error",
+            }
+            if analysis_id is not None:
+                ledger_row["analysis_id"] = analysis_id
+            await sb.from_("credit_ledger").insert(ledger_row).execute()
+        except Exception as e:
+            log.warning("Failed to write refund ledger for %s: %s", user_id, e)
 
         log.info("Refunded credit for user %s, analysis %s", user_id, analysis_id)
         return new_balance
@@ -187,6 +197,12 @@ async def ensure_profile(user_id: str) -> None:
 async def add_purchased_credits(user_id: str, amount: int, stripe_session_id: str) -> bool:
     """Add purchased credits atomically. Idempotent via unique stripe_session_id in ledger.
     Returns True if credits were added, False if already processed or error.
+
+    NOTE: Ledger insert is intentionally FIRST — the unique index on stripe_session_id
+    acts as an idempotency key. If the Stripe webhook fires twice, the second insert
+    fails on the unique constraint, preventing double-credit. The RPC call that follows
+    is the actual balance update. If the RPC fails after a successful ledger insert,
+    manual reconciliation is needed (ledger entry exists but balance not updated).
     """
     sb = get_supabase_admin()
     try:

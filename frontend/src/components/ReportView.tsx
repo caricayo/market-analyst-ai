@@ -12,6 +12,14 @@ interface ReportViewProps {
 
 export default function ReportView({ result }: ReportViewProps) {
   return (
+    <div className="w-full">
+      <div className="border border-t-amber/30 bg-t-amber/5 px-4 py-2 mx-4 mt-4">
+        <p className="text-[10px] text-t-amber leading-relaxed">
+          This report is AI-generated and for informational purposes only. It does not
+          constitute investment advice. Content may contain errors or outdated information.
+          Consult a licensed financial advisor before making investment decisions.
+        </p>
+      </div>
     <Tabs.Root defaultValue="deep-dive" className="w-full">
       <Tabs.List
         className="flex border-b border-t-border"
@@ -52,5 +60,6 @@ export default function ReportView({ result }: ReportViewProps) {
         <SynthesisTab content={result.sections.synthesis} />
       </Tabs.Content>
     </Tabs.Root>
+    </div>
   );
 }

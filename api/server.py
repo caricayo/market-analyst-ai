@@ -41,7 +41,25 @@ if _missing:
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
     load_ticker_data()
+    from api.services.event_bus import start_cleanup_loop
+    start_cleanup_loop()
     yield
+    # --- Graceful shutdown ---
+    log.info("Shutting down: notifying active sessions...")
+    from api.services.event_bus import _sessions
+    for sid, session in list(_sessions.items()):
+        if not session.is_complete:
+            try:
+                session.emit_error("Server is restarting. Please retry your analysis.")
+            except Exception:
+                pass
+            if session.task and not session.task.done():
+                session.task.cancel()
+    # Close the global httpx client used for JWKS fetching
+    from api.middleware.auth import _http_client
+    if _http_client is not None:
+        await _http_client.aclose()
+    log.info("Shutdown complete.")
 
 
 app = FastAPI(
@@ -85,9 +103,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 # Remove entries outside the window
                 bucket = [t for t in bucket if now - t < _RATE_WINDOW]
                 if len(bucket) >= _RATE_LIMIT:
+                    oldest = min(bucket)
+                    retry_after = max(1, int(_RATE_WINDOW - (now - oldest)) + 1)
                     return JSONResponse(
                         status_code=429,
-                        content={"detail": "Rate limit exceeded. Maximum 5 analyses per minute."},
+                        content={
+                            "detail": f"Rate limit exceeded. Please wait {retry_after} seconds.",
+                            "retry_after": retry_after,
+                        },
+                        headers={"Retry-After": str(retry_after)},
                     )
                 bucket.append(now)
                 _rate_buckets[user_id] = bucket
@@ -137,6 +161,13 @@ async def health():
     except Exception:
         checks["supabase"] = "error"
         status = "degraded"
+
+    # Check OpenAI key is configured
+    if not os.environ.get("OPENAI_API_KEY"):
+        checks["openai"] = "not_configured"
+        status = "degraded"
+    else:
+        checks["openai"] = "ok"
 
     # Check Stripe key is configured
     if not os.environ.get("STRIPE_SECRET_KEY"):

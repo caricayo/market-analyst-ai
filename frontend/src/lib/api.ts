@@ -1,6 +1,12 @@
 import type { TickerInfo } from "./types";
 import { createSupabaseClient } from "./supabase";
 
+/**
+ * Returns the backend API base URL.
+ * - In development: http://localhost:8000
+ * - In production: NEXT_PUBLIC_API_URL env var (required for SSE EventSource connections)
+ * - Falls back to empty string (relative URLs via Next.js rewrites) for non-SSE requests
+ */
 export function getBackendUrl(): string {
   return (
     process.env.NEXT_PUBLIC_API_URL ||
@@ -42,6 +48,10 @@ async function authFetch(url: string, init?: RequestInit): Promise<Response> {
     if (freshAuth.Authorization) {
       return fetch(url, { ...init, headers: { ...init?.headers, ...freshAuth } });
     }
+    // Refresh failed — session is dead, sign out so AuthGate shows login
+    const sb = createSupabaseClient();
+    await sb.auth.signOut();
+    throw new Error("Session expired. Please sign in again.");
   }
 
   return res;
@@ -82,6 +92,12 @@ export async function startAnalysis(
     throw new Error(data.detail || "No analysis credits remaining");
   }
 
+  if (res.status === 429) {
+    const data = await res.json().catch(() => ({}));
+    const secs = data.retry_after || res.headers.get("Retry-After") || "60";
+    throw new Error(`Rate limit exceeded. Please wait ${secs} seconds.`);
+  }
+
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.detail || "Failed to start analysis");
@@ -109,7 +125,7 @@ export async function fetchProfile(): Promise<{
   return res.json();
 }
 
-export async function fetchAnalysesList(limit = 50): Promise<{
+export async function fetchAnalysesList(limit = 50, signal?: AbortSignal): Promise<{
   analyses: Array<{
     id: string;
     ticker: string;
@@ -120,7 +136,7 @@ export async function fetchAnalysesList(limit = 50): Promise<{
   total: number;
 }> {
   const backendUrl = getBackendUrl();
-  const res = await authFetch(`${backendUrl}/api/user/analyses?limit=${limit}`);
+  const res = await authFetch(`${backendUrl}/api/user/analyses?limit=${limit}`, { signal });
   if (!res.ok) throw new Error("Failed to fetch analyses");
   return res.json();
 }

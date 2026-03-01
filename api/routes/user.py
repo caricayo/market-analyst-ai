@@ -1,15 +1,20 @@
 """
 arfour — User Routes
 
-GET /api/user/profile — credits, tier, member since
-GET /api/user/analyses — paginated analysis history
-GET /api/user/analyses/{id} — full saved analysis result
+GET  /api/user/profile      — credits, tier, member since
+GET  /api/user/analyses      — paginated analysis history
+GET  /api/user/analyses/{id} — full saved analysis result
+DELETE /api/user/account     — delete account and all data (GDPR)
 """
+
+import logging
 
 from fastapi import APIRouter, Request, HTTPException, Query
 
 from api.services.supabase import get_supabase_admin
 from api.services.credits import get_usage, ensure_profile
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -69,3 +74,22 @@ async def get_analysis(request: Request, analysis_id: str):
         raise HTTPException(status_code=404, detail="Analysis not found")
 
     return result.data
+
+
+@router.delete("/api/user/account")
+async def delete_account(request: Request):
+    """Delete user account and all associated data (GDPR right-to-deletion).
+    Cascading deletes handle analyses and credit_ledger via foreign keys.
+    """
+    user_id = request.state.user_id
+    sb = get_supabase_admin()
+
+    try:
+        # Delete profile — cascades to analyses and credit_ledger
+        await sb.from_("profiles").delete().eq("id", user_id).execute()
+        log.info("Deleted account and all data for user %s", user_id)
+    except Exception as e:
+        log.error("Failed to delete account for %s: %s", user_id, e)
+        raise HTTPException(status_code=500, detail="Failed to delete account")
+
+    return {"status": "deleted"}

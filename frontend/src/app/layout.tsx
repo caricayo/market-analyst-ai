@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono } from "next/font/google";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import "./globals.css";
 
 const jetbrains = JetBrains_Mono({
@@ -16,6 +17,20 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "arfour — multi-perspective investment intelligence",
   description: "Institutional-quality investment analysis powered by multi-perspective AI evaluation",
+  openGraph: {
+    title: "arfour — multi-perspective investment intelligence",
+    description: "Institutional-quality investment analysis powered by multi-perspective AI evaluation",
+    type: "website",
+    siteName: "arfour",
+  },
+  twitter: {
+    card: "summary",
+    title: "arfour — multi-perspective investment intelligence",
+    description: "Institutional-quality investment analysis powered by multi-perspective AI evaluation",
+  },
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -26,7 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${jetbrains.variable} font-mono`}>
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
       </body>
     </html>
   );

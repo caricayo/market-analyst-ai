@@ -2,6 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 import type { Components } from "react-markdown";
 
 interface DeepDiveTabProps {
@@ -105,6 +106,7 @@ export default function DeepDiveTab({ content }: DeepDiveTabProps) {
         <div key={i} style={{ contentVisibility: "auto" }}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeSanitize]}
             components={markdownComponents}
           >
             {section}

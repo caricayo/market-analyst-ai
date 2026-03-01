@@ -80,3 +80,99 @@ create index idx_analyses_created_at on analyses(created_at desc);
 create index idx_credit_ledger_user_id on credit_ledger(user_id);
 create unique index idx_credit_ledger_stripe_session
   on credit_ledger(stripe_session_id) where stripe_session_id is not null;
+
+-- =============================================================================
+-- RPC Functions (security definer — bypasses RLS, called by backend service role)
+-- =============================================================================
+
+-- Atomically deduct one credit (only if balance > 0)
+create or replace function public.deduct_credit_atomic(p_user_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  new_balance int;
+begin
+  update profiles
+  set credits_remaining = credits_remaining - 1
+  where id = p_user_id and credits_remaining > 0
+  returning credits_remaining into new_balance;
+  if not found then
+    return -1;
+  end if;
+  return new_balance;
+end;
+$$;
+
+-- Atomically refund one credit
+create or replace function public.refund_credit(p_user_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  new_balance int;
+begin
+  update profiles
+  set credits_remaining = credits_remaining + 1
+  where id = p_user_id
+  returning credits_remaining into new_balance;
+  return coalesce(new_balance, -1);
+end;
+$$;
+
+-- Lazy weekly credit reset (only fires if reset_at is stale)
+create or replace function public.weekly_credit_reset(
+  p_user_id uuid,
+  p_free_credits integer,
+  p_reset_threshold timestamptz
+)
+returns integer
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  new_balance int;
+begin
+  update profiles
+  set
+    credits_remaining = greatest(credits_remaining, p_free_credits),
+    credits_reset_at = now()
+  where id = p_user_id
+    and (credits_reset_at is null or credits_reset_at < p_reset_threshold)
+  returning credits_remaining into new_balance;
+
+  if not found then
+    return -1;
+  end if;
+
+  return new_balance;
+end;
+$$;
+
+-- Add purchased credits atomically
+create or replace function public.add_purchased_credits(p_user_id uuid, p_amount integer)
+returns integer
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  new_balance int;
+begin
+  update profiles
+  set credits_remaining = credits_remaining + p_amount
+  where id = p_user_id
+  returning credits_remaining into new_balance;
+
+  if not found then
+    return -1;
+  end if;
+
+  return new_balance;
+end;
+$$;

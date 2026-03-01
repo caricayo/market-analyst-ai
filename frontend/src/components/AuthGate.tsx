@@ -235,7 +235,17 @@ function AuthForm() {
 
         {/* Free tier note */}
         <p className="text-center text-xs text-t-dim mt-4">
-          Free tier: 3 analyses/week
+          Free tier includes weekly analysis credits
+        </p>
+        <p className="text-center text-[10px] text-t-dim mt-2">
+          By signing in you agree to our{" "}
+          <a href="/terms" className="text-t-amber hover:underline">
+            Terms of Service
+          </a>{" "}
+          and{" "}
+          <a href="/privacy" className="text-t-amber hover:underline">
+            Privacy Policy
+          </a>
         </p>
       </div>
     </div>

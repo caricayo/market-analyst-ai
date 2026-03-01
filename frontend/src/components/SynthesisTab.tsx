@@ -2,6 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 import type { Components } from "react-markdown";
 
 interface SynthesisTabProps {
@@ -79,6 +80,7 @@ export default function SynthesisTab({ content }: SynthesisTabProps) {
     <div className="px-4 py-4 min-w-0 [overflow-wrap:anywhere]">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeSanitize]}
         components={markdownComponents}
       >
         {content}

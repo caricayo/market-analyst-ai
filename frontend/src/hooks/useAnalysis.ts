@@ -20,6 +20,9 @@ export function useAnalysis() {
   const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const retryCountRef = useRef(0);
+  const parseFailRef = useRef(0);
+  const onMessageRef = useRef<((e: MessageEvent) => void) | null>(null);
+  const onErrorRef = useRef<((e: Event) => void) | null>(null);
 
   // Load credit balance on mount
   useEffect(() => {
@@ -81,30 +84,44 @@ export function useAnalysis() {
 
   function closeEventSource() {
     if (eventSourceRef.current) {
+      // Explicitly remove listeners to prevent memory leak
+      if (onMessageRef.current)
+        eventSourceRef.current.removeEventListener("message", onMessageRef.current);
+      if (onErrorRef.current)
+        eventSourceRef.current.removeEventListener("error", onErrorRef.current);
       eventSourceRef.current.close();
       eventSourceRef.current = null;
+      onMessageRef.current = null;
+      onErrorRef.current = null;
     }
   }
 
   function connectToStream(id: string) {
     closeEventSource();
     retryCountRef.current = 0;
+    parseFailRef.current = 0;
 
     const backendUrl = getBackendUrl();
     const es = new EventSource(`${backendUrl}/api/analyze/${id}/stream`);
     eventSourceRef.current = es;
 
-    es.onmessage = (event) => {
+    onMessageRef.current = (event: MessageEvent) => {
       try {
         const data: SSEEvent = JSON.parse(event.data);
         handleSSEEvent(data);
         retryCountRef.current = 0;
+        parseFailRef.current = 0;
       } catch {
-        // Ignore parse errors
+        parseFailRef.current++;
+        if (parseFailRef.current >= 3) {
+          setError("Unable to read server response. The analysis may still be running — check history later.");
+          setPhase("error");
+          closeEventSource();
+        }
       }
     };
 
-    es.onerror = () => {
+    onErrorRef.current = () => {
       retryCountRef.current++;
       if (retryCountRef.current >= 5) {
         setError("Lost connection to server after 5 retries");
@@ -113,6 +130,9 @@ export function useAnalysis() {
       }
       // EventSource will auto-reconnect
     };
+
+    es.addEventListener("message", onMessageRef.current);
+    es.addEventListener("error", onErrorRef.current);
   }
 
   const start = useCallback(

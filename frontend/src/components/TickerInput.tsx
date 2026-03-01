@@ -69,10 +69,10 @@ export default function TickerInput({
       }
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedIdx((i) => Math.min(i + 1, results.length - 1));
+      setSelectedIdx((i) => (i >= results.length - 1 ? 0 : i + 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSelectedIdx((i) => Math.max(i - 1, -1));
+      setSelectedIdx((i) => (i <= 0 ? results.length - 1 : i - 1));
     } else if (e.key === "Escape") {
       setShowDropdown(false);
     }
@@ -110,8 +110,12 @@ export default function TickerInput({
             className="flex-1 bg-transparent text-t-green py-2 pr-3 outline-none placeholder:text-t-dim disabled:opacity-50 disabled:cursor-not-allowed"
             autoFocus
             spellCheck={false}
+            role="combobox"
             aria-label="Ticker symbol or company name"
             aria-autocomplete="list"
+            aria-expanded={showDropdown && results.length > 0}
+            aria-controls="ticker-listbox"
+            aria-activedescendant={selectedIdx >= 0 ? `ticker-option-${selectedIdx}` : undefined}
           />
           {isRunning ? (
             <button
@@ -137,12 +141,14 @@ export default function TickerInput({
         {showDropdown && results.length > 0 && (
           <div
             ref={dropdownRef}
+            id="ticker-listbox"
             className="absolute z-50 w-full border border-t-border border-t-0 bg-t-dark max-h-64 overflow-y-auto"
             role="listbox"
           >
             {results.map((s, i) => (
               <button
                 key={s.ticker}
+                id={`ticker-option-${i}`}
                 className={`w-full text-left px-3 py-1.5 flex justify-between items-center hover:bg-t-green/10 ${
                   i === selectedIdx ? "bg-t-green/10" : ""
                 }`}

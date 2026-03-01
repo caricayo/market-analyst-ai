@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchAnalysesList, fetchAnalysisById } from "@/lib/api";
 
 export interface AnalysisSummary {
@@ -38,13 +38,20 @@ export function useHistory() {
   const [analyses, setAnalyses] = useState<AnalysisSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const fetchHistory = useCallback(async () => {
+    // Abort any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       setError(null);
-      const data = await fetchAnalysesList(50);
+      const data = await fetchAnalysesList(50, controller.signal);
       setAnalyses(data.analyses);
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       const msg = e instanceof Error ? e.message : "Failed to load history";
       setError(msg);
       console.warn("History fetch failed:", msg);
