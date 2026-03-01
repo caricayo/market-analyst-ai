@@ -79,103 +79,79 @@ Apple remains a dominant, high-quality compounder with robust profitability and 
 
 > *This is a preview. The full report contains 14 sections covering financials, valuation, risks, catalysts, and more. [Sign up to run your own analysis.]*`,
 
-    perspectives: `## Eleanor Grant \u2014 Deep Value & Capital Preservation
+    perspectives: `## Eleanor Grant — Deep Value & Capital Preservation
 
 ### Verdict
-- **Rating:** Watchlist
-- **Confidence:** 7
-- **Time Horizon:** 3\u20135 years
+- **Rating:** Avoid
+- **Confidence:** 8
+- **Time Horizon:** 3–5 years
 
 ### Thesis
-- Apple exhibits a **rock-solid balance sheet** with manageable debt ($90.51B) fully supported by exceptional free cash flow (~$99B) and strong interest coverage.
-- The company generates **extraordinarily high free cash flow and ROIC (~46%)**, reflective of a durable, scalable business model with fortress-like margins.
-- However, the **current valuation (~34x P/E) embeds limited margin of safety**, pricing in near-perfect execution on innovation and regulatory stability.
-- **Downside risk is primarily regulatory and competitive**\u2014notably antitrust threats to the App Store monetization.
+- Apple's balance sheet is solid with manageable debt ($90.51B) and exceptional free cash flow (~$99B), but **that quality is already priced in — and then some.**
+- At ~34x P/E, you're paying a premium that embeds near-perfect execution. **The margin of safety is essentially zero.** In my framework, that's a disqualifying condition regardless of business quality.
+- **Downside risk is real and underappreciated**: antitrust threats to App Store monetization could impair the highest-margin segment, and the market isn't pricing that in.
+- I'd need to see a 25–30% pullback before this becomes interesting from a value perspective. Great business, terrible price.
 
 ### Position Sizing Suggestion
-- **Small to Moderate** position size initially. Incremental build recommended upon clearer regulatory outcomes or valuation re-rating below ~$240 per share.
+- **None.** I won't pay 34x earnings for a company growing revenue at mid-single digits. Wake me up at $200.
 
 ---
 
-## Daniel Cho \u2014 Quality Compounder
+## Daniel Cho — Quality Compounder
 
 ### Verdict
-- **Rating:** Watchlist
-- **Confidence:** 7
-- **Time Horizon:** 3\u20135 years
+- **Rating:** Buy
+- **Confidence:** 8
+- **Time Horizon:** 3–5 years
 
 ### Thesis
-- Apple possesses a **robust and durable competitive moat** anchored in its premium brand, integrated ecosystem, substantial switching costs, and wide IP portfolio.
-- The **Services segment (~26% of revenue) provides recurring, high-margin revenue** that diversifies beyond cyclical hardware.
-- Management executes **disciplined capital allocation** with shareholder-friendly buybacks and sustainable dividends.
-- Despite strong fundamentals, **valuation is elevated (~34x P/E)** with limited downside buffer.
+- Apple possesses a **best-in-class competitive moat** — integrated ecosystem, massive switching costs, and a Services segment (~26% of revenue) that's building a recurring revenue fortress.
+- **ROIC of ~46% is extraordinary** and sustainable. Management's capital allocation is textbook: $90.7B in buybacks funded by organic cash flow, not leverage. This is compounding in its purest form.
+- The valuation premium (~34x P/E) is justified by the durability and predictability of these returns. **Quality deserves a premium, and Apple is the quality benchmark.**
+- Regulatory risk is real but manageable — Apple has navigated these waters before and has multiple levers to adapt.
 
 ### Position Sizing Suggestion
-- **Watchlist to Small-Moderate:** Cautious incremental entry (~3\u20135% portfolio weight) while monitoring regulatory and innovation developments.
+- **Moderate** — 4–6% portfolio weight. This is a core holding you compound into over time, not a trade.
 
 ---
 
-## Victor Alvarez \u2014 Macro-Strategic & Cycle Analyst
+## Victor Alvarez — Macro-Strategic & Cycle Analyst
 
 ### Verdict
 - **Rating:** Watchlist
-- **Confidence:** 7
-- **Time Horizon:** 12\u201318 months
+- **Confidence:** 5
+- **Time Horizon:** 6–12 months
 
 ### Thesis
-- Apple is a high-quality compounder with a durable moat, but the **macro regime is late-cycle** with moderate headwinds for consumer discretionary spending.
-- Current valuation (~34x P/E) embeds optimistic growth assumptions that leave **little buffer against cyclical or regulatory shocks**.
-- Near-term catalysts\u2014March 2026 product launch and upcoming regulatory rulings\u2014are key inflection points.
+- The macro picture is messy right now. We're **late-cycle with consumer discretionary facing headwinds** from sticky inflation and elevated rates. Apple isn't immune to this.
+- Positioning is extremely crowded — Apple is the largest weight in every index fund and the most widely held stock on the planet. **When the cycle turns, the crowding unwinds violently.**
+- That said, a Fed pivot to easing would be a massive tailwind for duration assets like Apple. I'm not willing to bet against that possibility, which is why this isn't an Avoid.
+- **I'm waiting for the next ISM print and Fed guidance before committing.** The setup could flip to Buy quickly if the macro regime shifts.
 
 ### Position Sizing Suggestion
-- **Small to Moderate.** Cautious incremental build advised. Scale up only with clearer regulatory resolution or demonstrable AI/hardware acceleration.`,
+- **Small** at most. I'd keep powder dry and wait for a clearer macro signal. If the Fed pivots dovish, I'm buying aggressively.`,
 
-    synthesis: `## TriView Synthesis
-
-### Consensus Points
-All three analysts concur that Apple is a high-quality compounder with a durable competitive moat anchored in its integrated ecosystem, premium brand, and high-margin Services segment (~26% of revenue). Each highlights Apple's exceptional free cash flow generation (~$99B), strong ROIC (~46%), and disciplined capital allocation. They uniformly recognize that current valuation multiples (~34x P/E) are elevated and embed optimistic assumptions.
-
-### Verdict Summary Table
-
-| Dimension      | Eleanor Grant (Value)              | Daniel Cho (Compounder)              | Victor Alvarez (Macro)             |
-|----------------|-----------------------------------|-------------------------------------|------------------------------------|
-| Rating         | Watchlist                         | Watchlist                           | Watchlist                          |
-| Confidence     | 7                                 | 7                                   | 7                                  |
-| Time Horizon   | 3\u20135 years                         | 3\u20135 years                           | 12\u201318 months                       |
-| Position Size  | Small to Moderate, incremental   | Watchlist to Small-Moderate (~3\u20135%)  | Small to Moderate, cautious       |
-
-### Where the Market May Be Mispricing
-The market may be mispricing the **risk asymmetry around regulatory/legal shocks and innovation payoffs**, underappreciating the probability and financial impact of negative regulatory surprises while modestly discounting possible acceleration from new product cycles and AI.
-
-### Overall Risk-Reward Profile
-Apple offers a fundamentally robust business with strong recurring high-margin revenue that supports exceptional capital returns and resilient profitability. However, the premium valuation reflects confidence in sustained growth that may be vulnerable to intensifying regulatory scrutiny and geopolitical risks.
-
-### Key KPIs to Monitor
-1. **Regulatory developments** on antitrust investigations\u2014timing, scope, and financial impact on App Store monetization
-2. **Services segment revenue growth** and margin trends
-3. **AI initiatives and new hardware launches** (foldable iPhone, March 2026 launch)
-4. **Macroeconomic indicators** affecting consumer discretionary demand
-5. **Valuation trends and buyback activity**`,
+    synthesis: `## TriView Synthesis\n\n### Consensus Points\nAll three analysts agree Apple is a high-quality business with a durable competitive moat, exceptional free cash flow (~$99B), and strong ROIC (~46%). They also agree that Services (~26% of revenue) is the most strategically important growth vector. However, **this is where consensus ends \u2014 and the divergence is the most valuable signal in this report.**\n\nThe unanimous recognition of quality may itself be a warning sign: when three independent frameworks all see the same strengths, those strengths are likely already priced in. The real question is whether the current ~34x P/E adequately compensates for the risks \u2014 and here the panel splits sharply.\n\n### Points of Disagreement\nThe core tension is between **business quality** and **price discipline**. Eleanor Grant sees a company priced for perfection with zero margin of safety \u2014 her framework simply will not allow a Buy at these multiples regardless of quality. Daniel Cho argues the premium is justified precisely because this level of quality and compounding power is rare. Victor Alvarez sidesteps the valuation debate entirely, focusing on macro timing: even if Apple is fairly valued, the cycle position and crowded positioning create near-term risk.\n\nThis is not a case of one analyst being right and others wrong. **Their frameworks are asking different questions**: Eleanor asks \u201cWhat could go wrong?\u201d, Daniel asks \u201cCan this compound for a decade?\u201d, and Victor asks \u201cWhat does the macro regime mean for this name in the next 12 months?\u201d\n\n### Verdict Summary Table\n\n| Dimension      | Eleanor Grant (Value)     | Daniel Cho (Compounder)   | Victor Alvarez (Macro)    |\n|----------------|--------------------------|--------------------------|--------------------------|\n| Rating         | Avoid                    | Buy                      | Watchlist                |\n| Confidence     | 8                        | 8                        | 5                        |\n| Time Horizon   | 3\u20135 years               | 3\u20135 years               | 6\u201312 months              |\n| Position Size  | None                     | Moderate (4\u20136%)          | Small                    |\n\n### Where the Market May Be Mispricing\nThe sharpest tension \u2014 Eleanor at Avoid vs. Daniel at Buy \u2014 suggests the market may be **mispricing the probability of regulatory damage to App Store monetization**. Daniel\u2019s framework absorbs this as manageable; Eleanor\u2019s framework treats it as a potential margin-of-safety destroyer at current multiples. If antitrust enforcement materially impairs Services margins, the stock is overvalued. If Apple navigates it cleanly, the compounder thesis holds.\n\n### Overall Risk-Reward Profile\nApple is a fundamentally exceptional business where the investment debate is entirely about price and timing, not quality. The Avoid-vs-Buy split on this panel is itself the most informative signal: **great company, genuinely debatable entry point.** Investors with long time horizons and tolerance for near-term drawdowns may side with Cho; those demanding margin of safety will wait with Grant.\n\n### Key KPIs to Monitor\n1. **Antitrust rulings and App Store regulatory impact** \u2014 the single biggest swing factor across all three frameworks\n2. **Services segment margin trends** \u2014 canary in the coal mine for regulatory damage\n3. **Fed policy direction and rate trajectory** \u2014 Alvarez\u2019s primary trigger for upgrading or downgrading\n4. **Consumer discretionary spending indicators** \u2014 ISM, retail sales, consumer confidence\n5. **Buyback pace and valuation multiples** \u2014 if Apple accelerates buybacks on weakness, Grant\u2019s entry point approaches`,
   },
   persona_verdicts: [
     {
       persona_id: "eleanor",
       persona_name: "Eleanor Grant",
       persona_label: "Deep Value & Capital Preservation",
-      rating: "Watchlist",
-      confidence: 0.7,
+      rating: "Avoid",
+      confidence: 8,
       time_horizon: "3-5 years",
-      position_size: "Small",
+      position_size: "None",
       available: true,
     },
     {
       persona_id: "daniel",
       persona_name: "Daniel Cho",
       persona_label: "Quality Compounder",
-      rating: "Watchlist",
-      confidence: 0.7,
+      rating: "Buy",
+      confidence: 8,
       time_horizon: "3-5 years",
-      position_size: "Small",
+      position_size: "Moderate",
       available: true,
     },
     {
@@ -183,8 +159,8 @@ Apple offers a fundamentally robust business with strong recurring high-margin r
       persona_name: "Victor Alvarez",
       persona_label: "Macro-Strategic & Cycle Analyst",
       rating: "Watchlist",
-      confidence: 0.7,
-      time_horizon: "12-18 months",
+      confidence: 5,
+      time_horizon: "6-12 months",
       position_size: "Small",
       available: true,
     },

@@ -19,9 +19,11 @@ export function createInitialStages(): StageState[] {
 }
 
 export const RATING_COLORS: Record<string, string> = {
+  "Strong Buy": "bg-t-green/30 text-t-green border-t-green/60",
   Buy: "bg-t-green/20 text-t-green border-t-green/40",
   Watchlist: "bg-t-amber/20 text-t-amber border-t-amber/40",
   Avoid: "bg-t-red/20 text-t-red border-t-red/40",
+  "Strong Avoid": "bg-t-red/30 text-t-red border-t-red/60",
   Unknown: "bg-t-dim/20 text-t-dim border-t-dim/40",
   "N/A": "bg-t-dim/20 text-t-dim border-t-dim/40",
 };

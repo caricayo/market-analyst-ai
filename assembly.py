@@ -81,9 +81,9 @@ def validate_persona_output(text: str, persona_name: str) -> list[str]:
             warnings.append(f"{persona_name} output missing: {header}")
 
     # Validate rating value
-    rating_match = re.search(r"\*\*Rating:\*\*\s*(Buy|Watchlist|Avoid)", text)
+    rating_match = re.search(r"\*\*Rating:\*\*\s*(Strong Buy|Buy|Watchlist|Avoid|Strong Avoid)", text)
     if not rating_match:
-        warnings.append(f"{persona_name}: Rating not one of Buy/Watchlist/Avoid")
+        warnings.append(f"{persona_name}: Rating not one of Strong Buy/Buy/Watchlist/Avoid/Strong Avoid")
 
     # Validate confidence value
     confidence_match = re.search(r"\*\*Confidence:\*\*\s*(\d+)", text)

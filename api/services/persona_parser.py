@@ -14,7 +14,7 @@ class PersonaVerdict:
     persona_id: str
     persona_name: str
     persona_label: str
-    rating: str  # Buy, Watchlist, Avoid
+    rating: str  # Strong Buy, Buy, Watchlist, Avoid, Strong Avoid
     confidence: int  # 1-10
     time_horizon: str
     position_size: str  # None, Small, Moderate, Full
@@ -35,8 +35,8 @@ def parse_persona(persona_id: str, persona_name: str, persona_label: str, text: 
             available=False,
         )
 
-    # Rating: Buy / Watchlist / Avoid
-    rating_match = re.search(r"\*\*Rating:\*\*\s*(Buy|Watchlist|Avoid)", text)
+    # Rating: Strong Buy / Buy / Watchlist / Avoid / Strong Avoid
+    rating_match = re.search(r"\*\*Rating:\*\*\s*(Strong Buy|Buy|Watchlist|Avoid|Strong Avoid)", text)
     rating = rating_match.group(1) if rating_match else "Unknown"
 
     # Confidence: 1-10

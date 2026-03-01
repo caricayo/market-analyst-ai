@@ -17,17 +17,208 @@ import { fetchProfile } from "@/lib/api";
 import type { AnalysisResult } from "@/lib/types";
 
 export default function Home() {
+  const [demoTicker, setDemoTicker] = useState<string | null>(null);
+
   return (
     <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="text-t-dim text-xs">Loading...</div></div>}>
       <AuthGate>
-        {(user, _session) =>
-          user ? <AppContent userEmail={user.email} /> : <LandingPage />
-        }
+        {(user, _session) => {
+          if (user) {
+            return <AppContent userEmail={user.email} />;
+          }
+          if (demoTicker) {
+            return (
+              <DemoApp
+                ticker={demoTicker}
+                onBack={() => setDemoTicker(null)}
+              />
+            );
+          }
+          return <LandingPage onDemoStart={setDemoTicker} />;
+        }}
       </AuthGate>
     </Suspense>
   );
 }
 
+/* ── Demo App — unauthenticated user experiencing the full app ── */
+function DemoApp({ ticker, onBack }: { ticker: string; onBack: () => void }) {
+  const {
+    phase,
+    stages,
+    result,
+    error,
+    ticker: currentTicker,
+    partialSections,
+    startDemo,
+    cancel,
+    reset,
+  } = useAnalysis();
+
+  const [started, setStarted] = useState(false);
+
+  // Auto-start the demo analysis on mount
+  useEffect(() => {
+    if (!started) {
+      setStarted(true);
+      localStorage.setItem("arfour_demo_used", "1");
+      startDemo(ticker);
+    }
+  }, [started, ticker, startDemo]);
+
+  const handleBack = () => {
+    reset();
+    onBack();
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      {/* Minimal header for demo mode */}
+      <header className="border-b border-t-border px-6 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleBack}
+            className="text-xs text-t-dim hover:text-t-green transition-colors"
+          >
+            &larr; BACK
+          </button>
+          <span className="text-sm font-bold text-t-green tracking-wider">
+            arfour
+          </span>
+          <span className="text-[10px] text-t-amber border border-t-amber/40 px-2 py-0.5 uppercase tracking-wider">
+            Demo
+          </span>
+        </div>
+        <button
+          onClick={handleBack}
+          className="px-4 py-1.5 border border-t-green text-t-green text-xs uppercase tracking-wider hover:bg-t-green/10 transition-colors"
+        >
+          Sign Up Free
+        </button>
+      </header>
+
+      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-6">
+        {/* Ticker display — not editable in demo, just shows what's running */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 border border-t-border bg-t-dark px-4 py-2.5">
+            <span className="text-xs text-t-dim">$</span>
+            <span className="text-sm text-t-green font-bold tracking-wider">
+              {currentTicker || ticker}
+            </span>
+            {phase === "running" && (
+              <button
+                onClick={cancel}
+                className="ml-auto text-xs text-t-dim hover:text-t-red transition-colors uppercase tracking-wider"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Running state */}
+        {phase === "running" && (
+          <>
+            <div className="border border-t-border bg-t-dark p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs text-t-amber font-bold uppercase tracking-wider">
+                  Analyzing {currentTicker || ticker}
+                </span>
+                <div className="w-2 h-2 bg-t-green animate-pulse" />
+              </div>
+              <PipelineTracker stages={stages} />
+            </div>
+
+            {/* Partial results streaming */}
+            {(partialSections.deep_dive || partialSections.perspectives || partialSections.synthesis) && (
+              <div className="border border-t-border bg-t-dark mt-2 overflow-hidden min-w-0">
+                <div className="px-4 py-2 border-b border-t-border">
+                  <span className="text-xs text-t-green font-bold uppercase tracking-wider">
+                    Report Preview: {currentTicker || ticker}
+                  </span>
+                  <span className="text-xs text-t-dim ml-2">
+                    (streaming&hellip;)
+                  </span>
+                </div>
+                <ReportView
+                  result={{
+                    ticker: currentTicker || ticker,
+                    filepath: "",
+                    sections: {
+                      deep_dive: partialSections.deep_dive,
+                      perspectives: partialSections.perspectives,
+                      synthesis: partialSections.synthesis,
+                    },
+                    persona_verdicts: [],
+                  }}
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Error state */}
+        {phase === "error" && (
+          <div className="border border-t-red bg-t-red/5 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <svg width="16" height="16" viewBox="0 0 16 16" className="text-t-red">
+                <path
+                  d="M4 4L12 12M12 4L4 12"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="square"
+                />
+              </svg>
+              <span className="text-sm font-bold text-t-red">Analysis Failed</span>
+            </div>
+            <p className="text-xs text-t-text mb-3">{error}</p>
+            <button
+              onClick={handleBack}
+              className="px-4 py-1.5 border border-t-green text-t-green text-xs hover:bg-t-green/10 transition-colors"
+            >
+              BACK TO HOME
+            </button>
+          </div>
+        )}
+
+        {/* Complete state */}
+        {phase === "complete" && result && (
+          <div>
+            <PipelineTracker stages={stages} collapsed />
+            <div className="border border-t-border bg-t-dark mt-2 overflow-hidden min-w-0">
+              <div className="px-4 py-2 border-b border-t-border flex items-center justify-between">
+                <span className="text-xs text-t-green font-bold uppercase tracking-wider">
+                  Report: {result.ticker}
+                </span>
+              </div>
+              <ReportView result={result} />
+            </div>
+
+            {/* Sign up CTA */}
+            <div className="border border-t-amber bg-t-amber/5 p-6 mt-4 text-center">
+              <p className="text-sm text-t-amber mb-2">
+                Sign up to save reports and get 3 free analyses every week.
+              </p>
+              <p className="text-xs text-t-dim mb-4">
+                No credit card required.
+              </p>
+              <button
+                onClick={handleBack}
+                className="px-6 py-2.5 border border-t-green text-t-green text-xs uppercase tracking-wider hover:bg-t-green/10 transition-colors"
+              >
+                Create Free Account
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+
+      <Disclaimer />
+    </div>
+  );
+}
+
+/* ── Authenticated App ── */
 function AppContent({ userEmail }: { userEmail?: string }) {
   const {
     phase,

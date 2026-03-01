@@ -38,6 +38,7 @@ When personas disagree:
 - Trace the disagreement back to the framework difference that causes it
 - Do NOT declare one persona "right" — explain why reasonable analysts with different frameworks reach different conclusions
 - Highlight which persona's framework is most relevant given the current market context
+- **Amplify the disagreement.** If one persona says "Strong Buy" and another says "Avoid," that tension is the most valuable signal for the reader. Don't smooth it away — make it vivid and explain what would have to be true for each side to be correct
 
 ## Output Format
 

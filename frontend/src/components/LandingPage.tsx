@@ -3,29 +3,19 @@
 import { useRef, useState } from "react";
 import { AuthForm } from "@/components/AuthGate";
 import ReportView from "@/components/ReportView";
-import PipelineTracker from "@/components/PipelineTracker";
 import TickerInput from "@/components/TickerInput";
 import { SAMPLE_REPORT } from "@/data/sample-report";
-import { useAnalysis } from "@/hooks/useAnalysis";
 
-export default function LandingPage() {
+interface LandingPageProps {
+  onDemoStart?: (ticker: string) => void;
+}
+
+export default function LandingPage({ onDemoStart }: LandingPageProps) {
   const sampleRef = useRef<HTMLDivElement>(null);
   const authRef = useRef<HTMLDivElement>(null);
   const demoRef = useRef<HTMLDivElement>(null);
 
-  const {
-    phase,
-    stages,
-    result,
-    error,
-    ticker,
-    partialSections,
-    startDemo,
-    cancel,
-    reset,
-  } = useAnalysis();
-
-  const [demoUsed, setDemoUsed] = useState(() => {
+  const [demoUsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("arfour_demo_used") === "1";
   });
@@ -37,18 +27,10 @@ export default function LandingPage() {
   const scrollToDemo = () =>
     demoRef.current?.scrollIntoView({ behavior: "smooth" });
 
-  const handleDemoStart = (t: string) => {
+  const handleDemoSubmit = (t: string) => {
     localStorage.setItem("arfour_demo_used", "1");
-    setDemoUsed(true);
-    startDemo(t);
+    onDemoStart?.(t);
   };
-
-  const handleDemoReset = () => {
-    reset();
-  };
-
-  // Demo is currently running or complete
-  const demoActive = phase === "running" || phase === "complete" || phase === "error";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -145,115 +127,46 @@ export default function LandingPage() {
       </section>
 
       {/* ── Try Free Analysis ── */}
-      <section ref={demoRef} className="max-w-4xl mx-auto w-full px-6 py-16">
-        <h2 className="text-xs text-t-dim uppercase tracking-widest mb-2 text-center">
-          Try It Free
-        </h2>
-        <p className="text-xs text-t-border text-center mb-6">
-          Run one full analysis &mdash; no account needed
-        </p>
+      <section ref={demoRef} className="px-6 py-16">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-sm text-t-amber uppercase tracking-widest mb-3">
+            Try It Free
+          </h2>
+          <p className="text-sm text-t-text mb-8">
+            Run a full analysis &mdash; no account needed
+          </p>
 
-        {!demoActive && (
-          <div className="max-w-md mx-auto">
-            <TickerInput
-              disabled={false}
-              onSubmit={handleDemoStart}
-              onCancel={() => {}}
-              isRunning={false}
-            />
-          </div>
-        )}
-
-        {/* Demo running */}
-        {phase === "running" && (
-          <>
-            <div className="border border-t-border bg-t-dark p-4 mt-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-xs text-t-amber font-bold uppercase tracking-wider">
-                  Analyzing {ticker}
-                </span>
-                <div className="w-2 h-2 bg-t-green animate-pulse" />
-              </div>
-              <PipelineTracker stages={stages} />
-              <button
-                onClick={cancel}
-                className="mt-3 text-xs text-t-dim hover:text-t-red transition-colors"
-              >
-                CANCEL
-              </button>
-            </div>
-
-            {/* Partial results streaming */}
-            {(partialSections.deep_dive || partialSections.perspectives || partialSections.synthesis) && (
-              <div className="border border-t-border bg-t-dark mt-2 overflow-hidden">
-                <div className="px-4 py-2 border-b border-t-border">
-                  <span className="text-xs text-t-green font-bold uppercase tracking-wider">
-                    Report Preview: {ticker}
-                  </span>
-                  <span className="text-xs text-t-dim ml-2">
-                    (streaming&hellip;)
-                  </span>
-                </div>
-                <ReportView
-                  result={{
-                    ticker,
-                    filepath: "",
-                    sections: {
-                      deep_dive: partialSections.deep_dive,
-                      perspectives: partialSections.perspectives,
-                      synthesis: partialSections.synthesis,
-                    },
-                    persona_verdicts: [],
-                  }}
-                />
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Demo error */}
-        {phase === "error" && (
-          <div className="border border-t-red bg-t-red/5 p-4 mt-4">
-            <p className="text-xs text-t-red mb-3">{error}</p>
-            <button
-              onClick={handleDemoReset}
-              className="px-4 py-1.5 border border-t-green text-t-green text-xs hover:bg-t-green/10 transition-colors"
-            >
-              TRY AGAIN
-            </button>
-          </div>
-        )}
-
-        {/* Demo complete */}
-        {phase === "complete" && result && (
-          <div className="mt-4">
-            <div className="border border-t-border bg-t-dark overflow-hidden">
-              <div className="px-4 py-2 border-b border-t-border flex items-center justify-between">
-                <span className="text-xs text-t-green font-bold uppercase tracking-wider">
-                  Report: {result.ticker}
-                </span>
-                <button
-                  onClick={handleDemoReset}
-                  className="text-xs text-t-dim hover:text-t-text transition-colors"
-                >
-                  DONE
-                </button>
-              </div>
-              <ReportView result={result} />
-            </div>
-            <div className="border border-t-amber bg-t-amber/5 p-4 mt-4 text-center">
-              <p className="text-xs text-t-amber mb-2">
-                Sign up to save this report and get 3 free analyses per week.
+          {demoUsed ? (
+            <div className="border border-t-border bg-t-dark px-6 py-8">
+              <p className="text-xs text-t-dim mb-4">
+                You&apos;ve used your free demo. Sign up for 3 free analyses every week.
               </p>
               <button
                 onClick={scrollToAuth}
-                className="px-6 py-2 border border-t-green text-t-green text-xs uppercase tracking-wider hover:bg-t-green/10 transition-colors"
+                className="px-6 py-2.5 border border-t-green text-t-green text-xs uppercase tracking-wider hover:bg-t-green/10 transition-colors"
               >
                 Create Free Account
               </button>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="border border-t-amber/40 bg-t-dark px-6 py-8">
+              <p className="text-xs text-t-amber mb-6 uppercase tracking-wider">
+                Enter any ticker to start your free analysis
+              </p>
+              <div className="max-w-md mx-auto">
+                <TickerInput
+                  disabled={false}
+                  onSubmit={handleDemoSubmit}
+                  onCancel={() => {}}
+                  isRunning={false}
+                />
+              </div>
+              <p className="text-[10px] text-t-dim mt-4">
+                Typical analysis takes 3&ndash;5 minutes. You&apos;ll see every stage live.
+              </p>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* ── Pricing ── */}
