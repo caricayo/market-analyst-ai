@@ -56,9 +56,14 @@ async def execute_pipeline(session: AnalysisSession) -> None:
                 return
             session.emit_stage(stage, status, detail)
 
+        def on_section(section_name: str, content: str, extra: dict | None = None) -> None:
+            if session.is_cancelled:
+                return
+            session.emit_section(section_name, content, extra)
+
         # Run the pipeline with a 10-minute global timeout
         filepath = await asyncio.wait_for(
-            run_pipeline(session.ticker, on_progress=on_progress),
+            run_pipeline(session.ticker, on_progress=on_progress, on_section=on_section),
             timeout=600,
         )
 

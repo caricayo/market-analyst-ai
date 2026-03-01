@@ -64,6 +64,18 @@ class AnalysisSession:
             elapsed=elapsed,
         ))
 
+    def emit_section(self, section: str, content: str, extra: dict[str, Any] | None = None) -> None:
+        """Emit a section_ready event with partial content as it becomes available."""
+        elapsed = time.time() - self.start_time
+        data: dict[str, Any] = {"section": section, "content": content}
+        if extra:
+            data.update(extra)
+        self.emit(PipelineEvent(
+            event_type="section_ready",
+            elapsed=elapsed,
+            data=data,
+        ))
+
     def emit_complete(self, data: dict[str, Any]) -> None:
         self.result = data
         elapsed = time.time() - self.start_time

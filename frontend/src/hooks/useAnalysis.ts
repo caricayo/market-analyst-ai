@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   AnalysisPhase,
   AnalysisResult,
+  SectionReadyData,
   SSEEvent,
   StageState,
 } from "@/lib/types";
 import { createInitialStages } from "@/lib/constants";
-import { startAnalysis, cancelAnalysis, fetchProfile, getBackendUrl } from "@/lib/api";
+import { startAnalysis, startDemoAnalysis, cancelAnalysis, fetchProfile, getBackendUrl } from "@/lib/api";
 
 export function useAnalysis() {
   const [phase, setPhase] = useState<AnalysisPhase>("idle");
@@ -18,6 +19,11 @@ export function useAnalysis() {
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [ticker, setTicker] = useState<string>("");
   const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
+  const [partialSections, setPartialSections] = useState<{
+    deep_dive: string;
+    perspectives: string;
+    synthesis: string;
+  }>({ deep_dive: "", perspectives: "", synthesis: "" });
   const eventSourceRef = useRef<EventSource | null>(null);
   const retryCountRef = useRef(0);
   const parseFailRef = useRef(0);
@@ -67,8 +73,15 @@ export function useAnalysis() {
           detail: event.detail || "",
         });
       }
+    } else if (event.event_type === "section_ready" && event.data) {
+      const sectionData = event.data as SectionReadyData;
+      setPartialSections((prev) => ({
+        ...prev,
+        [sectionData.section]: sectionData.content,
+      }));
     } else if (event.event_type === "analysis_complete" && event.data) {
-      setResult(event.data);
+      setResult(event.data as AnalysisResult);
+      setPartialSections({ deep_dive: "", perspectives: "", synthesis: "" });
       setPhase("complete");
       // Refresh credit balance after completed analysis
       fetchProfile()
@@ -142,6 +155,7 @@ export function useAnalysis() {
       setResult(null);
       setError(null);
       setTicker(tickerInput);
+      setPartialSections({ deep_dive: "", perspectives: "", synthesis: "" });
 
       try {
         const response = await startAnalysis(tickerInput);
@@ -159,6 +173,28 @@ export function useAnalysis() {
     []
   );
 
+  const startDemo = useCallback(
+    async (tickerInput: string) => {
+      setPhase("running");
+      setStages(createInitialStages());
+      setResult(null);
+      setError(null);
+      setTicker(tickerInput);
+      setPartialSections({ deep_dive: "", perspectives: "", synthesis: "" });
+
+      try {
+        const response = await startDemoAnalysis(tickerInput);
+        setAnalysisId(response.analysis_id);
+        connectToStream(response.analysis_id);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to start demo analysis");
+        setPhase("error");
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
   const cancel = useCallback(async () => {
     if (analysisId) {
       await cancelAnalysis(analysisId);
@@ -168,6 +204,7 @@ export function useAnalysis() {
     setStages(createInitialStages());
     setAnalysisId(null);
     setError(null);
+    setPartialSections({ deep_dive: "", perspectives: "", synthesis: "" });
   }, [analysisId]);
 
   const reset = useCallback(() => {
@@ -178,6 +215,7 @@ export function useAnalysis() {
     setError(null);
     setAnalysisId(null);
     setTicker("");
+    setPartialSections({ deep_dive: "", perspectives: "", synthesis: "" });
   }, []);
 
   /** Re-fetch profile to update credit balance (e.g. after purchase) */
@@ -216,7 +254,9 @@ export function useAnalysis() {
     error,
     ticker,
     creditsRemaining,
+    partialSections,
     start,
+    startDemo,
     cancel,
     reset,
     loadSavedResult,

@@ -10,6 +10,7 @@ import TickerInput from "@/components/TickerInput";
 import PipelineTracker from "@/components/PipelineTracker";
 import ReportView from "@/components/ReportView";
 import AnalysisHistory from "@/components/AnalysisHistory";
+import LandingPage from "@/components/LandingPage";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useHistory } from "@/hooks/useHistory";
 import { fetchProfile } from "@/lib/api";
@@ -19,7 +20,9 @@ export default function Home() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="text-t-dim text-xs">Loading...</div></div>}>
       <AuthGate>
-        {(user, _session) => <AppContent userEmail={user.email} />}
+        {(user, _session) =>
+          user ? <AppContent userEmail={user.email} /> : <LandingPage />
+        }
       </AuthGate>
     </Suspense>
   );
@@ -33,6 +36,7 @@ function AppContent({ userEmail }: { userEmail?: string }) {
     error,
     ticker,
     creditsRemaining,
+    partialSections,
     start,
     cancel,
     reset,
@@ -170,17 +174,45 @@ function AppContent({ userEmail }: { userEmail?: string }) {
           </div>
         )}
 
-        {/* Running state: show pipeline tracker */}
+        {/* Running state: show pipeline tracker + partial results */}
         {phase === "running" && (
-          <div className="border border-t-border bg-t-dark p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs text-t-amber font-bold uppercase tracking-wider">
-                Analyzing {ticker}
-              </span>
-              <div className="w-2 h-2 bg-t-green animate-pulse" />
+          <>
+            <div className="border border-t-border bg-t-dark p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs text-t-amber font-bold uppercase tracking-wider">
+                  Analyzing {ticker}
+                </span>
+                <div className="w-2 h-2 bg-t-green animate-pulse" />
+              </div>
+              <PipelineTracker stages={stages} />
             </div>
-            <PipelineTracker stages={stages} />
-          </div>
+
+            {/* Show partial report as sections stream in */}
+            {(partialSections.deep_dive || partialSections.perspectives || partialSections.synthesis) && (
+              <div className="border border-t-border bg-t-dark mt-2 overflow-hidden min-w-0">
+                <div className="px-4 py-2 border-b border-t-border">
+                  <span className="text-xs text-t-green font-bold uppercase tracking-wider">
+                    Report Preview: {ticker}
+                  </span>
+                  <span className="text-xs text-t-dim ml-2">
+                    (streaming&hellip;)
+                  </span>
+                </div>
+                <ReportView
+                  result={{
+                    ticker,
+                    filepath: "",
+                    sections: {
+                      deep_dive: partialSections.deep_dive,
+                      perspectives: partialSections.perspectives,
+                      synthesis: partialSections.synthesis,
+                    },
+                    persona_verdicts: [],
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
 
         {/* Error state */}
@@ -237,17 +269,24 @@ function AppContent({ userEmail }: { userEmail?: string }) {
           </div>
         )}
 
-        {/* Idle state: show welcome message */}
+        {/* Idle state: show first-run quick start */}
         {phase === "idle" && analyses.length === 0 && !historyLoading && (
           <div className="text-center py-16">
-            <div className="text-t-dim text-xs space-y-2">
-              <p>Enter a ticker symbol or company name to begin analysis.</p>
-              <p>
-                The pipeline runs 5 stages: intake, deep dive, persona
-                evaluations, synthesis, and assembly.
-              </p>
+            <div className="text-t-dim text-xs space-y-4">
+              <p>Welcome to arfour. Try analyzing a popular stock:</p>
+              <div className="flex items-center justify-center gap-3">
+                {["NVDA", "AAPL", "MSFT", "TSLA"].map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => start(t)}
+                    className="px-4 py-2 border border-t-border text-t-green text-xs hover:border-t-green hover:bg-t-green/5 transition-colors"
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
               <p className="text-t-border">
-                Typical analysis time: 3-5 minutes
+                Or type any ticker above. Typical analysis: 3-5 minutes.
               </p>
             </div>
           </div>

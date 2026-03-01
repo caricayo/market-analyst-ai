@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -33,9 +34,59 @@ router = APIRouter()
 # Valid ticker: 1-10 uppercase letters/digits, optional dot (e.g. BRK.B)
 _TICKER_RE = re.compile(r"^[A-Z0-9]{1,10}(\.[A-Z])?$")
 
+# Demo rate limiting: 1 demo per IP per 24 hours
+_demo_usage: dict[str, float] = {}
+_DEMO_WINDOW = 86400  # 24 hours
+
 
 class AnalyzeRequest(BaseModel):
     ticker: str
+
+
+@router.post("/api/analyze/demo")
+async def start_demo_analysis(body: AnalyzeRequest, request: Request):
+    """Start a demo analysis — no auth, limited to 1 per IP per 24h."""
+    # Get client IP
+    client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    if not client_ip:
+        client_ip = request.client.host if request.client else "unknown"
+
+    # Prune stale entries periodically
+    now = time.time()
+    stale = [ip for ip, ts in _demo_usage.items() if now - ts > _DEMO_WINDOW]
+    for ip in stale:
+        del _demo_usage[ip]
+
+    # Check rate limit
+    last_demo = _demo_usage.get(client_ip)
+    if last_demo and now - last_demo < _DEMO_WINDOW:
+        return JSONResponse(
+            status_code=429,
+            content={
+                "detail": "Demo limit reached. Sign up for free to get 3 analyses per week.",
+                "demo_limited": True,
+            },
+        )
+
+    ticker = body.ticker.strip().upper()
+    if not ticker or not _TICKER_RE.match(ticker):
+        raise HTTPException(status_code=400, detail="Invalid ticker symbol")
+
+    # Mark demo as used for this IP
+    _demo_usage[client_ip] = now
+
+    session = create_session(ticker)
+    session.user_id = None
+    session.analysis_db_id = None
+
+    # Launch pipeline as background task (no DB save, no credits)
+    session.task = asyncio.create_task(execute_pipeline(session))
+
+    return {
+        "analysis_id": session.id,
+        "ticker": ticker,
+        "demo": True,
+    }
 
 
 @router.post("/api/analyze")

@@ -105,6 +105,29 @@ export async function startAnalysis(
   return res.json();
 }
 
+export async function startDemoAnalysis(
+  ticker: string
+): Promise<{ analysis_id: string; demo: boolean }> {
+  const backendUrl = getBackendUrl();
+
+  const res = await fetch(`${backendUrl}/api/analyze/demo`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticker }),
+  });
+
+  if (res.status === 429) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || "Demo limit reached. Sign up for more analyses.");
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || "Failed to start demo analysis");
+  }
+  return res.json();
+}
+
 export async function cancelAnalysis(analysisId: string): Promise<void> {
   const backendUrl = getBackendUrl();
   await authFetch(`${backendUrl}/api/analyze/${analysisId}/cancel`, {

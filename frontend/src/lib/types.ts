@@ -37,13 +37,19 @@ export interface AnalysisResult {
 }
 
 export interface SSEEvent {
-  event_type: "stage_update" | "analysis_complete" | "analysis_error" | "keepalive";
+  event_type: "stage_update" | "section_ready" | "analysis_complete" | "analysis_error" | "keepalive";
   stage?: string;
   status?: string;
   detail?: string;
   elapsed?: number;
   timestamp?: number;
-  data?: AnalysisResult;
+  data?: AnalysisResult | SectionReadyData;
+}
+
+export interface SectionReadyData {
+  section: "deep_dive" | "perspectives" | "synthesis";
+  content: string;
+  persona_outputs?: Record<string, string | null>;
 }
 
 export type AnalysisPhase = "idle" | "running" | "complete" | "error";

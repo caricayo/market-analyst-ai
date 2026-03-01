@@ -78,6 +78,7 @@ PUBLIC_PATHS = {
     "/api/tickers",
     "/api/tickers/search",
     "/api/analyze/status",
+    "/api/analyze/demo",
     "/api/checkout/webhook",
     "/docs",
     "/openapi.json",

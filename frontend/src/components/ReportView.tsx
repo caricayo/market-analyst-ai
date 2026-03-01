@@ -60,6 +60,11 @@ export default function ReportView({ result }: ReportViewProps) {
         <SynthesisTab content={result.sections.synthesis} />
       </Tabs.Content>
     </Tabs.Root>
+      <div className="px-4 py-3 border-t border-t-border">
+        <p className="text-[10px] text-t-dim">
+          Coming soon: Ask AI questions about this report
+        </p>
+      </div>
     </div>
   );
 }

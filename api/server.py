@@ -83,7 +83,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         global _rate_last_cleanup
 
-        # Only rate-limit POST /api/analyze
+        # Only rate-limit POST /api/analyze (demo has its own IP-based limiter)
         if request.method == "POST" and request.url.path == "/api/analyze":
             user_id = getattr(request.state, "user_id", None)
             if user_id:

@@ -603,13 +603,14 @@ async def run_synthesis(
 # ---------------------------------------------------------------------------
 # Main Pipeline
 # ---------------------------------------------------------------------------
-async def run_pipeline(raw_input: str, on_progress=None) -> Path:
+async def run_pipeline(raw_input: str, on_progress=None, on_section=None) -> Path:
     """
     Execute the full TriView Capital analysis pipeline.
 
     Args:
         raw_input: User-provided ticker or company name
         on_progress: Optional callback(stage_id, status, detail) for web UI
+        on_section: Optional callback(section_name, content, extra_data) for streaming partial results
 
     Returns:
         Path to the saved report file
@@ -636,6 +637,8 @@ async def run_pipeline(raw_input: str, on_progress=None) -> Path:
     )
     if on_progress:
         on_progress("Stage 2", "complete", f"Deep dive complete ({len(deep_dive):,} chars)")
+    if on_section:
+        on_section("deep_dive", deep_dive)
 
     # ---- Stage 3: Personas (parallel) ----
     if on_progress:
@@ -644,6 +647,12 @@ async def run_pipeline(raw_input: str, on_progress=None) -> Path:
     if on_progress:
         available = sum(1 for v in persona_outputs.values() if v is not None)
         on_progress("Stage 3", "complete", f"{available}/{len(persona_outputs)} personas complete")
+    if on_section:
+        # Format persona outputs the same way assembly.py does
+        formatted_personas = "\n\n---\n\n".join(
+            output for output in persona_outputs.values() if output is not None
+        )
+        on_section("perspectives", formatted_personas, {"persona_outputs": persona_outputs})
 
     # ---- Stage 4: Synthesis ----
     if on_progress:
@@ -652,6 +661,8 @@ async def run_pipeline(raw_input: str, on_progress=None) -> Path:
     synthesis = await run_synthesis(executive_summary, persona_outputs, on_progress, pipeline_start)
     if on_progress:
         on_progress("Stage 4", "complete", "Synthesis complete")
+    if on_section and synthesis:
+        on_section("synthesis", synthesis)
 
     # ---- Stage 5: Assembly ----
     if on_progress:
