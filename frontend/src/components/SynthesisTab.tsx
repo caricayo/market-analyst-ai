@@ -76,7 +76,7 @@ const markdownComponents: Components = {
 
 export default function SynthesisTab({ content }: SynthesisTabProps) {
   return (
-    <div className="px-4 py-4">
+    <div className="px-4 py-4 overflow-hidden break-words">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={markdownComponents}

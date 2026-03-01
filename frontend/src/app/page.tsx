@@ -209,7 +209,7 @@ function AppContent({ userEmail }: { userEmail?: string }) {
         {phase === "complete" && result && (
           <div>
             <PipelineTracker stages={stages} collapsed />
-            <div className="border border-t-border bg-t-dark mt-2">
+            <div className="border border-t-border bg-t-dark mt-2 overflow-hidden min-w-0">
               <div className="px-4 py-2 border-b border-t-border flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <button

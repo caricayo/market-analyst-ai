@@ -40,11 +40,18 @@ export function useAnalysis() {
     if (event.event_type === "stage_update" && event.stage) {
       const now = Date.now() / 1000;
       if (event.status === "running") {
-        updateStage(event.stage, {
-          status: "running",
-          detail: event.detail || "",
-          startedAt: now,
-        });
+        setStages((prev) =>
+          prev.map((s) =>
+            s.id === event.stage
+              ? {
+                  ...s,
+                  status: "running",
+                  detail: event.detail || "",
+                  startedAt: s.startedAt ?? now,
+                }
+              : s
+          )
+        );
       } else if (event.status === "complete") {
         updateStage(event.stage, {
           status: "complete",
