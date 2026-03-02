@@ -12,6 +12,9 @@ interface ReportViewProps {
 }
 
 export default function ReportView({ result }: ReportViewProps) {
+  const estimatedCost = result.usage?.total_cost_usd;
+  const hasEstimatedCost = typeof estimatedCost === "number" && Number.isFinite(estimatedCost);
+
   const downloadSection = useCallback(
     (sectionName: "deep-dive" | "perspectives" | "synthesis", content: string) => {
       const trimmed = content.trim();
@@ -41,6 +44,19 @@ export default function ReportView({ result }: ReportViewProps) {
           Consult a licensed financial advisor before making investment decisions.
         </p>
       </div>
+      {hasEstimatedCost && (
+        <div className="mx-4 mt-2 border border-t-cyan/40 bg-t-cyan/5 px-4 py-2">
+          <p className="text-[10px] text-t-cyan">
+            Estimated model cost: <span className="font-bold">${estimatedCost.toFixed(4)}</span>
+            {typeof result.usage?.total_tokens === "number" && (
+              <span className="text-t-dim"> · {result.usage.total_tokens.toLocaleString()} tokens</span>
+            )}
+            {typeof result.usage?.web_search_calls === "number" && (
+              <span className="text-t-dim"> · {result.usage.web_search_calls} web searches</span>
+            )}
+          </p>
+        </div>
+      )}
       <Tabs.Root defaultValue="deep-dive" className="w-full">
         <Tabs.List
           className="flex border-b border-t-border"

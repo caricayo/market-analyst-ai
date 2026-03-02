@@ -31,6 +31,18 @@ export interface AnalysisFull extends AnalysisSummary {
       position_size: string;
       available: boolean;
     }>;
+    usage?: {
+      request_count: number;
+      input_tokens: number;
+      cached_input_tokens: number;
+      output_tokens: number;
+      total_tokens: number;
+      web_search_calls: number;
+      input_token_cost_usd: number;
+      output_token_cost_usd: number;
+      web_search_cost_usd: number;
+      total_cost_usd: number;
+    };
   } | null;
 }
 

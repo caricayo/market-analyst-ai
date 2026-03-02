@@ -25,6 +25,19 @@ export interface PersonaVerdict {
   available: boolean;
 }
 
+export interface UsageSummary {
+  request_count: number;
+  input_tokens: number;
+  cached_input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  web_search_calls: number;
+  input_token_cost_usd: number;
+  output_token_cost_usd: number;
+  web_search_cost_usd: number;
+  total_cost_usd: number;
+}
+
 export interface AnalysisResult {
   ticker: string;
   filepath: string;
@@ -34,6 +47,7 @@ export interface AnalysisResult {
     synthesis: string;
   };
   persona_verdicts: PersonaVerdict[];
+  usage?: UsageSummary;
 }
 
 export interface SSEEvent {
