@@ -131,7 +131,7 @@ function DemoApp({ ticker, onBack }: { ticker: string; onBack: () => void }) {
 
             {/* Partial results streaming */}
             {(partialSections.deep_dive || partialSections.perspectives || partialSections.synthesis) && (
-              <div className="border border-t-border bg-t-dark mt-2 overflow-hidden min-w-0">
+              <div className="border border-t-border bg-t-dark mt-2 overflow-x-hidden min-w-0">
                 <div className="px-4 py-2 border-b border-t-border">
                   <span className="text-xs text-t-green font-bold uppercase tracking-wider">
                     Report Preview: {currentTicker || ticker}
@@ -185,7 +185,7 @@ function DemoApp({ ticker, onBack }: { ticker: string; onBack: () => void }) {
         {phase === "complete" && result && (
           <div>
             <PipelineTracker stages={stages} collapsed />
-            <div className="border border-t-border bg-t-dark mt-2 overflow-hidden min-w-0">
+            <div className="border border-t-border bg-t-dark mt-2 overflow-x-hidden min-w-0">
               <div className="px-4 py-2 border-b border-t-border flex items-center justify-between">
                 <span className="text-xs text-t-green font-bold uppercase tracking-wider">
                   Report: {result.ticker}
