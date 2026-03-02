@@ -27,6 +27,9 @@ from openai import AsyncOpenAI
 
 from config import (
     OPENAI_API_KEY,
+    OPENAI_PROMPT_CACHE_ENABLED,
+    OPENAI_PROMPT_CACHE_RETENTION,
+    OPENAI_PROMPT_CACHE_NAMESPACE,
     DEEP_DIVE_MODEL,
     DEEP_DIVE_TEMPERATURE,
     DEEP_DIVE_MAX_TOKENS,
@@ -169,6 +172,79 @@ def _deep_dive_quality_stats(markdown: str) -> dict[str, int | bool]:
     }
 
 
+def _normalize_cache_fragment(value: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", "-", (value or "").strip().lower())
+    return normalized.strip("-") or "na"
+
+
+def _build_prompt_cache_key(
+    *,
+    stage: str,
+    model: str,
+    company: str = "",
+    variant: str = "default",
+    prompt_version: str = "v1",
+) -> str:
+    return ":".join(
+        [
+            _normalize_cache_fragment(OPENAI_PROMPT_CACHE_NAMESPACE),
+            _normalize_cache_fragment(stage),
+            _normalize_cache_fragment(model),
+            _normalize_cache_fragment(prompt_version),
+            _normalize_cache_fragment(variant),
+            _normalize_cache_fragment(company),
+        ]
+    )
+
+
+async def _create_response(
+    *,
+    model: str,
+    instructions: str,
+    input_text: str,
+    max_output_tokens: int,
+    timeout_seconds: int,
+    usage_tracker,
+    cache_key: str | None = None,
+    tools: list[dict[str, Any]] | None = None,
+):
+    request_kwargs: dict[str, Any] = {
+        "model": model,
+        "instructions": instructions,
+        "input": input_text,
+        "max_output_tokens": max_output_tokens,
+    }
+    if tools is not None:
+        request_kwargs["tools"] = tools
+
+    cache_enabled = OPENAI_PROMPT_CACHE_ENABLED and bool(cache_key)
+    if cache_enabled:
+        request_kwargs["prompt_cache_key"] = cache_key
+        request_kwargs["prompt_cache_retention"] = OPENAI_PROMPT_CACHE_RETENTION
+
+    try:
+        response = await asyncio.wait_for(
+            client.responses.create(**request_kwargs),
+            timeout=timeout_seconds,
+        )
+    except Exception as e:
+        # Some SDK/account combinations may reject cache params.
+        if cache_enabled and "prompt_cache" in str(e).lower():
+            log.warning("Prompt caching rejected for key %s. Retrying without cache params.", cache_key)
+            request_kwargs.pop("prompt_cache_key", None)
+            request_kwargs.pop("prompt_cache_retention", None)
+            response = await asyncio.wait_for(
+                client.responses.create(**request_kwargs),
+                timeout=timeout_seconds,
+            )
+        else:
+            raise
+
+    if usage_tracker:
+        usage_tracker.record_response(response)
+    return response
+
+
 @dataclass
 class UsageTracker:
     """Accumulates token usage and estimated cost for one pipeline run."""
@@ -181,6 +257,7 @@ class UsageTracker:
     input_token_cost_usd: float = 0.0
     output_token_cost_usd: float = 0.0
     web_search_cost_usd: float = 0.0
+    estimated_cache_savings_usd: float = 0.0
 
     def record_response(self, response) -> None:
         usage = _as_dict(getattr(response, "usage", None))
@@ -205,6 +282,9 @@ class UsageTracker:
             (billable_input_tokens * model_pricing.get("input", 0.0))
             + (cached_tokens * model_pricing.get("cached_input", 0.0))
         ) / 1_000_000
+        self.estimated_cache_savings_usd += (
+            cached_tokens * max(model_pricing.get("input", 0.0) - model_pricing.get("cached_input", 0.0), 0.0)
+        ) / 1_000_000
         self.output_token_cost_usd += (
             output_tokens * model_pricing.get("output", 0.0)
         ) / 1_000_000
@@ -227,6 +307,9 @@ class UsageTracker:
             "input_token_cost_usd": round(self.input_token_cost_usd, 6),
             "output_token_cost_usd": round(self.output_token_cost_usd, 6),
             "web_search_cost_usd": round(self.web_search_cost_usd, 6),
+            "estimated_cache_savings_usd": round(self.estimated_cache_savings_usd, 6),
+            "cache_enabled": OPENAI_PROMPT_CACHE_ENABLED,
+            "cache_retention": OPENAI_PROMPT_CACHE_RETENTION,
             "total_cost_usd": round(total_cost, 6),
         }
 
@@ -540,19 +623,24 @@ async def run_fact_first_diligence_deep_dive(
 
     deal_detected = detect_deal_signal(research_brief)
     system_prompt, user_prompt = fact_first_diligence_prompt(company, research_brief)
+    fact_first_cache_key = _build_prompt_cache_key(
+        stage="stage2-fact-first",
+        model=SECTION_WRITE_MODEL,
+        company=company,
+        variant="writer",
+        prompt_version="v1",
+    )
 
     async def _default_model_caller(instructions: str, input_text: str) -> str:
-        response = await asyncio.wait_for(
-            client.responses.create(
-                model=SECTION_WRITE_MODEL,
-                instructions=instructions,
-                input=input_text,
-                max_output_tokens=FACT_FIRST_DILIGENCE_MAX_TOKENS,
-            ),
-            timeout=SECTION_WRITE_TIMEOUT,
+        response = await _create_response(
+            model=SECTION_WRITE_MODEL,
+            instructions=instructions,
+            input_text=input_text,
+            max_output_tokens=FACT_FIRST_DILIGENCE_MAX_TOKENS,
+            timeout_seconds=SECTION_WRITE_TIMEOUT,
+            usage_tracker=usage_tracker,
+            cache_key=fact_first_cache_key,
         )
-        if usage_tracker:
-            usage_tracker.record_response(response)
         return response.output_text or ""
 
     _call_model = model_caller or _default_model_caller
@@ -790,6 +878,7 @@ async def run_single_persona(
     usage_tracker: UsageTracker | None = None,
     on_progress=None,
     start_time=None,
+    company_name: str = "",
 ) -> tuple[str, str | None]:
     """
     Run a single persona evaluation.
@@ -813,20 +902,25 @@ async def run_single_persona(
     except FileNotFoundError:
         _p("Stage 3", f"ERROR: Persona file not found: {persona_file}")
         return persona_id, None
+    persona_cache_key = _build_prompt_cache_key(
+        stage="stage3-persona",
+        model=PERSONA_MODEL,
+        company=company_name,
+        variant=persona_id,
+        prompt_version="v1",
+    )
 
     for attempt in range(1 + MAX_RETRIES):
         try:
-            response = await asyncio.wait_for(
-                client.responses.create(
-                    model=PERSONA_MODEL,
-                    instructions=system_prompt,
-                    input=deep_dive,
-                    max_output_tokens=PERSONA_MAX_TOKENS,
-                ),
-                timeout=PERSONA_TIMEOUT,
+            response = await _create_response(
+                model=PERSONA_MODEL,
+                instructions=system_prompt,
+                input_text=deep_dive,
+                max_output_tokens=PERSONA_MAX_TOKENS,
+                timeout_seconds=PERSONA_TIMEOUT,
+                usage_tracker=usage_tracker,
+                cache_key=persona_cache_key,
             )
-            if usage_tracker:
-                usage_tracker.record_response(response)
 
             text = response.output_text
             if not text:
@@ -852,6 +946,7 @@ async def run_personas(
     usage_tracker: UsageTracker | None = None,
     on_progress=None,
     start_time=None,
+    company_name: str = "",
 ) -> dict[str, str | None]:
     """
     Run all persona evaluations in parallel.
@@ -862,7 +957,14 @@ async def run_personas(
     _p("Stage 3", "Launching 3 persona evaluations in parallel...")
 
     tasks = [
-        run_single_persona(p, deep_dive, usage_tracker, on_progress, start_time)
+        run_single_persona(
+            p,
+            deep_dive,
+            usage_tracker,
+            on_progress,
+            start_time,
+            company_name=company_name,
+        )
         for p in PERSONAS
     ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -892,6 +994,7 @@ async def run_synthesis(
     usage_tracker: UsageTracker | None = None,
     on_progress=None,
     start_time=None,
+    company_name: str = "",
 ) -> str | None:
     """
     Run the synthesis model to arbitrate across persona evaluations.
@@ -927,20 +1030,25 @@ async def run_synthesis(
         user_parts.append(f"\n## {name}\n\n{output}\n\n---\n")
 
     user_message = "".join(user_parts)
+    synthesis_cache_key = _build_prompt_cache_key(
+        stage="stage4-synthesis",
+        model=SYNTHESIS_MODEL,
+        company=company_name,
+        variant="consensus",
+        prompt_version="v1",
+    )
 
     for attempt in range(1 + MAX_RETRIES):
         try:
-            response = await asyncio.wait_for(
-                client.responses.create(
-                    model=SYNTHESIS_MODEL,
-                    instructions=synthesis_system,
-                    input=user_message,
-                    max_output_tokens=SYNTHESIS_MAX_TOKENS,
-                ),
-                timeout=SYNTHESIS_TIMEOUT,
+            response = await _create_response(
+                model=SYNTHESIS_MODEL,
+                instructions=synthesis_system,
+                input_text=user_message,
+                max_output_tokens=SYNTHESIS_MAX_TOKENS,
+                timeout_seconds=SYNTHESIS_TIMEOUT,
+                usage_tracker=usage_tracker,
+                cache_key=synthesis_cache_key,
             )
-            if usage_tracker:
-                usage_tracker.record_response(response)
 
             text = response.output_text
             if not text:
@@ -1061,6 +1169,7 @@ async def run_pipeline(
         usage_tracker=usage_tracker,
         on_progress=on_progress,
         start_time=pipeline_start,
+        company_name=company_name,
     )
     if on_progress:
         available = sum(1 for v in persona_outputs.values() if v is not None)
@@ -1082,6 +1191,7 @@ async def run_pipeline(
         usage_tracker=usage_tracker,
         on_progress=on_progress,
         start_time=pipeline_start,
+        company_name=company_name,
     )
     if on_progress:
         on_progress("Stage 4", "complete", "Synthesis complete")

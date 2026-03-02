@@ -34,6 +34,9 @@ OUTPUT_DIR = PROJECT_ROOT / "reports"
 # OpenAI API
 # ---------------------------------------------------------------------------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_PROMPT_CACHE_ENABLED = os.getenv("OPENAI_PROMPT_CACHE_ENABLED", "true").lower() == "true"
+OPENAI_PROMPT_CACHE_RETENTION = os.getenv("OPENAI_PROMPT_CACHE_RETENTION", "24h").strip() or "24h"
+OPENAI_PROMPT_CACHE_NAMESPACE = os.getenv("OPENAI_PROMPT_CACHE_NAMESPACE", "triview").strip() or "triview"
 
 # Standard token pricing (USD per 1M tokens), aligned with docs pricing.
 # Override via env vars if your account tier differs (batch/flex/priority).

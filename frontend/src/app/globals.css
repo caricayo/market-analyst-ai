@@ -32,7 +32,7 @@
   --color-t-red-dim: var(--terminal-red-dim);
   --color-t-cyan: var(--terminal-cyan);
   --color-t-white: var(--terminal-white);
-  --font-mono: var(--font-jetbrains);
+  --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
 * {
@@ -48,7 +48,7 @@ html {
 body {
   background: var(--terminal-black);
   color: var(--terminal-text);
-  font-family: var(--font-jetbrains), "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  font-family: var(--font-mono);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

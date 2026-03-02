@@ -65,7 +65,7 @@ def parse_persona(persona_id: str, persona_name: str, persona_label: str, text: 
     horizon_match = re.search(r"\*\*Time Horizon:\*\*\s*(.+)", text, re.IGNORECASE)
     if not horizon_match:
         horizon_match = re.search(
-            r"\b(\d{1,2}\s*[-–]\s*\d{1,2}\s*(?:months?|years?)|\d{1,2}\s*(?:months?|years?))\b",
+            r"\b(\d{1,2}\s*(?:-|to)\s*\d{1,2}\s*(?:months?|years?)|\d{1,2}\s*(?:months?|years?))\b",
             text,
             re.IGNORECASE,
         )
@@ -79,7 +79,7 @@ def parse_persona(persona_id: str, persona_name: str, persona_label: str, text: 
     )
     if not size_match:
         # Try inline pattern
-        size_match = re.search(r"\*\*(None|Small|Moderate|Full)\s*(?:position|—|-)", text, re.IGNORECASE)
+        size_match = re.search(r"\*\*(None|Small|Moderate|Full)\s*(?:position|-)", text, re.IGNORECASE)
     if not size_match:
         size_match = re.search(r"\b(very\s+small|small|moderate|full|none)\s+position\b", text, re.IGNORECASE)
     if size_match:

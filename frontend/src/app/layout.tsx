@@ -1,13 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono } from "next/font/google";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import "./globals.css";
-
-const jetbrains = JetBrains_Mono({
-  variable: "--font-jetbrains",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -40,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${jetbrains.variable} font-mono`}>
+      <body className="font-mono">
         <ErrorBoundary>{children}</ErrorBoundary>
       </body>
     </html>
