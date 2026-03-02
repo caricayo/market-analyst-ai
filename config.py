@@ -75,6 +75,8 @@ DEEP_DIVE_MAX_TOKENS = 32_000  # large output — 14 detailed sections
 DEEP_DIVE_TIMEOUT = 600  # 10 minutes
 FACT_FIRST_DEEP_DIVE_ENABLED = os.getenv("FACT_FIRST_DEEP_DIVE_ENABLED", "true").lower() == "true"
 FACT_FIRST_DILIGENCE_ENABLED = os.getenv("FACT_FIRST_DILIGENCE_ENABLED", "true").lower() == "true"
+TRUTH_DISCIPLINE_ENABLED = os.getenv("TRUTH_DISCIPLINE_ENABLED", "true").lower() == "true"
+HAS_LIVE_MARKET_FEED = os.getenv("HAS_LIVE_MARKET_FEED", "false").lower() == "true"
 FACT_FIRST_DILIGENCE_MAX_TOKENS = int(os.getenv("FACT_FIRST_DILIGENCE_MAX_TOKENS", "28000"))
 DEEP_DIVE_OUTPUT_MODE = os.getenv("DEEP_DIVE_OUTPUT_MODE", "legacy_plus_addendum").strip().lower()
 DEEP_DIVE_MIN_CHARS = int(os.getenv("DEEP_DIVE_MIN_CHARS", "22000"))

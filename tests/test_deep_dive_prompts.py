@@ -49,16 +49,19 @@ class InstitutionalPromptTests(unittest.TestCase):
 
 class FactFirstDiligencePromptTests(unittest.TestCase):
     def test_prompt_non_empty(self):
-        system_prompt, user_prompt = fact_first_diligence_prompt("AAPL", "brief")
+        system_prompt, user_prompt = fact_first_diligence_prompt("AAPL", "brief", "2026-03-02")
         self.assertTrue(system_prompt.strip())
         self.assertTrue(user_prompt.strip())
 
     def test_prompt_contains_required_sections(self):
-        _, user_prompt = fact_first_diligence_prompt("AAPL", "brief")
+        _, user_prompt = fact_first_diligence_prompt("AAPL", "brief", "2026-03-02")
         required = [
             "PART A",
             "PART B  CLAIMS LEDGER",
             "[C1], [C2], [C3]",
+            "AS_OF_DATE: 2026-03-02",
+            "Do NOT output an \"As-of Date\" line in PART A",
+            "Data not retrieved in this run.",
             "Business Model & Revenue Architecture",
             "Competitive Position & Power Structure",
             "Financial Quality Snapshot",
@@ -74,6 +77,7 @@ class FactFirstDiligencePromptTests(unittest.TestCase):
             "source_url",
             "source_title",
             "source_domain",
+            "market_data_kind",
         ]
         for needle in required:
             self.assertIn(needle, user_prompt)

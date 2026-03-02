@@ -19,6 +19,7 @@ import logging
 import re
 import sys
 import time
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -67,6 +68,8 @@ from config import (
     OPENAI_WEB_SEARCH_PRICING_PER_1K,
     FACT_FIRST_DILIGENCE_ENABLED,
     FACT_FIRST_DILIGENCE_MAX_TOKENS,
+    TRUTH_DISCIPLINE_ENABLED,
+    HAS_LIVE_MARKET_FEED,
     DEEP_DIVE_OUTPUT_MODE,
     DEEP_DIVE_MIN_CHARS,
     DEEP_DIVE_MIN_H2,
@@ -170,6 +173,23 @@ def _deep_dive_quality_stats(markdown: str) -> dict[str, int | bool]:
         "h2_count": h2_count,
         "section_check_passed": deep_chars >= DEEP_DIVE_MIN_CHARS and h2_count >= DEEP_DIVE_MIN_H2,
     }
+
+
+AS_OF_HEADER_RE = re.compile(r"(?im)^\s*as-of date:\s*\d{4}-\d{2}-\d{2}\s*$")
+
+
+def _strip_as_of_header(markdown: str) -> str:
+    lines = (markdown or "").splitlines()
+    if not lines:
+        return markdown
+    if AS_OF_HEADER_RE.match(lines[0].strip()):
+        return "\n".join(lines[1:]).lstrip("\n")
+    return markdown
+
+
+def _inject_as_of_header(markdown: str, as_of_date: str) -> str:
+    content = _strip_as_of_header(markdown).strip()
+    return f"As-of Date: {as_of_date}\n\n{content}" if content else f"As-of Date: {as_of_date}"
 
 
 def _normalize_cache_fragment(value: str) -> str:
@@ -608,10 +628,13 @@ async def run_bookend_phase(
 async def run_fact_first_diligence_deep_dive(
     company: str,
     research_brief: str,
+    as_of_date: str,
     usage_tracker: UsageTracker | None = None,
     on_progress=None,
     start_time=None,
     model_caller=None,
+    truth_discipline_enabled: bool = True,
+    has_live_market_feed: bool = False,
 ) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
     """
     Generate strict fact-first diligence deep dive output:
@@ -622,7 +645,7 @@ async def run_fact_first_diligence_deep_dive(
     _p("Stage 2", "Phase 2/2: Writing fact-first diligence memo + claims ledger...")
 
     deal_detected = detect_deal_signal(research_brief)
-    system_prompt, user_prompt = fact_first_diligence_prompt(company, research_brief)
+    system_prompt, user_prompt = fact_first_diligence_prompt(company, research_brief, as_of_date)
     fact_first_cache_key = _build_prompt_cache_key(
         stage="stage2-fact-first",
         model=SECTION_WRITE_MODEL,
@@ -652,6 +675,9 @@ async def run_fact_first_diligence_deep_dive(
         part_a_local, claims_ledger_local, claims_meta_local = parse_and_validate_stage2_output(
             output_text,
             deal_detected=deal_detected,
+            as_of_date=as_of_date,
+            truth_discipline_enabled=truth_discipline_enabled,
+            has_live_market_feed=has_live_market_feed,
         )
         if not part_a_local.strip():
             raise RuntimeError("PART A narrative was empty after parsing")
@@ -662,15 +688,14 @@ async def run_fact_first_diligence_deep_dive(
 
         _p("Stage 2", "Claims ledger validation failed. Running one repair pass...")
 
-        async def _repair_ledger_json(meta: dict[str, Any]) -> str:
-            repair_instructions = (
-                "Return ONLY PART B JSON array conforming to schema; do not include markdown."
-            )
+        async def _repair_stage2(meta: dict[str, Any]) -> str:
+            repair_instructions = "Repair invalid Stage-2 output while preserving facts and structure."
             repair_input = (
-                "Repair the PART B Claims Ledger JSON array only.\n\n"
+                "Return the full Stage-2 contract with PART A markdown and PART B JSON ledger.\n"
+                "Do not add new claims. Do not add new numeric values.\n\n"
                 f"Parse errors:\n{json.dumps(meta.get('parse_errors', []), indent=2)}\n\n"
                 "Required schema keys per object:\n"
-                "claim_type, metric, value, unit, timeframe, statement, confidence, source_type, source_citation, notes, claim_id, source_url, source_title, source_domain\n"
+                "claim_type, metric, value, unit, timeframe, statement, confidence, source_type, source_citation, notes, claim_id, source_url, source_title, source_domain, as_of_date, is_forward_looking, event_date, definition, excluded_from_text, truth_discipline_valid, truth_discipline_errors, market_data_kind\n"
                 f"\nOriginal Stage-2 output:\n{output_text}"
             )
             return await _call_model(repair_instructions, repair_input)
@@ -678,7 +703,10 @@ async def run_fact_first_diligence_deep_dive(
         return await validate_stage2_with_repair(
             output_text,
             deal_detected=deal_detected,
-            repair_ledger_json_fn=_repair_ledger_json,
+            as_of_date=as_of_date,
+            truth_discipline_enabled=truth_discipline_enabled,
+            has_live_market_feed=has_live_market_feed,
+            repair_stage2_fn=_repair_stage2,
         )
 
     part_a, claims_ledger, claims_meta = await _validate_with_repair(raw_output)
@@ -710,16 +738,20 @@ async def run_fact_first_diligence_deep_dive(
 
     claims_meta["output_quality_meta"] = quality_stats
 
+    part_a = _strip_as_of_header(part_a)
     _p("Stage 2", f"Fact-first diligence deep dive complete ({len(part_a):,} chars)")
     return part_a, claims_ledger, claims_meta
 
 
 async def run_deep_dive(
     prepared_template: str,
+    as_of_date: str,
     usage_tracker: UsageTracker | None = None,
     on_progress=None,
     start_time=None,
     company_name: str = "",
+    truth_discipline_enabled: bool = True,
+    has_live_market_feed: bool = False,
 ) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
     """
     Orchestrate Stage 2 deep-dive generation.
@@ -750,9 +782,12 @@ async def run_deep_dive(
         deep_dive, claims_ledger, claims_meta = await run_fact_first_diligence_deep_dive(
             company=company_name,
             research_brief=research_brief,
+            as_of_date=as_of_date,
             usage_tracker=usage_tracker,
             on_progress=on_progress,
             start_time=start_time,
+            truth_discipline_enabled=truth_discipline_enabled,
+            has_live_market_feed=has_live_market_feed,
         )
         _p("Stage 2", f"Deep dive complete ({len(deep_dive):,} characters)")
         claims_meta["output_mode"] = mode
@@ -769,9 +804,12 @@ async def run_deep_dive(
         deep_dive, claims_ledger, claims_meta = await run_fact_first_diligence_deep_dive(
             company=company_name,
             research_brief=research_brief,
+            as_of_date=as_of_date,
             usage_tracker=usage_tracker,
             on_progress=on_progress,
             start_time=start_time,
+            truth_discipline_enabled=truth_discipline_enabled,
+            has_live_market_feed=has_live_market_feed,
         )
         _p("Stage 2", f"Deep dive complete ({len(deep_dive):,} characters)")
         claims_meta["output_mode"] = "fact_first_fallback"
@@ -879,6 +917,7 @@ async def run_single_persona(
     on_progress=None,
     start_time=None,
     company_name: str = "",
+    system_note: str | None = None,
 ) -> tuple[str, str | None]:
     """
     Run a single persona evaluation.
@@ -902,6 +941,8 @@ async def run_single_persona(
     except FileNotFoundError:
         _p("Stage 3", f"ERROR: Persona file not found: {persona_file}")
         return persona_id, None
+    if system_note:
+        system_prompt = f"{system_note.strip()}\n\n{system_prompt}"
     persona_cache_key = _build_prompt_cache_key(
         stage="stage3-persona",
         model=PERSONA_MODEL,
@@ -947,6 +988,7 @@ async def run_personas(
     on_progress=None,
     start_time=None,
     company_name: str = "",
+    system_note: str | None = None,
 ) -> dict[str, str | None]:
     """
     Run all persona evaluations in parallel.
@@ -964,6 +1006,7 @@ async def run_personas(
             on_progress,
             start_time,
             company_name=company_name,
+            system_note=system_note,
         )
         for p in PERSONAS
     ]
@@ -1103,15 +1146,20 @@ async def run_pipeline(
     if on_progress:
         on_progress("Stage 1", "complete", f"Resolved: {company_name} ({ticker})")
 
+    as_of_date = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
+
     # ---- Stage 2: Deep Dive ----
     if on_progress:
         on_progress("Stage 2", "running", "Starting deep dive analysis...")
     deep_dive, claims_ledger, claims_ledger_meta = await run_deep_dive(
         prepared_template,
+        as_of_date=as_of_date,
         usage_tracker=usage_tracker,
         on_progress=on_progress,
         start_time=pipeline_start,
         company_name=company_name,
+        truth_discipline_enabled=TRUTH_DISCIPLINE_ENABLED,
+        has_live_market_feed=HAS_LIVE_MARKET_FEED,
     )
 
     async def _institutional_model_call(system_prompt: str, user_prompt: str) -> str:
@@ -1156,6 +1204,14 @@ async def run_pipeline(
         }
         _p("Stage 2", "Institutional addendum disabled by output mode.")
 
+    deep_dive = _inject_as_of_header(deep_dive, as_of_date)
+    claims_ledger_meta.setdefault("as_of_date", as_of_date)
+    claims_ledger_meta.setdefault("truth_discipline_enabled", TRUTH_DISCIPLINE_ENABLED)
+    if "truth_discipline_valid" not in claims_ledger_meta:
+        claims_ledger_meta["truth_discipline_valid"] = None
+    if not TRUTH_DISCIPLINE_ENABLED:
+        claims_ledger_meta["truth_discipline_valid"] = None
+
     if on_progress:
         on_progress("Stage 2", "complete", f"Deep dive complete ({len(deep_dive):,} chars)")
     if on_section:
@@ -1164,12 +1220,19 @@ async def run_pipeline(
     # ---- Stage 3: Personas (parallel) ----
     if on_progress:
         on_progress("Stage 3", "running", "Launching persona evaluations...")
+    persona_system_note = None
+    if claims_ledger_meta.get("content_degraded"):
+        persona_system_note = (
+            "SYSTEM NOTE: Some claims were removed due to insufficient sourcing or time mismatch. "
+            "Do not infer replacement evidence."
+        )
     persona_outputs = await run_personas(
         deep_dive,
         usage_tracker=usage_tracker,
         on_progress=on_progress,
         start_time=pipeline_start,
         company_name=company_name,
+        system_note=persona_system_note,
     )
     if on_progress:
         available = sum(1 for v in persona_outputs.values() if v is not None)

@@ -78,6 +78,7 @@ SOURCE_DISCIPLINE_BLOCK = """\
    - Tier 1: SEC/IR primary docs (10-K, 10-Q, 8-K, earnings releases, investor presentations, proxy statements)
    - Tier 2: reputable market data providers, exchanges, and regulators
    - Tier 3: aggregators/screeners/blogs only as fallback
+   - Prefer SEC/IR whenever available before citing aggregators.
 2. For every numeric metric, include:
    - timeframe
    - unit
@@ -467,7 +468,7 @@ JSON requirements for PART B:
     return system_prompt, user_prompt
 
 
-def fact_first_diligence_prompt(company: str, research_brief: str) -> tuple[str, str]:
+def fact_first_diligence_prompt(company: str, research_brief: str, as_of_date: str) -> tuple[str, str]:
     """
     Build (system_prompt, user_prompt) for the Stage-2 fact-first diligence contract.
 
@@ -476,6 +477,7 @@ def fact_first_diligence_prompt(company: str, research_brief: str) -> tuple[str,
       - PART B claims ledger JSON array
     """
     user_prompt = f"""Company: {company}
+AS_OF_DATE: {as_of_date}
 
 Return EXACTLY two parts in this order:
 PART A
@@ -502,6 +504,7 @@ Mandatory depth inside Section 5:
 
 Formatting requirements:
 - Committee-ready writing, concise but deep.
+- Do NOT output an "As-of Date" line in PART A; the system injects it.
 - Every numeric/factual claim in PART A must include sourcing envelope:
   timeframe, unit, source_type, source_citation
 - Every factual sentence in PART A must append one or more claim markers in this exact format:
@@ -509,13 +512,23 @@ Formatting requirements:
 - source_type enum: SEC/IR | reputable_market_data | estimate | unknown
 - If claim cannot be verified, label:
   Unverified  requires primary filing review.
+- Snapshot market fields (Current Price, Market Cap, 52-week range):
+  - If runtime live feed is unavailable, write exactly: Data not retrieved in this run.
+  - Do not estimate, approximate, or forward-fill these values.
+- Quote-only market data may be used only when time-bound:
+  - include market_data_kind="quote"
+  - include event_date as ISO YYYY-MM-DD
+  - include a tier1/tier2 source
+  - phrase as a dated quote (for example, "as of market close on YYYY-MM-DD")
+- For future event references, use [Scheduled Event] and include:
+  is_forward_looking=true, explicit event_date, and tier1/tier2 source.
 - Never introduce claims that are not represented in PART B ledger.
 - Do not include markdown code fences around PART B JSON.
 
 PART B requirements:
 - Return a valid JSON array only for PART B.
 - Each claim object must include keys:
-  claim_type, metric, value, unit, timeframe, statement, confidence, source_type, source_citation, notes, claim_id, source_url, source_title, source_domain
+  claim_type, metric, value, unit, timeframe, statement, confidence, source_type, source_citation, notes, claim_id, source_url, source_title, source_domain, as_of_date, is_forward_looking, event_date, definition, excluded_from_text, truth_discipline_valid, truth_discipline_errors, market_data_kind
 - claim_type enum: numeric | qualitative
 - confidence enum: low | medium | high
 - source_type enum: SEC/IR | reputable_market_data | estimate | unknown

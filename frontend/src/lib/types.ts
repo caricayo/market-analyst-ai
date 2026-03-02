@@ -62,6 +62,15 @@ export interface ClaimLedgerEntry {
   source_domain?: string | null;
   source_trust_tier?: "tier1" | "tier2" | "tier3" | "unknown";
   verified_for_counter?: boolean;
+  as_of_date?: string | null;
+  is_forward_looking?: boolean;
+  event_date?: string | null;
+  definition?: string | null;
+  excluded_from_text?: boolean;
+  truth_discipline_valid?: boolean | null;
+  truth_discipline_errors?: string[];
+  weak_source_used?: boolean;
+  market_data_kind?: "snapshot" | "quote" | null;
 }
 
 export interface ClaimsLedgerMeta {
@@ -76,6 +85,12 @@ export interface ClaimsLedgerMeta {
   citation_binding_valid?: boolean;
   missing_claim_ids?: string[];
   orphan_claim_ids?: string[];
+  as_of_date?: string;
+  truth_discipline_enabled?: boolean;
+  truth_discipline_valid?: boolean | null;
+  truth_discipline_errors?: string[];
+  truth_discipline_violating_claim_ids?: string[];
+  content_degraded?: boolean;
 }
 
 export interface EvidenceSummary {

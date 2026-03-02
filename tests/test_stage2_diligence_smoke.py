@@ -24,7 +24,7 @@ class Stage2DiligenceSmokeTests(unittest.TestCase):
         deal_detected = detect_deal_signal(research_brief)
         self.assertTrue(deal_detected)
 
-        system_prompt, user_prompt = fact_first_diligence_prompt(company, research_brief)
+        system_prompt, user_prompt = fact_first_diligence_prompt(company, research_brief, "2026-03-02")
         self.assertTrue(system_prompt.strip())
         self.assertIn("PART B  CLAIMS LEDGER", user_prompt)
 

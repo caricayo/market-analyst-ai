@@ -35,6 +35,14 @@ DEFAULT_TIER2_DOMAINS = {
 
 TIER1_DOMAINS = _parse_domain_list("SOURCE_TIER1_DOMAINS", DEFAULT_TIER1_DOMAINS)
 TIER2_DOMAINS = _parse_domain_list("SOURCE_TIER2_DOMAINS", DEFAULT_TIER2_DOMAINS)
+WEAK_AGGREGATOR_DOMAINS = _parse_domain_list(
+    "SOURCE_WEAK_AGGREGATOR_DOMAINS",
+    {
+        "csimarket.com",
+        "dcfmodeling.com",
+        "stockanalysis.com",
+    },
+)
 
 
 def normalize_source_url(value: str | None) -> str | None:
@@ -96,3 +104,9 @@ def classify_claim_source(
         return "tier3", False
     return "unknown", False
 
+
+def is_weak_aggregator_domain(domain: str | None) -> bool:
+    if not domain:
+        return False
+    base = domain.lower().removeprefix("www.")
+    return base in WEAK_AGGREGATOR_DOMAINS
