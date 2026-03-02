@@ -11,23 +11,23 @@ interface DeepDiveTabProps {
 
 const markdownComponents: Components = {
   h1: ({ children }) => (
-    <h1 className="text-xl font-bold text-t-green mt-8 mb-4 border-b border-t-border pb-2 glow-green">
+    <h1 className="text-2xl font-bold text-t-green mt-10 mb-5 border-b border-t-green/40 pb-3">
       {children}
     </h1>
   ),
   h2: ({ children }) => (
-    <h2 className="text-lg font-bold text-t-amber mt-6 mb-3 border-b border-t-border/50 pb-1">
+    <h2 className="text-xl font-bold text-t-amber mt-8 mb-4 border-b border-t-amber/30 pb-2">
       {children}
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-sm font-bold text-t-green mt-4 mb-2">{children}</h3>
+    <h3 className="text-base font-bold text-t-green mt-6 mb-3">{children}</h3>
   ),
   h4: ({ children }) => (
-    <h4 className="text-sm font-bold text-t-green-dim mt-3 mb-1">{children}</h4>
+    <h4 className="text-sm font-bold text-t-white mt-4 mb-2">{children}</h4>
   ),
   p: ({ children }) => (
-    <p className="text-t-green-dim leading-relaxed mb-3">{children}</p>
+    <p className="text-t-white leading-7 mb-4">{children}</p>
   ),
   strong: ({ children }) => (
     <strong className="text-t-green font-bold">{children}</strong>
@@ -46,20 +46,20 @@ const markdownComponents: Components = {
     </a>
   ),
   ul: ({ children }) => (
-    <ul className="list-none space-y-1 mb-3 ml-2">{children}</ul>
+    <ul className="list-none space-y-2 mb-4 ml-3">{children}</ul>
   ),
   ol: ({ children }) => (
-    <ol className="list-decimal list-inside space-y-1 mb-3 ml-2 text-t-green-dim">
+    <ol className="list-decimal list-inside space-y-2 mb-4 ml-3 text-t-white">
       {children}
     </ol>
   ),
   li: ({ children }) => (
-    <li className="text-t-green-dim before:content-['>_'] before:text-t-green before:mr-1">
+    <li className="text-t-white leading-6 before:content-['-_'] before:text-t-green before:mr-1">
       {children}
     </li>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="border-l-2 border-t-red pl-4 py-2 my-3 bg-t-red/5 text-t-green-dim">
+    <blockquote className="border-l-2 border-t-amber pl-4 py-3 my-4 bg-t-dark/70 text-t-white">
       {children}
     </blockquote>
   ),
@@ -79,17 +79,19 @@ const markdownComponents: Components = {
   pre: ({ children }) => <pre className="my-3">{children}</pre>,
   table: ({ children }) => (
     <div className="overflow-x-auto my-3">
-      <table className="w-full border-collapse text-xs">{children}</table>
+      <table className="w-full border-collapse text-xs border border-t-border/60 bg-t-black/40">
+        {children}
+      </table>
     </div>
   ),
-  thead: ({ children }) => <thead className="border-b border-t-amber/40">{children}</thead>,
+  thead: ({ children }) => <thead className="border-b border-t-amber/40 bg-t-dark/70">{children}</thead>,
   th: ({ children }) => (
-    <th className="text-left py-2 px-2 text-t-amber font-bold uppercase tracking-wider text-xs">
+    <th className="text-left py-2 px-2 text-t-amber font-bold uppercase tracking-[0.08em] text-[11px]">
       {children}
     </th>
   ),
   td: ({ children }) => (
-    <td className="py-1.5 px-2 text-t-green-dim border-b border-t-border/30">{children}</td>
+    <td className="py-2 px-2 text-t-white border-b border-t-border/30 align-top">{children}</td>
   ),
   hr: () => <hr className="border-t-border my-6" />,
 };
@@ -98,9 +100,9 @@ export default function DeepDiveTab({ content }: DeepDiveTabProps) {
   const sections = content.split(/(?=## Section \d+)/);
 
   return (
-    <div className="px-4 py-4 space-y-2 min-w-0 [overflow-wrap:anywhere]">
+    <div className="px-5 py-5 md:px-8 space-y-3 min-w-0 [overflow-wrap:anywhere] text-[13px]">
       {sections.map((section, i) => (
-        <div key={i} style={{ contentVisibility: "auto" }}>
+        <div key={i} className="pb-6 border-b border-t-border/40 last:border-b-0" style={{ contentVisibility: "auto" }}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeSanitize]}
@@ -113,4 +115,3 @@ export default function DeepDiveTab({ content }: DeepDiveTabProps) {
     </div>
   );
 }
-

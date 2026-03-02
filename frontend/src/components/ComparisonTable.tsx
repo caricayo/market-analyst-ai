@@ -15,19 +15,19 @@ export default function ComparisonTable({ verdicts }: ComparisonTableProps) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-xs">
+      <table className="w-full border-collapse text-xs border border-t-border/60 bg-t-black/40">
         <thead>
-          <tr className="border-b border-t-border">
-            <th className="text-left py-2 px-3 text-t-amber font-bold uppercase tracking-wider">
+          <tr className="border-b border-t-amber/40 bg-t-dark/70">
+            <th className="text-left py-2 px-3 text-t-amber font-bold uppercase tracking-[0.08em] text-[11px]">
               Dimension
             </th>
             {verdicts.map((v) => (
               <th
                 key={v.persona_id}
-                className="text-left py-2 px-3 text-t-amber font-bold uppercase tracking-wider"
+                className="text-left py-2 px-3 text-t-amber font-bold uppercase tracking-[0.08em] text-[11px]"
               >
                 <div>{v.persona_name}</div>
-                <div className="text-[10px] text-t-dim font-normal normal-case">
+                <div className="text-[11px] text-t-dim font-normal normal-case">
                   {v.persona_label}
                 </div>
               </th>
@@ -36,46 +36,38 @@ export default function ComparisonTable({ verdicts }: ComparisonTableProps) {
         </thead>
         <tbody>
           <tr className="border-b border-t-border/50">
-            <td className="py-2 px-3 text-t-dim">Rating</td>
+            <td className="py-2 px-3 text-t-white">Rating</td>
             {verdicts.map((v) => (
               <td key={v.persona_id} className="py-2 px-3">
-                {v.available ? (
-                  <VerdictBadge rating={v.rating} />
-                ) : (
-                  <span className="text-t-dim">—</span>
-                )}
+                {v.available ? <VerdictBadge rating={v.rating} /> : <span className="text-t-dim">-</span>}
               </td>
             ))}
           </tr>
           <tr className="border-b border-t-border/50">
-            <td className="py-2 px-3 text-t-dim">Confidence</td>
+            <td className="py-2 px-3 text-t-white">Confidence</td>
             {verdicts.map((v) => (
               <td key={v.persona_id} className="py-2 px-3">
                 {v.available && v.confidence > 0 ? (
                   <ConfidenceGauge value={v.confidence} />
                 ) : (
-                  <span className="text-t-dim">—</span>
+                  <span className="text-t-dim">-</span>
                 )}
               </td>
             ))}
           </tr>
           <tr className="border-b border-t-border/50">
-            <td className="py-2 px-3 text-t-dim">Time Horizon</td>
+            <td className="py-2 px-3 text-t-white">Time Horizon</td>
             {verdicts.map((v) => (
-              <td key={v.persona_id} className="py-2 px-3 text-t-text">
-                {v.available ? v.time_horizon : "—"}
+              <td key={v.persona_id} className="py-2 px-3 text-t-white">
+                {v.available ? v.time_horizon : "-"}
               </td>
             ))}
           </tr>
           <tr className="border-b border-t-border/50">
-            <td className="py-2 px-3 text-t-dim">Position Size</td>
+            <td className="py-2 px-3 text-t-white">Position Size</td>
             {verdicts.map((v) => (
               <td key={v.persona_id} className="py-2 px-3">
-                {v.available ? (
-                  <RiskIndicator level={v.position_size} />
-                ) : (
-                  <span className="text-t-dim">—</span>
-                )}
+                {v.available ? <RiskIndicator level={v.position_size} /> : <span className="text-t-dim">-</span>}
               </td>
             ))}
           </tr>
@@ -84,3 +76,4 @@ export default function ComparisonTable({ verdicts }: ComparisonTableProps) {
     </div>
   );
 }
+
