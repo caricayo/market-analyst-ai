@@ -170,24 +170,32 @@ export default function DeepDiveTab({ content, focusQuery }: DeepDiveTabProps) {
     return () => window.clearTimeout(timer);
   }, [focusQuery]);
 
+  const scrollToHeading = (id: string) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+  };
+
   return (
     <div className="grid grid-cols-1 gap-6 px-5 py-5 md:px-8 lg:grid-cols-[240px_minmax(0,1fr)] min-w-0 [overflow-wrap:anywhere]">
-      <aside className="hidden lg:block">
-        <div className="sticky top-4 border border-t-border/70 bg-t-dark/60 p-3">
+      <aside className="hidden lg:block lg:self-start">
+        <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-auto border border-t-border/70 bg-t-dark/60 p-3">
           <h3 className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-t-dim">
             In This Report
           </h3>
           <ul className="space-y-1">
             {sectionHeadings.map((section) => (
               <li key={section.id}>
-                <a
-                  href={`#${section.id}`}
+                <button
+                  type="button"
+                  onClick={() => scrollToHeading(section.id)}
                   className={`block text-[11px] leading-5 text-t-dim hover:text-t-cyan ${
                     section.level === 1 ? "pl-0" : section.level === 2 ? "pl-2" : "pl-4"
                   }`}
                 >
                   {section.title}
-                </a>
+                </button>
               </li>
             ))}
           </ul>
