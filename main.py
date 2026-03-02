@@ -63,6 +63,7 @@ from config import (
     OPENAI_MODEL_PRICING_PER_1M,
     OPENAI_WEB_SEARCH_PRICING_PER_1K,
     FACT_FIRST_DEEP_DIVE_ENABLED,
+    INSTITUTIONAL_LAYER_MODEL,
 )
 from intake import run_intake, IntakeError
 from assembly import (
@@ -79,6 +80,7 @@ from deep_dive_prompts import (
     fact_first_writer_prompt,
 )
 from api.services.claims_ledger import parse_and_validate_fact_first_output
+from api.services.institutional_layer import apply_institutional_layer
 
 
 # ---------------------------------------------------------------------------
@@ -938,6 +940,37 @@ async def run_pipeline(
         start_time=pipeline_start,
         company_name=company_name,
     )
+
+    async def _institutional_model_call(system_prompt: str, user_prompt: str) -> str:
+        response = await asyncio.wait_for(
+            client.responses.create(
+                model=INSTITUTIONAL_LAYER_MODEL,
+                instructions=system_prompt,
+                input=user_prompt,
+                max_output_tokens=SECTION_WRITE_MAX_TOKENS,
+            ),
+            timeout=SECTION_WRITE_TIMEOUT,
+        )
+        if usage_tracker:
+            usage_tracker.record_response(response)
+        return response.output_text or ""
+
+    _p("Stage 2", "Applying institutional intelligence layer...")
+    deep_dive, institutional_layer_meta = await apply_institutional_layer(
+        company=company_name,
+        deep_dive_markdown=deep_dive,
+        model_call=_institutional_model_call,
+    )
+    if institutional_layer_meta.get("blocked_new_numbers"):
+        _p(
+            "Stage 2",
+            f"Institutional layer blocked new numbers ({institutional_layer_meta.get('new_number_count', 0)}). Fallback applied.",
+        )
+    elif institutional_layer_meta.get("applied"):
+        _p("Stage 2", "Institutional intelligence layer applied.")
+    else:
+        _p("Stage 2", "Institutional intelligence layer skipped.")
+
     if on_progress:
         on_progress("Stage 2", "complete", f"Deep dive complete ({len(deep_dive):,} chars)")
     if on_section:
@@ -1010,6 +1043,7 @@ async def run_pipeline(
             "usage": usage_snapshot,
             "claims_ledger": claims_ledger,
             "claims_ledger_meta": claims_ledger_meta,
+            "institutional_layer_meta": institutional_layer_meta,
         }
     return filepath
 

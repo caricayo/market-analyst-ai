@@ -74,6 +74,7 @@ async def execute_pipeline(session: AnalysisSession) -> None:
         usage = run_meta.get("usage", {}) if isinstance(run_meta, dict) else {}
         claims_ledger = run_meta.get("claims_ledger", []) if isinstance(run_meta, dict) else []
         claims_ledger_meta = run_meta.get("claims_ledger_meta", {}) if isinstance(run_meta, dict) else {}
+        institutional_layer_meta = run_meta.get("institutional_layer_meta", {}) if isinstance(run_meta, dict) else {}
 
         if session.is_cancelled:
             return
@@ -113,6 +114,7 @@ async def execute_pipeline(session: AnalysisSession) -> None:
             "usage": usage,
             "claims_ledger": claims_ledger,
             "claims_ledger_meta": claims_ledger_meta,
+            "institutional_layer_meta": institutional_layer_meta,
         }
 
         # Update analysis record with result (record + credit deducted in analyze.py)

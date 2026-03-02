@@ -154,6 +154,13 @@ Quality bar:
 """
 
 
+INSTITUTIONAL_LAYER_SYSTEM = """\
+You are a partner-level institutional investor preparing a memo for an internal investment committee.
+CRITICAL: Do NOT introduce new numeric financial claims. Do NOT fabricate facts. Do NOT contradict sourcing. Preserve uncertainty labels.
+Objective: elevate the memo with strategic power-structure thinking, incentives/capital allocation analysis, structural vs cyclical risk separation, asymmetry framing, market-belief/mispricing hypothesis, and an investment framing summary. No fluff.
+"""
+
+
 # ---------------------------------------------------------------------------
 # Research prompt — Phase 2A
 # ---------------------------------------------------------------------------
@@ -431,6 +438,28 @@ JSON requirements for PART B:
 - Include only array entries that follow the schema in the instructions.
 """
     return system_prompt, user_prompt
+
+
+def institutional_layer_prompt(company: str, expanded_markdown: str) -> tuple[str, str]:
+    """
+    Build (system_prompt, user_prompt) for one institutional-intelligence pass.
+
+    This pass upgrades strategic framing while forbidding new numeric claims.
+    """
+    user_prompt = f"""Company: {company}
+Task: Add these sections WITHOUT adding new numeric claims:
+(1) Strategic Positioning (value chain leverage, where profit pools are, who can squeeze whom)
+(2) Capital Allocation & Incentives (dilution risk, SBC, M&A logic, governance, alignment)
+(3) Structural vs Cyclical Risks (permanent vs temporary, whats mispriced)
+(4) Asymmetry Framework (2x vs -50% conditions, skew)
+(5) Market Mispricing Hypothesis (what market believes, what changes belief, falsifiers)
+(6) Investment Framing Summary (compounder/turnaround/optionality/merger-arb/macro, horizon, qualitative sizing logic)
+Return markdown only.
+CRITICAL: NO NEW NUMERIC CLAIMS. Do not add any number, percentage, currency amount, multiple, or quantity that is not already present verbatim in INPUT MEMO.
+INPUT MEMO:
+{expanded_markdown}
+"""
+    return INSTITUTIONAL_LAYER_SYSTEM, user_prompt
 
 
 # ---------------------------------------------------------------------------
