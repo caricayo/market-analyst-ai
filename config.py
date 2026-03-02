@@ -72,8 +72,12 @@ DEEP_DIVE_MAX_TOKENS = 32_000  # large output — 14 detailed sections
 DEEP_DIVE_TIMEOUT = 600  # 10 minutes
 FACT_FIRST_DEEP_DIVE_ENABLED = os.getenv("FACT_FIRST_DEEP_DIVE_ENABLED", "true").lower() == "true"
 FACT_FIRST_DILIGENCE_ENABLED = os.getenv("FACT_FIRST_DILIGENCE_ENABLED", "true").lower() == "true"
-FACT_FIRST_DILIGENCE_MAX_TOKENS = int(os.getenv("FACT_FIRST_DILIGENCE_MAX_TOKENS", "20000"))
+FACT_FIRST_DILIGENCE_MAX_TOKENS = int(os.getenv("FACT_FIRST_DILIGENCE_MAX_TOKENS", "28000"))
+DEEP_DIVE_OUTPUT_MODE = os.getenv("DEEP_DIVE_OUTPUT_MODE", "legacy_plus_addendum").strip().lower()
+DEEP_DIVE_MIN_CHARS = int(os.getenv("DEEP_DIVE_MIN_CHARS", "22000"))
+DEEP_DIVE_MIN_H2 = int(os.getenv("DEEP_DIVE_MIN_H2", "10"))
 INSTITUTIONAL_LAYER_MODEL = os.getenv("INSTITUTIONAL_LAYER_MODEL", "gpt-5-mini")
+INSTITUTIONAL_LAYER_MAX_TOKENS = int(os.getenv("INSTITUTIONAL_LAYER_MAX_TOKENS", "8000"))
 
 # Stage 2A: Scatter-Gather Research (parallel lanes + merge)
 RESEARCH_MODEL = "gpt-4.1-mini"            # Data gathering, not analysis — faster

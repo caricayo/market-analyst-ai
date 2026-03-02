@@ -19,26 +19,75 @@ export default function ReportView({ result }: ReportViewProps) {
   const [focusQuery, setFocusQuery] = useState<string>("");
 
   const evidenceSummary = useMemo(() => {
-    if (result.evidence_summary) return result.evidence_summary;
-    const claims = result.claims_ledger || [];
-    const secIr = claims.filter((claim) => claim.source_type === "SEC/IR").length;
-    const unverified = claims.filter(
-      (claim) =>
-        String(claim.source_citation || "").toLowerCase() === "unverified"
-        || claim.source_type === "unknown"
-    ).length;
-    const sourceCount = new Set(
-      claims
-        .map((claim) => String(claim.source_citation || "").trim())
-        .filter((source) => source && source.toLowerCase() !== "unverified")
-    ).size;
-    return {
-      sec_ir_claims: secIr,
-      unverified_claims: unverified,
-      source_count: sourceCount,
-      as_of: result.generated_at || null,
+    const summarizeFromClaims = () => {
+      const claims = result.claims_ledger || [];
+      const secIr = claims.filter((claim) => claim.source_type === "SEC/IR").length;
+      const unverified = claims.filter(
+        (claim) =>
+          String(claim.source_citation || "").toLowerCase() === "unverified"
+          || claim.source_type === "unknown"
+      ).length;
+      const sourceCount = new Set(
+        claims
+          .map((claim) => String(claim.source_citation || "").trim())
+          .filter((source) => source && source.toLowerCase() !== "unverified")
+      ).size;
+      return {
+        sec_ir_claims: secIr,
+        unverified_claims: unverified,
+        source_count: sourceCount,
+      };
     };
-  }, [result.claims_ledger, result.evidence_summary, result.generated_at]);
+
+    const summarizeFromMarkdown = () => {
+      const text = result.sections.deep_dive || "";
+      const secIr = (text.match(/source_type\s*=\s*SEC\/IR/gi) || []).length
+        || (text.match(/\b(10-K|10-Q|8-K|DEF 14A|20-F|6-K)\b/gi) || []).length;
+      const unverified = (text.match(/Unverified\s+requires primary filing review\./gi) || []).length
+        || (text.match(/source_citation\s*=\s*unverified/gi) || []).length;
+      const urls = text.match(/https?:\/\/[^\s)>\"]+/gi) || [];
+      return {
+        sec_ir_claims: secIr,
+        unverified_claims: unverified,
+        source_count: new Set(urls).size,
+      };
+    };
+
+    const fromClaims = summarizeFromClaims();
+    const fromMd = summarizeFromMarkdown();
+
+    if (result.evidence_summary) {
+      const es = result.evidence_summary;
+      const looksZero = (es.sec_ir_claims || 0) === 0 && (es.unverified_claims || 0) === 0 && (es.source_count || 0) === 0;
+      if (!looksZero) return es;
+      // Back-compat for older runs with stale zero summaries.
+      return {
+        sec_ir_claims: Math.max(es.sec_ir_claims || 0, fromClaims.sec_ir_claims, fromMd.sec_ir_claims),
+        unverified_claims: Math.max(es.unverified_claims || 0, fromClaims.unverified_claims, fromMd.unverified_claims),
+        source_count: Math.max(es.source_count || 0, fromClaims.source_count, fromMd.source_count),
+        as_of: es.as_of || result.generated_at || null,
+        inferred: true,
+      };
+    }
+
+    const inferred = {
+      sec_ir_claims: Math.max(fromClaims.sec_ir_claims, fromMd.sec_ir_claims),
+      unverified_claims: Math.max(fromClaims.unverified_claims, fromMd.unverified_claims),
+      source_count: Math.max(fromClaims.source_count, fromMd.source_count),
+      as_of: result.generated_at || null,
+      inferred: true,
+    };
+
+    if (
+      inferred.sec_ir_claims === 0
+      && inferred.unverified_claims === 0
+      && inferred.source_count === 0
+    ) {
+      return { ...inferred, inferred: false };
+    }
+    return inferred;
+
+  }, [result.claims_ledger, result.evidence_summary, result.generated_at, result.sections.deep_dive]);
 
   const generatedDisplay = useMemo(() => {
     if (!evidenceSummary.as_of) return null;
@@ -108,9 +157,19 @@ export default function ReportView({ result }: ReportViewProps) {
           <span className="text-t-cyan">
             Unique cited sources: <span className="font-bold">{evidenceSummary.source_count}</span>
           </span>
+          {evidenceSummary.inferred && (
+            <span className="text-t-amber">[inferred]</span>
+          )}
           {generatedDisplay && <span className="text-t-dim">Generated: {generatedDisplay}</span>}
         </div>
       </div>
+      {result.output_quality_meta && result.output_quality_meta.section_check_passed === false && (
+        <div className="mx-4 mt-2 border border-t-amber/40 bg-t-amber/5 px-4 py-3">
+          <p className="text-xs text-t-amber">
+            Output depth check flagged this run as shorter than target. Retry can improve detail density.
+          </p>
+        </div>
+      )}
       <Tabs.Root defaultValue="deep-dive" className="w-full">
         <Tabs.List className="flex border-b border-t-border px-1" aria-label="Report sections">
           <Tabs.Trigger

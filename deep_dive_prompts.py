@@ -523,12 +523,22 @@ INPUT BRIEF:
     return FACT_FIRST_DILIGENCE_SYSTEM, user_prompt
 
 
-def institutional_layer_prompt(company: str, expanded_markdown: str) -> tuple[str, str]:
+def institutional_layer_prompt(
+    company: str,
+    expanded_markdown: str,
+    *,
+    append_only: bool = False,
+) -> tuple[str, str]:
     """
     Build (system_prompt, user_prompt) for one institutional-intelligence pass.
 
     This pass upgrades strategic framing while forbidding new numeric claims.
     """
+    addendum_rule = (
+        "Return ONLY the new addendum sections. Do not rewrite, summarize, or remove existing memo sections."
+        if append_only
+        else "Return markdown only."
+    )
     user_prompt = f"""Company: {company}
 Task: Add these sections WITHOUT adding new numeric claims:
 (1) Strategic Positioning (value chain leverage, where profit pools are, who can squeeze whom)
@@ -537,7 +547,7 @@ Task: Add these sections WITHOUT adding new numeric claims:
 (4) Asymmetry Framework (2x vs -50% conditions, skew)
 (5) Market Mispricing Hypothesis (what market believes, what changes belief, falsifiers)
 (6) Investment Framing Summary (compounder/turnaround/optionality/merger-arb/macro, horizon, qualitative sizing logic)
-Return markdown only.
+{addendum_rule}
 CRITICAL: NO NEW NUMERIC CLAIMS. Do not add any number, percentage, currency amount, multiple, or quantity that is not already present verbatim in INPUT MEMO.
 INPUT MEMO:
 {expanded_markdown}

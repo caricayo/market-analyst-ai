@@ -64,7 +64,11 @@ from config import (
     OPENAI_WEB_SEARCH_PRICING_PER_1K,
     FACT_FIRST_DILIGENCE_ENABLED,
     FACT_FIRST_DILIGENCE_MAX_TOKENS,
+    DEEP_DIVE_OUTPUT_MODE,
+    DEEP_DIVE_MIN_CHARS,
+    DEEP_DIVE_MIN_H2,
     INSTITUTIONAL_LAYER_MODEL,
+    INSTITUTIONAL_LAYER_MAX_TOKENS,
 )
 from intake import run_intake, IntakeError
 from assembly import (
@@ -151,6 +155,17 @@ def _count_web_search_calls(response) -> int:
         if isinstance(item_type, str) and "web_search" in item_type:
             count += 1
     return count
+
+
+def _deep_dive_quality_stats(markdown: str) -> dict[str, int | bool]:
+    text = markdown or ""
+    h2_count = len(re.findall(r"(?m)^##\s+", text))
+    deep_chars = len(text)
+    return {
+        "deep_chars": deep_chars,
+        "h2_count": h2_count,
+        "section_check_passed": deep_chars >= DEEP_DIVE_MIN_CHARS and h2_count >= DEEP_DIVE_MIN_H2,
+    }
 
 
 @dataclass
@@ -544,14 +559,18 @@ async def run_fact_first_diligence_deep_dive(
     if not raw_output:
         raise RuntimeError("Fact-first diligence writer returned empty output")
 
-    part_a, claims_ledger, claims_meta = parse_and_validate_stage2_output(
-        raw_output,
-        deal_detected=deal_detected,
-    )
-    if not part_a.strip():
-        raise RuntimeError("PART A narrative was empty after parsing")
+    async def _validate_with_repair(output_text: str) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
+        part_a_local, claims_ledger_local, claims_meta_local = parse_and_validate_stage2_output(
+            output_text,
+            deal_detected=deal_detected,
+        )
+        if not part_a_local.strip():
+            raise RuntimeError("PART A narrative was empty after parsing")
 
-    if not claims_meta.get("valid", False):
+        if claims_meta_local.get("valid", False):
+            claims_meta_local["repair_used"] = False
+            return part_a_local, claims_ledger_local, claims_meta_local
+
         _p("Stage 2", "Claims ledger validation failed. Running one repair pass...")
 
         async def _repair_ledger_json(meta: dict[str, Any]) -> str:
@@ -563,17 +582,44 @@ async def run_fact_first_diligence_deep_dive(
                 f"Parse errors:\n{json.dumps(meta.get('parse_errors', []), indent=2)}\n\n"
                 "Required schema keys per object:\n"
                 "claim_type, metric, value, unit, timeframe, statement, confidence, source_type, source_citation, notes\n"
-                f"\nOriginal Stage-2 output:\n{raw_output}"
+                f"\nOriginal Stage-2 output:\n{output_text}"
             )
             return await _call_model(repair_instructions, repair_input)
 
-        part_a, claims_ledger, claims_meta = await validate_stage2_with_repair(
-            raw_output,
+        return await validate_stage2_with_repair(
+            output_text,
             deal_detected=deal_detected,
             repair_ledger_json_fn=_repair_ledger_json,
         )
+
+    part_a, claims_ledger, claims_meta = await _validate_with_repair(raw_output)
+
+    quality_stats = _deep_dive_quality_stats(part_a)
+    if not quality_stats["section_check_passed"]:
+        _p("Stage 2", "Deep dive below depth targets. Running one expansion pass...")
+        expansion_instructions = (
+            "You are revising a Stage-2 deep dive. Increase depth and section completeness while preserving factual discipline. "
+            "Return full output with PART A markdown and PART B JSON claims ledger."
+        )
+        expansion_input = (
+            f"Company: {company}\n\n"
+            f"Depth targets:\n- Minimum characters in PART A: {DEEP_DIVE_MIN_CHARS}\n"
+            f"- Minimum H2 sections in PART A: {DEEP_DIVE_MIN_H2}\n\n"
+            "Keep source envelopes and no-fabrication constraints.\n\n"
+            f"Current Stage-2 output:\n{raw_output}\n\n"
+            "Rewrite and expand PART A where shallow; keep PART B valid JSON."
+        )
+        expanded_output = (await _call_model(expansion_instructions, expansion_input)).strip()
+        if expanded_output:
+            part_a, claims_ledger, claims_meta = await _validate_with_repair(expanded_output)
+            quality_stats = _deep_dive_quality_stats(part_a)
+            claims_meta["quality_retry_used"] = True
+        else:
+            claims_meta["quality_retry_used"] = False
     else:
-        claims_meta["repair_used"] = False
+        claims_meta["quality_retry_used"] = False
+
+    claims_meta["output_quality_meta"] = quality_stats
 
     _p("Stage 2", f"Fact-first diligence deep dive complete ({len(part_a):,} chars)")
     return part_a, claims_ledger, claims_meta
@@ -601,7 +647,11 @@ async def run_deep_dive(
     _p = lambda s, d="": progress(s, d, _on_progress=on_progress, _start=start_time)
     _p("Stage 2", "Starting deep dive analysis...")
 
-    if FACT_FIRST_DILIGENCE_ENABLED:
+    mode = DEEP_DIVE_OUTPUT_MODE
+    use_legacy_mode = mode.startswith("legacy")
+    use_fact_first_mode = mode.startswith("fact_first")
+
+    if use_fact_first_mode and FACT_FIRST_DILIGENCE_ENABLED:
         research_brief = await run_research_phase(
             company_name,
             usage_tracker=usage_tracker,
@@ -616,6 +666,26 @@ async def run_deep_dive(
             start_time=start_time,
         )
         _p("Stage 2", f"Deep dive complete ({len(deep_dive):,} characters)")
+        claims_meta["output_mode"] = mode
+        return deep_dive, claims_ledger, claims_meta
+
+    if (not use_legacy_mode) and FACT_FIRST_DILIGENCE_ENABLED and not use_fact_first_mode:
+        # Backward-compatible default when mode is unknown and fact-first is enabled.
+        research_brief = await run_research_phase(
+            company_name,
+            usage_tracker=usage_tracker,
+            on_progress=on_progress,
+            start_time=start_time,
+        )
+        deep_dive, claims_ledger, claims_meta = await run_fact_first_diligence_deep_dive(
+            company=company_name,
+            research_brief=research_brief,
+            usage_tracker=usage_tracker,
+            on_progress=on_progress,
+            start_time=start_time,
+        )
+        _p("Stage 2", f"Deep dive complete ({len(deep_dive):,} characters)")
+        claims_meta["output_mode"] = "fact_first_fallback"
         return deep_dive, claims_ledger, claims_meta
 
     # Load section templates from the due diligence prompt
@@ -703,6 +773,8 @@ async def run_deep_dive(
         "normalization_notes": [],
         "claim_count": 0,
         "raw_json_extracted": False,
+        "output_mode": mode,
+        "output_quality_meta": _deep_dive_quality_stats(full_report),
     }
     return full_report, [], legacy_meta
 
@@ -938,7 +1010,7 @@ async def run_pipeline(
                 model=INSTITUTIONAL_LAYER_MODEL,
                 instructions=system_prompt,
                 input=user_prompt,
-                max_output_tokens=SECTION_WRITE_MAX_TOKENS,
+                max_output_tokens=INSTITUTIONAL_LAYER_MAX_TOKENS,
             ),
             timeout=SECTION_WRITE_TIMEOUT,
         )
@@ -946,21 +1018,33 @@ async def run_pipeline(
             usage_tracker.record_response(response)
         return response.output_text or ""
 
-    _p("Stage 2", "Applying institutional intelligence layer...")
-    deep_dive, institutional_layer_meta = await apply_institutional_layer(
-        company=company_name,
-        deep_dive_markdown=deep_dive,
-        model_call=_institutional_model_call,
-    )
-    if institutional_layer_meta.get("blocked_new_numbers"):
-        _p(
-            "Stage 2",
-            f"Institutional layer blocked new numbers ({institutional_layer_meta.get('new_number_count', 0)}). Fallback applied.",
+    apply_addendum = "addendum" in DEEP_DIVE_OUTPUT_MODE
+    if apply_addendum:
+        _p("Stage 2", "Applying institutional intelligence addendum...")
+        deep_dive, institutional_layer_meta = await apply_institutional_layer(
+            company=company_name,
+            deep_dive_markdown=deep_dive,
+            model_call=_institutional_model_call,
+            append_only=True,
         )
-    elif institutional_layer_meta.get("applied"):
-        _p("Stage 2", "Institutional intelligence layer applied.")
+        if institutional_layer_meta.get("blocked_new_numbers"):
+            _p(
+                "Stage 2",
+                f"Institutional addendum blocked new numbers ({institutional_layer_meta.get('new_number_count', 0)}). Base memo kept.",
+            )
+        elif institutional_layer_meta.get("applied"):
+            _p("Stage 2", "Institutional addendum applied.")
+        else:
+            _p("Stage 2", "Institutional addendum skipped.")
     else:
-        _p("Stage 2", "Institutional intelligence layer skipped.")
+        institutional_layer_meta = {
+            "applied": False,
+            "retry_used": False,
+            "blocked_new_numbers": False,
+            "new_number_count": 0,
+            "mode": "disabled",
+        }
+        _p("Stage 2", "Institutional addendum disabled by output mode.")
 
     if on_progress:
         on_progress("Stage 2", "complete", f"Deep dive complete ({len(deep_dive):,} chars)")
@@ -1028,6 +1112,7 @@ async def run_pipeline(
 
     usage_snapshot = usage_tracker.snapshot()
     _p("Usage", f"Estimated OpenAI cost: ${usage_snapshot['total_cost_usd']:.4f}")
+    output_quality_meta = _deep_dive_quality_stats(deep_dive)
 
     if return_usage:
         return filepath, {
@@ -1035,6 +1120,7 @@ async def run_pipeline(
             "claims_ledger": claims_ledger,
             "claims_ledger_meta": claims_ledger_meta,
             "institutional_layer_meta": institutional_layer_meta,
+            "output_quality_meta": output_quality_meta,
         }
     return filepath
 

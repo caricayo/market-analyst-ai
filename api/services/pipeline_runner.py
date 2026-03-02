@@ -104,6 +104,7 @@ async def execute_pipeline(session: AnalysisSession) -> None:
         claims_ledger = run_meta.get("claims_ledger", []) if isinstance(run_meta, dict) else []
         claims_ledger_meta = run_meta.get("claims_ledger_meta", {}) if isinstance(run_meta, dict) else {}
         institutional_layer_meta = run_meta.get("institutional_layer_meta", {}) if isinstance(run_meta, dict) else {}
+        output_quality_meta = run_meta.get("output_quality_meta", {}) if isinstance(run_meta, dict) else {}
 
         if session.is_cancelled:
             return
@@ -166,18 +167,22 @@ async def execute_pipeline(session: AnalysisSession) -> None:
             and str(c.get("source_citation", "")).strip().lower() != "unverified"
         })
 
+        inferred = False
         if not claims_ledger or (sec_ir_claims == 0 and unverified_claims == 0 and source_count == 0):
-            inferred = _fallback_evidence_summary_from_markdown(sections.get("deep_dive", ""))
-            sec_ir_claims = max(sec_ir_claims, inferred["sec_ir_claims"])
-            unverified_claims = max(unverified_claims, inferred["unverified_claims"])
-            source_count = max(source_count, inferred["source_count"])
+            inferred_counts = _fallback_evidence_summary_from_markdown(sections.get("deep_dive", ""))
+            sec_ir_claims = max(sec_ir_claims, inferred_counts["sec_ir_claims"])
+            unverified_claims = max(unverified_claims, inferred_counts["unverified_claims"])
+            source_count = max(source_count, inferred_counts["source_count"])
+            inferred = True
 
         result_data["evidence_summary"] = {
             "sec_ir_claims": sec_ir_claims,
             "unverified_claims": unverified_claims,
             "source_count": source_count,
             "as_of": datetime.now(timezone.utc).isoformat(),
+            "inferred": inferred,
         }
+        result_data["output_quality_meta"] = output_quality_meta
 
         # Update analysis record with result (record + credit deducted in analyze.py)
         if session.user_id and hasattr(session, "analysis_db_id"):

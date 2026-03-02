@@ -70,6 +70,13 @@ export interface EvidenceSummary {
   unverified_claims: number;
   source_count: number;
   as_of: string | null;
+  inferred?: boolean;
+}
+
+export interface OutputQualityMeta {
+  deep_chars?: number;
+  h2_count?: number;
+  section_check_passed?: boolean;
 }
 
 export interface AnalysisResult {
@@ -86,6 +93,7 @@ export interface AnalysisResult {
   claims_ledger?: ClaimLedgerEntry[];
   claims_ledger_meta?: ClaimsLedgerMeta;
   evidence_summary?: EvidenceSummary;
+  output_quality_meta?: OutputQualityMeta;
 }
 
 export interface SSEEvent {

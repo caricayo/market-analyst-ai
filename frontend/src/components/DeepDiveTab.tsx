@@ -23,7 +23,10 @@ function flattenText(node: ReactNode): string {
 
 const markdownComponents: Components = {
   h1: ({ children }) => (
-    <h1 className="text-3xl font-bold text-t-green mt-10 mb-5 border-b border-t-green/40 pb-3 tracking-tight">
+    <h1
+      id={slugifyHeading(flattenText(children))}
+      className="text-3xl font-bold text-t-green mt-10 mb-5 border-b border-t-green/40 pb-3 tracking-tight"
+    >
       {children}
     </h1>
   ),
@@ -36,7 +39,12 @@ const markdownComponents: Components = {
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-lg font-bold text-t-green mt-8 mb-3">{children}</h3>
+    <h3
+      id={slugifyHeading(flattenText(children))}
+      className="text-lg font-bold text-t-green mt-8 mb-3"
+    >
+      {children}
+    </h3>
   ),
   h4: ({ children }) => (
     <h4 className="text-base font-bold text-t-white mt-4 mb-2">{children}</h4>
@@ -126,11 +134,19 @@ function normalizeForMatch(input: string): string {
 export default function DeepDiveTab({ content, focusQuery }: DeepDiveTabProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sectionHeadings = useMemo(() => {
-    const matches = Array.from(content.matchAll(/^##\s+(.+)$/gm));
+    const matches = Array.from(content.matchAll(/^(#{1,3})\s+(.+)$/gm));
     return matches
-      .map((m) => m[1].trim())
+      .map((m) => ({
+        level: m[1].length,
+        title: m[2].trim(),
+      }))
+      .filter((h) => Boolean(h.title))
+      .map((h) => ({
+        level: h.level,
+        title: h.title,
+        id: slugifyHeading(h.title),
+      }))
       .filter(Boolean)
-      .map((title) => ({ title, id: slugifyHeading(title) }));
   }, [content]);
 
   useEffect(() => {
@@ -166,7 +182,9 @@ export default function DeepDiveTab({ content, focusQuery }: DeepDiveTabProps) {
               <li key={section.id}>
                 <a
                   href={`#${section.id}`}
-                  className="text-[11px] leading-5 text-t-dim hover:text-t-cyan"
+                  className={`block text-[11px] leading-5 text-t-dim hover:text-t-cyan ${
+                    section.level === 1 ? "pl-0" : section.level === 2 ? "pl-2" : "pl-4"
+                  }`}
                 >
                   {section.title}
                 </a>

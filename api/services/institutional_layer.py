@@ -46,12 +46,14 @@ def _institutional_layer_meta(
     retry_used: bool,
     blocked_new_numbers: bool,
     new_number_count: int,
-) -> dict[str, bool | int]:
+    mode: str,
+) -> dict[str, bool | int | str]:
     return {
         "applied": applied,
         "retry_used": retry_used,
         "blocked_new_numbers": blocked_new_numbers,
         "new_number_count": new_number_count,
+        "mode": mode,
     }
 
 
@@ -87,7 +89,8 @@ async def apply_institutional_layer(
     company: str,
     deep_dive_markdown: str,
     model_call: ModelCall,
-) -> tuple[str, dict[str, bool | int]]:
+    append_only: bool = False,
+) -> tuple[str, dict[str, bool | int | str]]:
     """
     Apply one institutional-intelligence enrichment pass with numeric safeguards.
 
@@ -98,28 +101,39 @@ async def apply_institutional_layer(
     """
     if not deep_dive_markdown.strip():
         return deep_dive_markdown, _institutional_layer_meta(
-            applied=False, retry_used=False, blocked_new_numbers=False, new_number_count=0
+            applied=False, retry_used=False, blocked_new_numbers=False, new_number_count=0, mode="append_only" if append_only else "replace"
         )
 
     try:
-        system_prompt, user_prompt = institutional_layer_prompt(company, deep_dive_markdown)
+        system_prompt, user_prompt = institutional_layer_prompt(
+            company,
+            deep_dive_markdown,
+            append_only=append_only,
+        )
         candidate = (await model_call(system_prompt, user_prompt)).strip()
     except Exception as exc:
         log.warning("Institutional layer call failed: %s", exc)
         return deep_dive_markdown, _institutional_layer_meta(
-            applied=False, retry_used=False, blocked_new_numbers=False, new_number_count=0
+            applied=False, retry_used=False, blocked_new_numbers=False, new_number_count=0, mode="append_only" if append_only else "replace"
         )
 
     if not candidate:
         log.warning("Institutional layer returned empty output. Falling back to original deep dive.")
         return deep_dive_markdown, _institutional_layer_meta(
-            applied=False, retry_used=False, blocked_new_numbers=False, new_number_count=0
+            applied=False, retry_used=False, blocked_new_numbers=False, new_number_count=0, mode="append_only" if append_only else "replace"
         )
 
     new_tokens = find_new_numeric_tokens(deep_dive_markdown, candidate)
     if not new_tokens:
+        if append_only:
+            combined = (
+                f"{deep_dive_markdown.rstrip()}\n\n---\n\n## Institutional Intelligence Addendum\n\n{candidate.strip()}"
+            )
+            return combined, _institutional_layer_meta(
+                applied=True, retry_used=False, blocked_new_numbers=False, new_number_count=0, mode="append_only"
+            )
         return candidate, _institutional_layer_meta(
-            applied=True, retry_used=False, blocked_new_numbers=False, new_number_count=0
+            applied=True, retry_used=False, blocked_new_numbers=False, new_number_count=0, mode="replace"
         )
 
     log.warning(
@@ -137,6 +151,7 @@ async def apply_institutional_layer(
             retry_used=True,
             blocked_new_numbers=True,
             new_number_count=len(new_tokens),
+            mode="append_only" if append_only else "replace",
         )
 
     if not repaired:
@@ -146,6 +161,7 @@ async def apply_institutional_layer(
             retry_used=True,
             blocked_new_numbers=True,
             new_number_count=len(new_tokens),
+            mode="append_only" if append_only else "replace",
         )
 
     post_repair_tokens = find_new_numeric_tokens(deep_dive_markdown, repaired)
@@ -159,6 +175,19 @@ async def apply_institutional_layer(
             retry_used=True,
             blocked_new_numbers=True,
             new_number_count=len(post_repair_tokens),
+            mode="append_only" if append_only else "replace",
+        )
+
+    if append_only:
+        combined = (
+            f"{deep_dive_markdown.rstrip()}\n\n---\n\n## Institutional Intelligence Addendum\n\n{repaired.strip()}"
+        )
+        return combined, _institutional_layer_meta(
+            applied=True,
+            retry_used=True,
+            blocked_new_numbers=False,
+            new_number_count=0,
+            mode="append_only",
         )
 
     return repaired, _institutional_layer_meta(
@@ -166,4 +195,5 @@ async def apply_institutional_layer(
         retry_used=True,
         blocked_new_numbers=False,
         new_number_count=0,
+        mode="replace",
     )
