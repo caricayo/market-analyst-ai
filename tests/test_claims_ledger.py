@@ -129,6 +129,62 @@ PART B  CLAIMS LEDGER
         self.assertTrue(meta["valid"])
         self.assertEqual(len(claims), 1)
 
+    async def test_repair_invalid_keeps_degraded_salvage_claims(self):
+        bad_output = """PART A
+## Business Model & Revenue Architecture
+Revenue reached 12%. timeframe=FY2025 unit=percent source_type=SEC/IR source_citation=10-K
+## Competitive Position & Power Structure
+Unverified  requires primary filing review.
+## Financial Quality Snapshot
+Unverified  requires primary filing review.
+## Capital Structure & Liquidity
+Net debt not computed due to sourcing limits.
+## Leadership, Governance & Incentives
+CEO has operating background. timeframe=FY2025 unit=event source_type=SEC/IR source_citation=10-K
+## SBC & Dilution Analysis
+Unverified  requires primary filing review.
+## Structural vs Cyclical Risk Separation
+Unverified  requires primary filing review.
+## Strategic Optionality & Upside Drivers
+Unverified  requires primary filing review.
+## Market Belief vs Mispricing Hypothesis
+Unverified  requires primary filing review.
+## Investment Framing Summary
+Unverified  requires primary filing review.
+
+PART B  CLAIMS LEDGER
+[{broken json}
+"""
+
+        async def repair_fn(_meta):
+            # Deliberately incomplete so final validation remains invalid.
+            return json.dumps(
+                [
+                    {
+                        "claim_type": "qualitative",
+                        "metric": "governance_quality",
+                        "value": None,
+                        "unit": "event",
+                        "timeframe": "FY2025",
+                        "statement": "CEO has operating background. timeframe=FY2025 unit=event source_type=SEC/IR source_citation=10-K",
+                        "confidence": "medium",
+                        "source_type": "SEC/IR",
+                        "source_citation": "10-K",
+                        "notes": "",
+                    }
+                ]
+            )
+
+        _part_a, claims, meta = await validate_stage2_with_repair(
+            bad_output,
+            deal_detected=False,
+            repair_ledger_json_fn=repair_fn,
+        )
+        self.assertFalse(meta["valid"])
+        self.assertTrue(meta["repair_used"])
+        self.assertTrue(meta.get("degraded_ledger"))
+        self.assertGreater(len(claims), 0)
+
     def test_management_section_requires_management_claims(self):
         text = """PART A
 ## Business Model & Revenue Architecture

@@ -62,6 +62,7 @@ export interface ClaimsLedgerMeta {
   claim_count: number;
   repair_used?: boolean;
   deal_detected?: boolean;
+  degraded_ledger?: boolean;
 }
 
 export interface EvidenceSummary {

@@ -63,6 +63,7 @@ from config import (
     OPENAI_MODEL_PRICING_PER_1M,
     OPENAI_WEB_SEARCH_PRICING_PER_1K,
     FACT_FIRST_DILIGENCE_ENABLED,
+    FACT_FIRST_DILIGENCE_MAX_TOKENS,
     INSTITUTIONAL_LAYER_MODEL,
 )
 from intake import run_intake, IntakeError
@@ -530,7 +531,7 @@ async def run_fact_first_diligence_deep_dive(
                 model=SECTION_WRITE_MODEL,
                 instructions=instructions,
                 input=input_text,
-                max_output_tokens=SECTION_WRITE_MAX_TOKENS,
+                max_output_tokens=FACT_FIRST_DILIGENCE_MAX_TOKENS,
             ),
             timeout=SECTION_WRITE_TIMEOUT,
         )

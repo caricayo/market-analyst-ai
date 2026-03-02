@@ -26,6 +26,10 @@ from api.services.event_bus import AnalysisSession
 from api.services.persona_parser import parse_persona
 
 
+_URL_RE = re.compile(r"https?://[^\s)>\"]+")
+_FILING_RE = re.compile(r"\b(10-K|10-Q|8-K|DEF 14A|20-F|6-K|earnings release)\b", re.IGNORECASE)
+
+
 def _split_report_sections(report_text: str) -> dict[str, str]:
     """Split the assembled report into Part I, Part II, Part III sections."""
     sections = {
@@ -47,6 +51,30 @@ def _split_report_sections(report_text: str) -> dict[str, str]:
         sections["synthesis"] = part3_match.group(1).strip()
 
     return sections
+
+
+def _fallback_evidence_summary_from_markdown(deep_dive: str) -> dict[str, int]:
+    """Infer evidence counts from markdown when claims ledger is unavailable/degraded."""
+    text = deep_dive or ""
+    sec_ir_claims = len(re.findall(r"source_type\s*=\s*SEC/IR", text, flags=re.IGNORECASE))
+    if sec_ir_claims == 0:
+        sec_ir_claims = len(_FILING_RE.findall(text))
+
+    unverified_claims = len(
+        re.findall(r"Unverified\s+requires primary filing review\.", text, flags=re.IGNORECASE)
+    )
+    if unverified_claims == 0:
+        unverified_claims = len(re.findall(r"source_citation\s*=\s*unverified", text, flags=re.IGNORECASE))
+
+    unique_urls = set(_URL_RE.findall(text))
+    filing_refs = {m.group(0).upper() for m in _FILING_RE.finditer(text)}
+    source_count = len(unique_urls.union(filing_refs))
+
+    return {
+        "sec_ir_claims": sec_ir_claims,
+        "unverified_claims": unverified_claims,
+        "source_count": source_count,
+    }
 
 
 async def execute_pipeline(session: AnalysisSession) -> None:
@@ -117,28 +145,38 @@ async def execute_pipeline(session: AnalysisSession) -> None:
             "claims_ledger": claims_ledger,
             "claims_ledger_meta": claims_ledger_meta,
             "institutional_layer_meta": institutional_layer_meta,
-            "evidence_summary": {
-                "sec_ir_claims": sum(
-                    1 for c in claims_ledger
-                    if isinstance(c, dict) and c.get("source_type") == "SEC/IR"
-                ),
-                "unverified_claims": sum(
-                    1 for c in claims_ledger
-                    if isinstance(c, dict)
-                    and (
-                        str(c.get("source_citation", "")).strip().lower() == "unverified"
-                        or c.get("source_type") == "unknown"
-                    )
-                ),
-                "source_count": len({
-                    str(c.get("source_citation", "")).strip()
-                    for c in claims_ledger
-                    if isinstance(c, dict)
-                    and str(c.get("source_citation", "")).strip()
-                    and str(c.get("source_citation", "")).strip().lower() != "unverified"
-                }),
-                "as_of": datetime.now(timezone.utc).isoformat(),
-            },
+        }
+        sec_ir_claims = sum(
+            1 for c in claims_ledger
+            if isinstance(c, dict) and c.get("source_type") == "SEC/IR"
+        )
+        unverified_claims = sum(
+            1 for c in claims_ledger
+            if isinstance(c, dict)
+            and (
+                str(c.get("source_citation", "")).strip().lower() == "unverified"
+                or c.get("source_type") == "unknown"
+            )
+        )
+        source_count = len({
+            str(c.get("source_citation", "")).strip()
+            for c in claims_ledger
+            if isinstance(c, dict)
+            and str(c.get("source_citation", "")).strip()
+            and str(c.get("source_citation", "")).strip().lower() != "unverified"
+        })
+
+        if not claims_ledger or (sec_ir_claims == 0 and unverified_claims == 0 and source_count == 0):
+            inferred = _fallback_evidence_summary_from_markdown(sections.get("deep_dive", ""))
+            sec_ir_claims = max(sec_ir_claims, inferred["sec_ir_claims"])
+            unverified_claims = max(unverified_claims, inferred["unverified_claims"])
+            source_count = max(source_count, inferred["source_count"])
+
+        result_data["evidence_summary"] = {
+            "sec_ir_claims": sec_ir_claims,
+            "unverified_claims": unverified_claims,
+            "source_count": source_count,
+            "as_of": datetime.now(timezone.utc).isoformat(),
         }
 
         # Update analysis record with result (record + credit deducted in analyze.py)

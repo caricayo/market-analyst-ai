@@ -399,6 +399,7 @@ async def validate_stage2_with_repair(
         output_text,
         deal_detected=deal_detected,
     )
+    baseline_claims = claims_ledger
     if claims_meta.get("valid", False):
         claims_meta["repair_used"] = False
         return part_a, claims_ledger, claims_meta
@@ -424,13 +425,15 @@ async def validate_stage2_with_repair(
     merged_meta["repair_used"] = True
 
     if not merged_meta.get("valid", False):
-        return part_a, [], {
+        salvage_claims = repaired_claims if repaired_claims else baseline_claims
+        return part_a, salvage_claims, {
             **merged_meta,
             "valid": False,
             "parse_errors": [
                 *merged_meta.get("parse_errors", []),
-                "Claims ledger invalid after one repair pass; ledger dropped.",
+                "Claims ledger invalid after one repair pass; using degraded ledger salvage.",
             ],
+            "degraded_ledger": True,
             "deal_detected": deal_detected,
         }
 

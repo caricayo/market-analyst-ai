@@ -89,6 +89,14 @@ export default function ReportView({ result }: ReportViewProps) {
           </p>
         </div>
       )}
+      {result.claims_ledger_meta && result.claims_ledger_meta.valid === false && (
+        <div className="mx-4 mt-2 border border-t-amber/40 bg-t-amber/5 px-4 py-3">
+          <p className="text-xs text-t-amber">
+            Claims ledger quality check flagged issues for this run. Evidence counters may include
+            inferred markdown citations.
+          </p>
+        </div>
+      )}
       <div className="mx-4 mt-2 border border-t-green/40 bg-t-green/5 px-4 py-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
           <span className="text-t-green">

@@ -515,6 +515,7 @@ PART B requirements:
 - claim_type enum: numeric | qualitative
 - confidence enum: low | medium | high
 - source_type enum: SEC/IR | reputable_market_data | estimate | unknown
+- If output budget gets tight, compress PART A prose and ALWAYS include complete PART B JSON.
 
 INPUT BRIEF:
 {research_brief}
