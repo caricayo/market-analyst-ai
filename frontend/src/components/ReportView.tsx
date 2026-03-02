@@ -49,19 +49,16 @@ export default function ReportView({ result }: ReportViewProps) {
           <p className="text-[10px] text-t-cyan">
             Estimated model cost: <span className="font-bold">${estimatedCost.toFixed(4)}</span>
             {typeof result.usage?.total_tokens === "number" && (
-              <span className="text-t-dim"> · {result.usage.total_tokens.toLocaleString()} tokens</span>
+              <span className="text-t-dim"> | {result.usage.total_tokens.toLocaleString()} tokens</span>
             )}
             {typeof result.usage?.web_search_calls === "number" && (
-              <span className="text-t-dim"> · {result.usage.web_search_calls} web searches</span>
+              <span className="text-t-dim"> | {result.usage.web_search_calls} web searches</span>
             )}
           </p>
         </div>
       )}
       <Tabs.Root defaultValue="deep-dive" className="w-full">
-        <Tabs.List
-          className="flex border-b border-t-border"
-          aria-label="Report sections"
-        >
+        <Tabs.List className="flex border-b border-t-border" aria-label="Report sections">
           <Tabs.Trigger
             value="deep-dive"
             className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-t-dim data-[state=active]:text-t-green data-[state=active]:border-b-2 data-[state=active]:border-t-green hover:text-t-text transition-colors"
@@ -107,10 +104,7 @@ export default function ReportView({ result }: ReportViewProps) {
               Download Perspectives
             </button>
           </div>
-          <PerspectiveTab
-            content={result.sections.perspectives}
-            verdicts={result.persona_verdicts}
-          />
+          <PerspectiveTab content={result.sections.perspectives} verdicts={result.persona_verdicts} />
         </Tabs.Content>
 
         <Tabs.Content value="synthesis" className="outline-none">
@@ -128,10 +122,9 @@ export default function ReportView({ result }: ReportViewProps) {
         </Tabs.Content>
       </Tabs.Root>
       <div className="px-4 py-3 border-t border-t-border">
-        <p className="text-[10px] text-t-dim">
-          Coming soon: Ask AI questions about this report
-        </p>
+        <p className="text-[10px] text-t-dim">Coming soon: Ask AI questions about this report</p>
       </div>
     </div>
   );
 }
+
