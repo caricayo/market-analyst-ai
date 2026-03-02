@@ -109,10 +109,10 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
           {[
             { n: "01", label: "Intake", desc: "Validate ticker, gather metadata" },
-            { n: "02", label: "Deep Dive", desc: "6-lane parallel research + 14-section analysis" },
+            { n: "02", label: "Deep Dive", desc: "6-lane parallel research + fact-first IC memo" },
             { n: "03", label: "Perspectives", desc: "3 analyst personas evaluate independently" },
             { n: "04", label: "Synthesis", desc: "Cross-perspective consensus & conflicts" },
-            { n: "05", label: "Assembly", desc: "Final report compilation & delivery" },
+            { n: "05", label: "Assembly", desc: "Claims ledger + final report delivery" },
           ].map((s) => (
             <div
               key={s.n}
@@ -206,7 +206,7 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
           Pricing
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="border border-t-border bg-t-dark p-5 text-center">
             <div className="text-xs text-t-amber uppercase tracking-wider mb-2">
               Free Tier
@@ -237,6 +237,17 @@ export default function LandingPage({ onDemoStart }: LandingPageProps) {
             <div className="text-xs text-t-text mb-3">30 credits</div>
             <div className="text-[10px] text-t-dim">
               $0.40 per analysis
+            </div>
+          </div>
+
+          <div className="border border-t-border bg-t-dark p-5 text-center">
+            <div className="text-xs text-t-amber uppercase tracking-wider mb-2">
+              Power Pack
+            </div>
+            <div className="text-2xl font-bold text-t-green mb-1">$30</div>
+            <div className="text-xs text-t-text mb-3">100 credits</div>
+            <div className="text-[10px] text-t-dim">
+              $0.30 per analysis
             </div>
           </div>
         </div>

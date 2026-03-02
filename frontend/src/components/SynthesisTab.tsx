@@ -11,15 +11,15 @@ interface SynthesisTabProps {
 
 const markdownComponents: Components = {
   h2: ({ children }) => (
-    <h2 className="text-xl font-bold text-t-amber mt-8 mb-4 border-b border-t-amber/30 pb-2">
+    <h2 className="text-2xl font-bold text-t-amber mt-8 mb-4 border-b border-t-amber/30 pb-2">
       {children}
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-base font-bold text-t-green mt-6 mb-3">{children}</h3>
+    <h3 className="text-lg font-bold text-t-green mt-6 mb-3">{children}</h3>
   ),
   p: ({ children }) => (
-    <p className="text-t-white leading-7 mb-4">{children}</p>
+    <p className="text-t-text leading-8 mb-4 text-[14px] md:text-[15px]">{children}</p>
   ),
   strong: ({ children }) => (
     <strong className="text-t-green font-bold">{children}</strong>
@@ -28,7 +28,7 @@ const markdownComponents: Components = {
     <em className="text-t-amber italic">{children}</em>
   ),
   ul: ({ children }) => (
-    <ul className="list-none space-y-2 mb-4 ml-3">{children}</ul>
+    <ul className="list-disc space-y-2 mb-4 ml-6 text-t-text text-[14px] md:text-[15px]">{children}</ul>
   ),
   ol: ({ children }) => (
     <ol className="list-decimal list-inside space-y-2 mb-4 ml-3 text-t-white">
@@ -36,7 +36,7 @@ const markdownComponents: Components = {
     </ol>
   ),
   li: ({ children }) => (
-    <li className="text-t-white leading-6 before:content-['-_'] before:text-t-green before:mr-1">
+    <li className="leading-7">
       {children}
     </li>
   ),
@@ -79,7 +79,7 @@ const markdownComponents: Components = {
 
 export default function SynthesisTab({ content }: SynthesisTabProps) {
   return (
-    <div className="px-5 py-5 md:px-8 min-w-0 [overflow-wrap:anywhere] text-[13px]">
+    <div className="px-5 py-5 md:px-8 min-w-0 [overflow-wrap:anywhere] text-[14px]">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSanitize]}

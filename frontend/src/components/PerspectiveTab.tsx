@@ -17,24 +17,24 @@ interface PerspectiveTabProps {
 
 const markdownComponents: Components = {
   h2: ({ children }) => (
-    <h2 className="text-xl font-bold text-t-amber mt-6 mb-4 border-b border-t-amber/30 pb-2">
+    <h2 className="text-2xl font-bold text-t-amber mt-8 mb-4 border-b border-t-amber/30 pb-2">
       {children}
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-base font-bold text-t-green mt-5 mb-3">{children}</h3>
+    <h3 className="text-lg font-bold text-t-green mt-6 mb-3">{children}</h3>
   ),
   p: ({ children }) => (
-    <p className="text-t-white leading-7 mb-3">{children}</p>
+    <p className="text-t-text leading-8 mb-4 text-[14px] md:text-[15px]">{children}</p>
   ),
   strong: ({ children }) => (
     <strong className="text-t-green font-bold">{children}</strong>
   ),
   ul: ({ children }) => (
-    <ul className="list-none space-y-2 mb-3 ml-3">{children}</ul>
+    <ul className="list-disc space-y-2 mb-4 ml-6 text-t-text text-[14px] md:text-[15px]">{children}</ul>
   ),
   li: ({ children }) => (
-    <li className="text-t-white leading-6 before:content-['-_'] before:text-t-green before:mr-1">
+    <li className="leading-7">
       {children}
     </li>
   ),
@@ -84,7 +84,7 @@ export default function PerspectiveTab({ content, verdicts }: PerspectiveTabProp
   }
 
   return (
-    <div className="px-5 py-5 md:px-8 min-w-0 [overflow-wrap:anywhere] text-[13px]">
+    <div className="px-5 py-5 md:px-8 min-w-0 [overflow-wrap:anywhere] text-[14px]">
       <div className="mb-6 border border-t-border/70 bg-t-dark/70 p-4">
         <h3 className="text-sm font-bold text-t-amber uppercase tracking-[0.08em] mb-3">
           Verdict Comparison

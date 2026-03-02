@@ -11,6 +11,7 @@ import re
 import sys
 from pathlib import Path
 from dataclasses import asdict
+from datetime import datetime, timezone
 
 # Add project root to path so we can import main, config, etc.
 _project_root = str(Path(__file__).resolve().parent.parent.parent)
@@ -109,12 +110,35 @@ async def execute_pipeline(session: AnalysisSession) -> None:
         result_data = {
             "ticker": session.ticker,
             "filepath": str(filepath),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "sections": sections,
             "persona_verdicts": persona_verdicts,
             "usage": usage,
             "claims_ledger": claims_ledger,
             "claims_ledger_meta": claims_ledger_meta,
             "institutional_layer_meta": institutional_layer_meta,
+            "evidence_summary": {
+                "sec_ir_claims": sum(
+                    1 for c in claims_ledger
+                    if isinstance(c, dict) and c.get("source_type") == "SEC/IR"
+                ),
+                "unverified_claims": sum(
+                    1 for c in claims_ledger
+                    if isinstance(c, dict)
+                    and (
+                        str(c.get("source_citation", "")).strip().lower() == "unverified"
+                        or c.get("source_type") == "unknown"
+                    )
+                ),
+                "source_count": len({
+                    str(c.get("source_citation", "")).strip()
+                    for c in claims_ledger
+                    if isinstance(c, dict)
+                    and str(c.get("source_citation", "")).strip()
+                    and str(c.get("source_citation", "")).strip().lower() != "unverified"
+                }),
+                "as_of": datetime.now(timezone.utc).isoformat(),
+            },
         }
 
         # Update analysis record with result (record + credit deducted in analyze.py)

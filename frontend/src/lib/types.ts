@@ -38,9 +38,43 @@ export interface UsageSummary {
   total_cost_usd: number;
 }
 
+export type ClaimType = "numeric" | "qualitative";
+export type ClaimConfidence = "low" | "medium" | "high";
+export type ClaimSourceType = "SEC/IR" | "reputable_market_data" | "estimate" | "unknown";
+
+export interface ClaimLedgerEntry {
+  claim_type: ClaimType;
+  metric: string;
+  value: number | null;
+  unit: string | null;
+  timeframe: string | null;
+  statement: string;
+  confidence: ClaimConfidence;
+  source_type: ClaimSourceType;
+  source_citation: string;
+  notes: string;
+}
+
+export interface ClaimsLedgerMeta {
+  valid: boolean;
+  parse_errors: string[];
+  normalization_notes: string[];
+  claim_count: number;
+  repair_used?: boolean;
+  deal_detected?: boolean;
+}
+
+export interface EvidenceSummary {
+  sec_ir_claims: number;
+  unverified_claims: number;
+  source_count: number;
+  as_of: string | null;
+}
+
 export interface AnalysisResult {
   ticker: string;
   filepath: string;
+  generated_at?: string;
   sections: {
     deep_dive: string;
     perspectives: string;
@@ -48,6 +82,9 @@ export interface AnalysisResult {
   };
   persona_verdicts: PersonaVerdict[];
   usage?: UsageSummary;
+  claims_ledger?: ClaimLedgerEntry[];
+  claims_ledger_meta?: ClaimsLedgerMeta;
+  evidence_summary?: EvidenceSummary;
 }
 
 export interface SSEEvent {

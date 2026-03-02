@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
 import type { AnalysisResult } from "@/lib/types";
 import DeepDiveTab from "./DeepDiveTab";
 import PerspectiveTab from "./PerspectiveTab";
 import SynthesisTab from "./SynthesisTab";
+import ClaimsLedgerPanel from "./ClaimsLedgerPanel";
 
 interface ReportViewProps {
   result: AnalysisResult;
@@ -14,6 +15,37 @@ interface ReportViewProps {
 export default function ReportView({ result }: ReportViewProps) {
   const estimatedCost = result.usage?.total_cost_usd;
   const hasEstimatedCost = typeof estimatedCost === "number" && Number.isFinite(estimatedCost);
+  const [showClaims, setShowClaims] = useState(false);
+  const [focusQuery, setFocusQuery] = useState<string>("");
+
+  const evidenceSummary = useMemo(() => {
+    if (result.evidence_summary) return result.evidence_summary;
+    const claims = result.claims_ledger || [];
+    const secIr = claims.filter((claim) => claim.source_type === "SEC/IR").length;
+    const unverified = claims.filter(
+      (claim) =>
+        String(claim.source_citation || "").toLowerCase() === "unverified"
+        || claim.source_type === "unknown"
+    ).length;
+    const sourceCount = new Set(
+      claims
+        .map((claim) => String(claim.source_citation || "").trim())
+        .filter((source) => source && source.toLowerCase() !== "unverified")
+    ).size;
+    return {
+      sec_ir_claims: secIr,
+      unverified_claims: unverified,
+      source_count: sourceCount,
+      as_of: result.generated_at || null,
+    };
+  }, [result.claims_ledger, result.evidence_summary, result.generated_at]);
+
+  const generatedDisplay = useMemo(() => {
+    if (!evidenceSummary.as_of) return null;
+    const parsed = new Date(evidenceSummary.as_of);
+    if (Number.isNaN(parsed.getTime())) return evidenceSummary.as_of;
+    return parsed.toLocaleString();
+  }, [evidenceSummary.as_of]);
 
   const downloadSection = useCallback(
     (sectionName: "deep-dive" | "perspectives" | "synthesis", content: string) => {
@@ -57,6 +89,20 @@ export default function ReportView({ result }: ReportViewProps) {
           </p>
         </div>
       )}
+      <div className="mx-4 mt-2 border border-t-green/40 bg-t-green/5 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          <span className="text-t-green">
+            SEC/IR-backed claims: <span className="font-bold">{evidenceSummary.sec_ir_claims}</span>
+          </span>
+          <span className="text-t-amber">
+            Unverified claims: <span className="font-bold">{evidenceSummary.unverified_claims}</span>
+          </span>
+          <span className="text-t-cyan">
+            Unique cited sources: <span className="font-bold">{evidenceSummary.source_count}</span>
+          </span>
+          {generatedDisplay && <span className="text-t-dim">Generated: {generatedDisplay}</span>}
+        </div>
+      </div>
       <Tabs.Root defaultValue="deep-dive" className="w-full">
         <Tabs.List className="flex border-b border-t-border px-1" aria-label="Report sections">
           <Tabs.Trigger
@@ -80,7 +126,16 @@ export default function ReportView({ result }: ReportViewProps) {
         </Tabs.List>
 
         <Tabs.Content value="deep-dive" className="outline-none">
-          <div className="flex justify-end px-4 pt-4">
+          <div className="flex flex-wrap justify-end gap-2 px-4 pt-4">
+            {(result.claims_ledger?.length || 0) > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowClaims((s) => !s)}
+                className="px-3 py-2 border border-t-cyan text-t-cyan text-xs uppercase tracking-[0.08em] hover:bg-t-cyan/10 transition-colors"
+              >
+                {showClaims ? "Hide Claims Ledger" : "Show Claims Ledger"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => downloadSection("deep-dive", result.sections.deep_dive)}
@@ -90,7 +145,15 @@ export default function ReportView({ result }: ReportViewProps) {
               Download Deep Dive
             </button>
           </div>
-          <DeepDiveTab content={result.sections.deep_dive} />
+          {showClaims && (result.claims_ledger?.length || 0) > 0 && (
+            <ClaimsLedgerPanel
+              claims={result.claims_ledger || []}
+              onLocate={(claim) => {
+                setFocusQuery(claim.statement || claim.metric || "");
+              }}
+            />
+          )}
+          <DeepDiveTab content={result.sections.deep_dive} focusQuery={focusQuery} />
         </Tabs.Content>
 
         <Tabs.Content value="perspectives" className="outline-none">
