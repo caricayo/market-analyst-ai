@@ -154,6 +154,27 @@ Quality bar:
 """
 
 
+FACT_FIRST_DILIGENCE_SYSTEM = """\
+Role: You are an institutional research analyst writing a fact-first diligence memo for an internal investment committee.
+
+Mission:
+- Produce a large, high-signal markdown memo that is conservative on facts and explicit on uncertainty.
+- Every factual or numeric claim in PART A must also appear in PART B Claims Ledger.
+
+Critical enforcement:
+1) No naked numbers. Any numeric claim in PART A must include: timeframe, unit, source_type, source_citation.
+2) If evidence is weak/missing, label exactly:
+   Unverified  requires primary filing review.
+3) Do not fabricate facts or sources.
+4) Do not compute/assert net debt unless cash + total debt (+ recourse vs non-recourse/VIE split if applicable) are all sourced.
+   If not fully sourced, state:
+   Net debt not computed due to sourcing limits.
+5) SBC & Dilution Analysis section is mandatory even when data is missing.
+6) Deal-Arb Appendix appears only if acquisition/merger evidence appears in the research brief.
+7) PART A claims must be mirrored in PART B ledger entries.
+"""
+
+
 INSTITUTIONAL_LAYER_SYSTEM = """\
 You are a partner-level institutional investor preparing a memo for an internal investment committee.
 CRITICAL: Do NOT introduce new numeric financial claims. Do NOT fabricate facts. Do NOT contradict sourcing. Preserve uncertainty labels.
@@ -438,6 +459,56 @@ JSON requirements for PART B:
 - Include only array entries that follow the schema in the instructions.
 """
     return system_prompt, user_prompt
+
+
+def fact_first_diligence_prompt(company: str, research_brief: str) -> tuple[str, str]:
+    """
+    Build (system_prompt, user_prompt) for the Stage-2 fact-first diligence contract.
+
+    Required output:
+      - PART A markdown memo with fixed section order
+      - PART B claims ledger JSON array
+    """
+    user_prompt = f"""Company: {company}
+
+Return EXACTLY two parts in this order:
+PART A
+PART B  CLAIMS LEDGER
+
+PART A requirements (markdown, in exact section order):
+1) Business Model & Revenue Architecture
+2) Competitive Position & Power Structure
+3) Financial Quality Snapshot
+4) Capital Structure & Liquidity
+5) SBC & Dilution Analysis (Mandatory)
+6) Structural vs Cyclical Risk Separation
+7) Strategic Optionality & Upside Drivers
+8) Market Belief vs Mispricing Hypothesis
+9) Deal-Arb Appendix (ONLY if acquisition evidence appears in INPUT BRIEF)
+10) Investment Framing Summary
+
+Formatting requirements:
+- Committee-ready writing, concise but deep.
+- Every numeric/factual claim in PART A must include sourcing envelope:
+  timeframe, unit, source_type, source_citation
+- source_type enum: SEC/IR | reputable_market_data | estimate | unknown
+- If claim cannot be verified, label:
+  Unverified  requires primary filing review.
+- Never introduce claims that are not represented in PART B ledger.
+- Do not include markdown code fences around PART B JSON.
+
+PART B requirements:
+- Return a valid JSON array only for PART B.
+- Each claim object must include keys:
+  claim_type, metric, value, unit, timeframe, statement, confidence, source_type, source_citation, notes
+- claim_type enum: numeric | qualitative
+- confidence enum: low | medium | high
+- source_type enum: SEC/IR | reputable_market_data | estimate | unknown
+
+INPUT BRIEF:
+{research_brief}
+"""
+    return FACT_FIRST_DILIGENCE_SYSTEM, user_prompt
 
 
 def institutional_layer_prompt(company: str, expanded_markdown: str) -> tuple[str, str]:

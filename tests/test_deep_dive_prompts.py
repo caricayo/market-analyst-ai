@@ -11,7 +11,12 @@ if "dotenv" not in sys.modules:
     dotenv.load_dotenv = lambda *args, **kwargs: None
     sys.modules["dotenv"] = dotenv
 
-from deep_dive_prompts import INSTITUTIONAL_LAYER_SYSTEM, institutional_layer_prompt
+from deep_dive_prompts import (
+    FACT_FIRST_DILIGENCE_SYSTEM,
+    INSTITUTIONAL_LAYER_SYSTEM,
+    fact_first_diligence_prompt,
+    institutional_layer_prompt,
+)
 
 
 class InstitutionalPromptTests(unittest.TestCase):
@@ -40,6 +45,37 @@ class InstitutionalPromptTests(unittest.TestCase):
     def test_system_prompt_has_guardrails(self):
         self.assertIn("Do NOT introduce new numeric financial claims", INSTITUTIONAL_LAYER_SYSTEM)
         self.assertIn("Do NOT fabricate facts", INSTITUTIONAL_LAYER_SYSTEM)
+
+
+class FactFirstDiligencePromptTests(unittest.TestCase):
+    def test_prompt_non_empty(self):
+        system_prompt, user_prompt = fact_first_diligence_prompt("AAPL", "brief")
+        self.assertTrue(system_prompt.strip())
+        self.assertTrue(user_prompt.strip())
+
+    def test_prompt_contains_required_sections(self):
+        _, user_prompt = fact_first_diligence_prompt("AAPL", "brief")
+        required = [
+            "PART A",
+            "PART B  CLAIMS LEDGER",
+            "Business Model & Revenue Architecture",
+            "Competitive Position & Power Structure",
+            "Financial Quality Snapshot",
+            "Capital Structure & Liquidity",
+            "SBC & Dilution Analysis (Mandatory)",
+            "Structural vs Cyclical Risk Separation",
+            "Strategic Optionality & Upside Drivers",
+            "Market Belief vs Mispricing Hypothesis",
+            "Deal-Arb Appendix",
+            "Investment Framing Summary",
+        ]
+        for needle in required:
+            self.assertIn(needle, user_prompt)
+
+    def test_system_enforces_hard_rules(self):
+        self.assertIn("No naked numbers", FACT_FIRST_DILIGENCE_SYSTEM)
+        self.assertIn("Do not fabricate facts", FACT_FIRST_DILIGENCE_SYSTEM)
+        self.assertIn("SBC & Dilution Analysis section is mandatory", FACT_FIRST_DILIGENCE_SYSTEM)
 
 
 if __name__ == "__main__":

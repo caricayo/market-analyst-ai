@@ -62,7 +62,7 @@ from config import (
     SYNTHESIS_PROMPT_PATH,
     OPENAI_MODEL_PRICING_PER_1M,
     OPENAI_WEB_SEARCH_PRICING_PER_1K,
-    FACT_FIRST_DEEP_DIVE_ENABLED,
+    FACT_FIRST_DILIGENCE_ENABLED,
     INSTITUTIONAL_LAYER_MODEL,
 )
 from intake import run_intake, IntakeError
@@ -77,9 +77,13 @@ from deep_dive_prompts import (
     load_template_sections,
     section_group_prompt,
     bookend_prompt,
-    fact_first_writer_prompt,
+    fact_first_diligence_prompt,
 )
-from api.services.claims_ledger import parse_and_validate_fact_first_output
+from api.services.claims_ledger import (
+    detect_deal_signal,
+    parse_and_validate_stage2_output,
+    validate_stage2_with_repair,
+)
 from api.services.institutional_layer import apply_institutional_layer
 
 
@@ -501,91 +505,77 @@ async def run_bookend_phase(
                 )
 
 
-async def run_fact_first_deep_dive(
+async def run_fact_first_diligence_deep_dive(
     company: str,
     research_brief: str,
     usage_tracker: UsageTracker | None = None,
     on_progress=None,
     start_time=None,
+    model_caller=None,
 ) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
     """
-    Generate strict fact-first deep dive output:
+    Generate strict fact-first diligence deep dive output:
       - PART A markdown narrative
       - PART B claims ledger JSON (parsed/validated to Python list)
     """
     _p = lambda s, d="": progress(s, d, _on_progress=on_progress, _start=start_time)
-    _p("Stage 2", "Phase 2/2: Writing fact-first narrative and claims ledger...")
+    _p("Stage 2", "Phase 2/2: Writing fact-first diligence memo + claims ledger...")
 
-    system_prompt, user_prompt = fact_first_writer_prompt(company, research_brief)
-    last_error: Exception | None = None
+    deal_detected = detect_deal_signal(research_brief)
+    system_prompt, user_prompt = fact_first_diligence_prompt(company, research_brief)
 
-    for attempt in range(1 + MAX_RETRIES):
-        try:
-            response = await asyncio.wait_for(
-                client.responses.create(
-                    model=SECTION_WRITE_MODEL,
-                    instructions=system_prompt,
-                    input=user_prompt,
-                    max_output_tokens=SECTION_WRITE_MAX_TOKENS,
-                ),
-                timeout=SECTION_WRITE_TIMEOUT,
+    async def _default_model_caller(instructions: str, input_text: str) -> str:
+        response = await asyncio.wait_for(
+            client.responses.create(
+                model=SECTION_WRITE_MODEL,
+                instructions=instructions,
+                input=input_text,
+                max_output_tokens=SECTION_WRITE_MAX_TOKENS,
+            ),
+            timeout=SECTION_WRITE_TIMEOUT,
+        )
+        if usage_tracker:
+            usage_tracker.record_response(response)
+        return response.output_text or ""
+
+    _call_model = model_caller or _default_model_caller
+    raw_output = (await _call_model(system_prompt, user_prompt)).strip()
+    if not raw_output:
+        raise RuntimeError("Fact-first diligence writer returned empty output")
+
+    part_a, claims_ledger, claims_meta = parse_and_validate_stage2_output(
+        raw_output,
+        deal_detected=deal_detected,
+    )
+    if not part_a.strip():
+        raise RuntimeError("PART A narrative was empty after parsing")
+
+    if not claims_meta.get("valid", False):
+        _p("Stage 2", "Claims ledger validation failed. Running one repair pass...")
+
+        async def _repair_ledger_json(meta: dict[str, Any]) -> str:
+            repair_instructions = (
+                "Return ONLY PART B JSON array conforming to schema; do not include markdown."
             )
-            if usage_tracker:
-                usage_tracker.record_response(response)
+            repair_input = (
+                "Repair the PART B Claims Ledger JSON array only.\n\n"
+                f"Parse errors:\n{json.dumps(meta.get('parse_errors', []), indent=2)}\n\n"
+                "Required schema keys per object:\n"
+                "claim_type, metric, value, unit, timeframe, statement, confidence, source_type, source_citation, notes\n"
+                f"\nOriginal Stage-2 output:\n{raw_output}"
+            )
+            return await _call_model(repair_instructions, repair_input)
 
-            raw_output = response.output_text
-            if not raw_output:
-                raise ValueError("Fact-first writer returned empty output")
+        part_a, claims_ledger, claims_meta = await validate_stage2_with_repair(
+            raw_output,
+            deal_detected=deal_detected,
+            repair_ledger_json_fn=_repair_ledger_json,
+        )
+    else:
+        claims_meta["repair_used"] = False
 
-            part_a, claims_ledger, claims_meta = parse_and_validate_fact_first_output(raw_output)
-            if not part_a:
-                raise ValueError("PART A narrative was empty after parsing")
-
-            # One targeted repair attempt for malformed claims JSON.
-            if claims_meta.get("parse_errors") and attempt < MAX_RETRIES:
-                _p("Stage 2", "Claims ledger parse issues detected. Running one repair pass...")
-                repair_instructions = (
-                    "Repair the claims ledger ONLY. "
-                    "Return ONLY a valid JSON array using the exact schema from PART B. "
-                    "Do not add markdown fences or commentary."
-                )
-                repair_input = (
-                    f"Original output:\n\n{raw_output}\n\n"
-                    f"Parse errors:\n{json.dumps(claims_meta.get('parse_errors', []), indent=2)}\n\n"
-                    "Now provide corrected JSON array only."
-                )
-                repair_response = await asyncio.wait_for(
-                    client.responses.create(
-                        model=SECTION_WRITE_MODEL,
-                        instructions=repair_instructions,
-                        input=repair_input,
-                        max_output_tokens=SECTION_WRITE_MAX_TOKENS,
-                    ),
-                    timeout=SECTION_WRITE_TIMEOUT,
-                )
-                if usage_tracker:
-                    usage_tracker.record_response(repair_response)
-
-                repair_text = (
-                    f"PART A) Narrative Deep Dive (markdown)\n\n{part_a}\n\n"
-                    f"PART B) Claims Ledger (JSON array)\n\n{repair_response.output_text or ''}"
-                )
-                _, repaired_claims, repaired_meta = parse_and_validate_fact_first_output(repair_text)
-                claims_ledger = repaired_claims
-                claims_meta = repaired_meta
-
-            _p("Stage 2", f"Fact-first deep dive complete ({len(part_a):,} chars)")
-            return part_a, claims_ledger, claims_meta
-
-        except Exception as e:
-            last_error = e
-            if attempt < MAX_RETRIES:
-                _p("Stage 2", f"Fact-first write attempt {attempt + 1} failed: {e}. Retrying...")
-                await asyncio.sleep(RETRY_DELAY_SECONDS)
-            else:
-                break
-
-    raise RuntimeError(f"Fact-first deep dive failed: {last_error}")
+    _p("Stage 2", f"Fact-first diligence deep dive complete ({len(part_a):,} chars)")
+    return part_a, claims_ledger, claims_meta
 
 
 async def run_deep_dive(
@@ -598,9 +588,9 @@ async def run_deep_dive(
     """
     Orchestrate Stage 2 deep-dive generation.
 
-    FACT_FIRST_DEEP_DIVE_ENABLED=True:
+    FACT_FIRST_DILIGENCE_ENABLED=True:
       2A. Research (parallel web-search lanes + merge)
-      2B. Fact-first writer (PART A narrative + PART B claims ledger)
+      2B. Fact-first diligence writer (PART A narrative + PART B claims ledger)
 
     Else: legacy 3-phase deep dive path.
 
@@ -610,14 +600,14 @@ async def run_deep_dive(
     _p = lambda s, d="": progress(s, d, _on_progress=on_progress, _start=start_time)
     _p("Stage 2", "Starting deep dive analysis...")
 
-    if FACT_FIRST_DEEP_DIVE_ENABLED:
+    if FACT_FIRST_DILIGENCE_ENABLED:
         research_brief = await run_research_phase(
             company_name,
             usage_tracker=usage_tracker,
             on_progress=on_progress,
             start_time=start_time,
         )
-        deep_dive, claims_ledger, claims_meta = await run_fact_first_deep_dive(
+        deep_dive, claims_ledger, claims_meta = await run_fact_first_diligence_deep_dive(
             company=company_name,
             research_brief=research_brief,
             usage_tracker=usage_tracker,

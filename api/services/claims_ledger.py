@@ -1,22 +1,19 @@
 """
-arfor - Claims Ledger Parsing and Validation
+arfor - Stage 2 Claims Ledger Parsing and Validation
 
-Parses strict fact-first Stage 2 output:
-  - PART A markdown narrative
-  - PART B JSON claims ledger
-
-Normalizes and validates claims so downstream storage is stable even when model
-formatting is imperfect.
+Provides strict parsing/validation for the Stage-2 diligence contract:
+  - PART A markdown memo
+  - PART B claims ledger JSON array
 """
 
 from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 
-_REQUIRED_KEYS = {
+REQUIRED_KEYS = {
     "claim_type",
     "metric",
     "value",
@@ -29,21 +26,35 @@ _REQUIRED_KEYS = {
     "notes",
 }
 
-_CLAIM_TYPE_VALUES = {"numeric", "qualitative"}
-_CONFIDENCE_VALUES = {"low", "medium", "high"}
-_SOURCE_TYPE_VALUES = {"SEC/IR", "reputable_market_data", "estimate", "unknown"}
+CLAIM_TYPE_VALUES = {"numeric", "qualitative"}
+CONFIDENCE_VALUES = {"low", "medium", "high"}
+SOURCE_TYPE_VALUES = {"SEC/IR", "reputable_market_data", "estimate", "unknown"}
 
-_DEFINITION_RISK_TERMS = {
-    "gross margin": "Definition risk: gross margin can be reported differently across issuers.",
-    "contribution margin": "Definition risk: contribution margin is non-GAAP and can vary by company.",
-    "leverage": "Definition risk: leverage may differ between recourse and non-recourse scopes.",
-    "net debt/ebitda": "Definition risk: net debt/EBITDA comparability depends on debt scope and EBITDA definition.",
-    "ebitda": "Definition risk: adjusted EBITDA add-backs may reduce comparability.",
-}
+DEAL_KEYWORDS = (
+    "acquire",
+    "acquisition",
+    "to be acquired",
+    "definitive agreement",
+    "offer price",
+    "merger",
+)
+
+PART_B_MARKER_RE = re.compile(r"(?im)^\s*part\s*b\b")
+NUMERIC_TOKEN_RE = re.compile(
+    r"(?ix)"
+    r"(?:\$?\d[\d,]*(?:\.\d+)?(?:\s?(?:%|x|bp|bps))?)"
+    r"|"
+    r"(?:\d[\d,]*(?:\.\d+)?\s?(?:million|billion|trillion|mn|bn|mm))"
+)
+
+
+def detect_deal_signal(research_brief: str) -> bool:
+    """Heuristic acquisition detection from research brief text."""
+    text_l = (research_brief or "").lower()
+    return any(keyword in text_l for keyword in DEAL_KEYWORDS)
 
 
 def _extract_first_json_array(text: str) -> str | None:
-    """Extract the first syntactically balanced JSON array substring."""
     start = text.find("[")
     if start == -1:
         return None
@@ -51,88 +62,56 @@ def _extract_first_json_array(text: str) -> str | None:
     depth = 0
     in_string = False
     escape = False
-    end = None
-
-    for idx in range(start, len(text)):
-        ch = text[idx]
-
+    end_idx: int | None = None
+    for i in range(start, len(text)):
+        ch = text[i]
         if in_string:
             if escape:
                 escape = False
-                continue
-            if ch == "\\":
+            elif ch == "\\":
                 escape = True
-                continue
-            if ch == '"':
+            elif ch == '"':
                 in_string = False
             continue
 
         if ch == '"':
             in_string = True
-            continue
-        if ch == "[":
+        elif ch == "[":
             depth += 1
-            continue
-        if ch == "]":
+        elif ch == "]":
             depth -= 1
             if depth == 0:
-                end = idx + 1
+                end_idx = i + 1
                 break
-            continue
 
-    if end is None:
+    if end_idx is None:
         return None
-    return text[start:end]
+    return text[start:end_idx]
 
 
-def _clean_part_a(text: str) -> str:
-    cleaned = text.strip()
-    cleaned = re.sub(r"(?is)^part a\)\s*narrative deep dive\s*\(markdown\)\s*", "", cleaned).strip()
-    cleaned = re.sub(r"(?is)^part a\)\s*narrative deep dive\s*", "", cleaned).strip()
-    return cleaned
+def _strip_part_a_heading(text: str) -> str:
+    text = text.strip()
+    text = re.sub(r"(?is)^\s*part\s*a\b[^\n]*\n?", "", text).strip()
+    return text
 
 
-def parse_fact_first_output(output_text: str) -> tuple[str, str | None, list[str]]:
+def parse_stage2_output(text: str) -> tuple[str, str | None]:
     """
-    Parse model output into (part_a_markdown, raw_claims_json, parse_errors).
+    Parse Stage-2 output into:
+      (part_a_markdown, ledger_json_text)
+
+    If PART B marker is missing:
+      - returns full text as PART A
+      - returns None as ledger_json_text
     """
-    text = output_text.replace("\r\n", "\n")
-    errors: list[str] = []
+    body = (text or "").replace("\r\n", "\n")
+    marker = PART_B_MARKER_RE.search(body)
+    if not marker:
+        return _strip_part_a_heading(body), None
 
-    part_b_match = re.search(r"(?im)^part b\)\s*claims ledger", text)
-    if part_b_match:
-        part_a_block = text[:part_b_match.start()].strip()
-        part_b_block = text[part_b_match.start():]
-    else:
-        part_a_block = text.strip()
-        part_b_block = text
-        errors.append("PART B marker not found; attempted raw JSON extraction from full output.")
-
-    part_a = _clean_part_a(part_a_block)
-    raw_json = _extract_first_json_array(part_b_block)
-    if raw_json is None:
-        errors.append("Could not extract JSON array for claims ledger.")
-
-    if not part_a:
-        errors.append("PART A narrative was empty after parsing.")
-
-    return part_a, raw_json, errors
-
-
-def _normalize_source_fields(
-    claim: dict[str, Any],
-    normalization_notes: list[str],
-    idx: int,
-) -> None:
-    source_type = claim.get("source_type")
-    source_citation = claim.get("source_citation")
-
-    if source_type not in _SOURCE_TYPE_VALUES:
-        claim["source_type"] = "unknown"
-        normalization_notes.append(f"Claim {idx}: source_type normalized to unknown.")
-    if not isinstance(source_citation, str) or not source_citation.strip():
-        claim["source_citation"] = "unverified"
-        normalization_notes.append(f"Claim {idx}: source_citation normalized to unverified.")
+    part_a = _strip_part_a_heading(body[: marker.start()])
+    part_b_block = body[marker.end() :]
+    return part_a, _extract_first_json_array(part_b_block)
 
 
 def _append_note(claim: dict[str, Any], note: str) -> None:
@@ -143,20 +122,142 @@ def _append_note(claim: dict[str, Any], note: str) -> None:
         claim["notes"] = note
 
 
-def validate_claims_ledger(raw_json: str | None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """
-    Validate and normalize claims ledger JSON.
+def _normalize_claim(raw_claim: dict[str, Any], idx: int, normalization_notes: list[str]) -> dict[str, Any]:
+    claim: dict[str, Any] = {key: raw_claim.get(key) for key in REQUIRED_KEYS}
 
-    Returns:
-      (claims, meta)
-      meta keys: valid, parse_errors, normalization_notes, claim_count
+    missing = sorted(REQUIRED_KEYS - set(raw_claim.keys()))
+    if missing:
+        normalization_notes.append(
+            f"Claim {idx}: missing keys filled with defaults: {', '.join(missing)}."
+        )
+
+    if claim.get("claim_type") not in CLAIM_TYPE_VALUES:
+        claim["claim_type"] = "qualitative"
+        normalization_notes.append(f"Claim {idx}: claim_type normalized to qualitative.")
+
+    if not isinstance(claim.get("metric"), str) or not claim["metric"].strip():
+        claim["metric"] = "unknown_metric"
+        normalization_notes.append(f"Claim {idx}: metric normalized to unknown_metric.")
+
+    if not isinstance(claim.get("statement"), str) or not claim["statement"].strip():
+        claim["statement"] = "Unverified  requires primary filing review."
+        normalization_notes.append(f"Claim {idx}: statement defaulted to unverified.")
+
+    if claim.get("confidence") not in CONFIDENCE_VALUES:
+        claim["confidence"] = "low"
+        normalization_notes.append(f"Claim {idx}: confidence normalized to low.")
+
+    if claim.get("source_type") not in SOURCE_TYPE_VALUES:
+        claim["source_type"] = "unknown"
+        normalization_notes.append(f"Claim {idx}: source_type normalized to unknown.")
+
+    citation = claim.get("source_citation")
+    if not isinstance(citation, str) or not citation.strip():
+        claim["source_citation"] = "unverified"
+        normalization_notes.append(f"Claim {idx}: source_citation normalized to unverified.")
+
+    # Standardize optional fields
+    if not isinstance(claim.get("unit"), str) or not str(claim["unit"]).strip():
+        claim["unit"] = None
+    if not isinstance(claim.get("timeframe"), str) or not str(claim["timeframe"]).strip():
+        claim["timeframe"] = None
+
+    if not isinstance(claim.get("notes"), str):
+        claim["notes"] = ""
+
+    value = claim.get("value")
+    if value is not None and not isinstance(value, (int, float)):
+        claim["value"] = None
+        normalization_notes.append(f"Claim {idx}: non-numeric value set to null.")
+
+    if claim["claim_type"] == "numeric":
+        missing_numeric_fields = []
+        if claim["timeframe"] is None:
+            missing_numeric_fields.append("timeframe")
+        if claim["unit"] is None:
+            missing_numeric_fields.append("unit")
+        if claim["source_type"] in {None, "unknown"}:
+            missing_numeric_fields.append("source_type")
+        if str(claim["source_citation"]).strip().lower() == "unverified":
+            missing_numeric_fields.append("source_citation")
+
+        if missing_numeric_fields:
+            claim["source_type"] = "unknown"
+            claim["source_citation"] = "unverified"
+            claim["confidence"] = "low"
+            _append_note(
+                claim,
+                "Numeric claim missing sourcing envelope: "
+                + ", ".join(missing_numeric_fields)
+                + ". Normalized as unverified.",
+            )
+
+        metric_l = str(claim.get("metric", "")).lower()
+        statement_l = str(claim.get("statement", "")).lower()
+        if "net debt" in metric_l or "net debt" in statement_l:
+            if claim["source_type"] == "unknown" or str(claim["source_citation"]).lower() == "unverified":
+                claim["value"] = None
+                claim["unit"] = None
+                claim["timeframe"] = None
+                claim["statement"] = "Net debt not computed due to sourcing limits."
+                _append_note(claim, "Net debt claim neutralized due to incomplete sourcing.")
+
+    return claim
+
+
+def _line_has_unverified_envelope(line: str) -> bool:
+    line_l = line.lower()
+    if "unverified" in line_l and "requires primary filing review" in line_l:
+        return True
+    return (
+        "timeframe" in line_l
+        and "unit" in line_l
+        and "source_type" in line_l
+        and "source_citation" in line_l
+    )
+
+
+def _validate_part_a_numeric_coverage(part_a_md: str, ledger: list[dict[str, Any]], parse_errors: list[str]) -> None:
+    ledger_statement_blob = " ".join(
+        str(claim.get("statement", "")) for claim in ledger if isinstance(claim, dict)
+    ).lower()
+    ledger_value_blob = " ".join(
+        str(claim.get("value"))
+        for claim in ledger
+        if isinstance(claim, dict) and claim.get("value") is not None
+    ).lower()
+
+    for line_no, raw_line in enumerate(part_a_md.splitlines(), start=1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        tokens = [m.group(0).lower() for m in NUMERIC_TOKEN_RE.finditer(line)]
+        if not tokens:
+            continue
+        if _line_has_unverified_envelope(line):
+            continue
+
+        missing = []
+        for token in tokens:
+            if token in ledger_statement_blob or token in ledger_value_blob:
+                continue
+            missing.append(token)
+        if missing:
+            parse_errors.append(
+                f"PART A line {line_no}: numeric tokens not covered by claims ledger or unverified envelope: {missing}"
+            )
+
+
+def load_and_validate_ledger(ledger_json_text: str | None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """
+    Parse and validate claims ledger JSON array.
     """
     parse_errors: list[str] = []
     normalization_notes: list[str] = []
     normalized_claims: list[dict[str, Any]] = []
 
-    if raw_json is None:
-        parse_errors.append("Claims JSON is missing.")
+    if ledger_json_text is None:
+        parse_errors.append("Missing PART B claims ledger JSON.")
         return [], {
             "valid": False,
             "parse_errors": parse_errors,
@@ -165,9 +266,9 @@ def validate_claims_ledger(raw_json: str | None) -> tuple[list[dict[str, Any]], 
         }
 
     try:
-        payload = json.loads(raw_json)
+        payload = json.loads(ledger_json_text)
     except json.JSONDecodeError as exc:
-        parse_errors.append(f"Claims JSON parse error: {exc}")
+        parse_errors.append(f"Claims ledger JSON parse error: {exc}")
         return [], {
             "valid": False,
             "parse_errors": parse_errors,
@@ -176,7 +277,7 @@ def validate_claims_ledger(raw_json: str | None) -> tuple[list[dict[str, Any]], 
         }
 
     if not isinstance(payload, list):
-        parse_errors.append("Claims payload is not a JSON array.")
+        parse_errors.append("Claims ledger payload must be a JSON array.")
         return [], {
             "valid": False,
             "parse_errors": parse_errors,
@@ -188,102 +289,102 @@ def validate_claims_ledger(raw_json: str | None) -> tuple[list[dict[str, Any]], 
         if not isinstance(raw_claim, dict):
             normalization_notes.append(f"Claim {idx}: dropped non-object entry.")
             continue
+        normalized_claims.append(_normalize_claim(raw_claim, idx, normalization_notes))
 
-        claim: dict[str, Any] = {key: raw_claim.get(key) for key in _REQUIRED_KEYS}
-        missing_keys = sorted(_REQUIRED_KEYS - set(raw_claim.keys()))
-        if missing_keys:
-            normalization_notes.append(f"Claim {idx}: missing keys filled with null/defaults: {', '.join(missing_keys)}.")
-
-        claim_type = claim.get("claim_type")
-        if claim_type not in _CLAIM_TYPE_VALUES:
-            claim["claim_type"] = "qualitative"
-            normalization_notes.append(f"Claim {idx}: claim_type normalized to qualitative.")
-
-        if not isinstance(claim.get("metric"), str) or not claim["metric"].strip():
-            claim["metric"] = "unknown_metric"
-            normalization_notes.append(f"Claim {idx}: metric normalized to unknown_metric.")
-
-        value = claim.get("value")
-        if value is not None and not isinstance(value, (int, float)):
-            claim["value"] = None
-            normalization_notes.append(f"Claim {idx}: non-numeric value normalized to null.")
-
-        if not isinstance(claim.get("unit"), str) or not str(claim["unit"]).strip():
-            claim["unit"] = None
-        if not isinstance(claim.get("timeframe"), str) or not str(claim["timeframe"]).strip():
-            claim["timeframe"] = None
-
-        if not isinstance(claim.get("statement"), str) or not claim["statement"].strip():
-            claim["statement"] = "Unverified / needs source."
-            normalization_notes.append(f"Claim {idx}: statement placeholder added.")
-
-        if claim.get("confidence") not in _CONFIDENCE_VALUES:
-            claim["confidence"] = "low"
-            normalization_notes.append(f"Claim {idx}: confidence normalized to low.")
-
-        _normalize_source_fields(claim, normalization_notes, idx)
-
-        if not isinstance(claim.get("notes"), str):
-            claim["notes"] = ""
-
-        if claim["claim_type"] == "numeric":
-            missing_numeric_fields = []
-            if claim["timeframe"] is None:
-                missing_numeric_fields.append("timeframe")
-            if claim["unit"] is None:
-                missing_numeric_fields.append("unit")
-            if claim["source_type"] == "unknown":
-                missing_numeric_fields.append("source_type")
-            if str(claim.get("source_citation", "")).strip().lower() == "unverified":
-                missing_numeric_fields.append("source_citation")
-
-            if missing_numeric_fields:
-                _append_note(
-                    claim,
-                    "Numeric claim missing required sourcing envelope: "
-                    + ", ".join(missing_numeric_fields)
-                    + ". Labeled Unverified / needs source.",
-                )
-
-            metric_l = str(claim.get("metric", "")).lower()
-            statement_l = str(claim.get("statement", "")).lower()
-            if "net debt" in metric_l or "net debt" in statement_l:
-                if claim["source_type"] == "unknown" or str(claim["source_citation"]).lower() == "unverified":
-                    claim["value"] = None
-                    claim["unit"] = None
-                    claim["timeframe"] = None
-                    claim["statement"] = "Net debt not computed due to sourcing limits."
-                    _append_note(claim, "Net debt claim neutralized due to incomplete sourcing.")
-
-        lower_metric = str(claim.get("metric", "")).lower()
-        for term, note in _DEFINITION_RISK_TERMS.items():
-            if term in lower_metric:
-                _append_note(claim, note)
-                break
-
-        normalized_claims.append(claim)
-
-    meta = {
+    return normalized_claims, {
         "valid": len(parse_errors) == 0,
         "parse_errors": parse_errors,
         "normalization_notes": normalization_notes,
         "claim_count": len(normalized_claims),
     }
-    return normalized_claims, meta
 
 
+def parse_and_validate_stage2_output(
+    output_text: str,
+    *,
+    deal_detected: bool = False,
+) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
+    """
+    Convenience wrapper:
+      - parse Stage-2 output
+      - validate claims ledger
+      - enforce numeric coverage hard-rule on PART A
+    """
+    part_a, ledger_json_text = parse_stage2_output(output_text)
+    claims_ledger, meta = load_and_validate_ledger(ledger_json_text)
+
+    parse_errors = list(meta.get("parse_errors", []))
+    if not part_a.strip():
+        parse_errors.append("PART A markdown is empty.")
+    if ledger_json_text is None:
+        parse_errors.append("PART B marker missing or JSON array not found.")
+
+    _validate_part_a_numeric_coverage(part_a, claims_ledger, parse_errors)
+
+    merged_meta = {
+        "valid": len(parse_errors) == 0,
+        "parse_errors": parse_errors,
+        "normalization_notes": meta.get("normalization_notes", []),
+        "claim_count": meta.get("claim_count", len(claims_ledger)),
+        "repair_used": False,
+        "deal_detected": bool(deal_detected),
+    }
+    return part_a, claims_ledger, merged_meta
+
+
+async def validate_stage2_with_repair(
+    output_text: str,
+    *,
+    deal_detected: bool,
+    repair_ledger_json_fn: Callable[[dict[str, Any]], Awaitable[str]] | None = None,
+) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
+    """
+    Parse/validate Stage-2 output and optionally run one ledger-only repair.
+    """
+    part_a, claims_ledger, claims_meta = parse_and_validate_stage2_output(
+        output_text,
+        deal_detected=deal_detected,
+    )
+    if claims_meta.get("valid", False):
+        claims_meta["repair_used"] = False
+        return part_a, claims_ledger, claims_meta
+
+    if repair_ledger_json_fn is None:
+        claims_meta["repair_used"] = False
+        return part_a, claims_ledger, claims_meta
+
+    repaired_json_text = (await repair_ledger_json_fn(claims_meta)).strip()
+    _, extracted_repair_json = parse_stage2_output(
+        f"PART A\n{part_a}\n\nPART B  CLAIMS LEDGER\n{repaired_json_text}"
+    )
+    repaired_claims, repaired_meta = load_and_validate_ledger(extracted_repair_json)
+    repaired_text = (
+        f"PART A\n{part_a}\n\nPART B  CLAIMS LEDGER\n{json.dumps(repaired_claims)}"
+        if repaired_meta.get("valid")
+        else f"PART A\n{part_a}\n\nPART B  CLAIMS LEDGER\n{repaired_json_text}"
+    )
+    _, repaired_claims, merged_meta = parse_and_validate_stage2_output(
+        repaired_text,
+        deal_detected=deal_detected,
+    )
+    merged_meta["repair_used"] = True
+
+    if not merged_meta.get("valid", False):
+        return part_a, [], {
+            **merged_meta,
+            "valid": False,
+            "parse_errors": [
+                *merged_meta.get("parse_errors", []),
+                "Claims ledger invalid after one repair pass; ledger dropped.",
+            ],
+            "deal_detected": deal_detected,
+        }
+
+    return part_a, repaired_claims, merged_meta
+
+
+# Backward-compatible alias for existing imports.
 def parse_and_validate_fact_first_output(
     output_text: str,
 ) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
-    """
-    Convenience wrapper for parsing PART A/PART B and validating claims.
-    """
-    part_a, raw_json, parse_errors = parse_fact_first_output(output_text)
-    claims, meta = validate_claims_ledger(raw_json)
-    merged_meta = {
-        **meta,
-        "parse_errors": [*parse_errors, *meta.get("parse_errors", [])],
-        "raw_json_extracted": raw_json is not None,
-    }
-    merged_meta["valid"] = len(merged_meta["parse_errors"]) == 0
-    return part_a, claims, merged_meta
+    return parse_and_validate_stage2_output(output_text, deal_detected=False)
