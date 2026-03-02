@@ -63,10 +63,31 @@ EXPECTED_SYNTHESIS_HEADERS = [
     "### Disclaimer",
 ]
 
+FACT_FIRST_REQUIRED_SECTIONS = [
+    "business model & how money is made",
+    "moat / differentiation",
+    "unit economics",
+    "capital structure & liquidity",
+    "key risks",
+    "key upside drivers",
+    "5 kpis to monitor",
+    "what would need to be true for the bear case to be wrong?",
+    "what would need to be true for the bull case to be wrong?",
+    "verification needed",
+]
+
 
 def validate_deep_dive(text: str) -> list[str]:
     """Check that the deep dive contains all expected section headers."""
     warnings = []
+    lower_text = text.lower()
+
+    if "verification needed" in lower_text and "claims ledger" not in lower_text:
+        for heading in FACT_FIRST_REQUIRED_SECTIONS:
+            if heading not in lower_text:
+                warnings.append(f"Deep dive missing fact-first section: {heading}")
+        return warnings
+
     for section in EXPECTED_DEEP_DIVE_SECTIONS:
         if section not in text:
             warnings.append(f"Deep dive missing: {section}")

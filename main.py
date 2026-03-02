@@ -21,6 +21,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from openai import AsyncOpenAI
 
@@ -61,6 +62,7 @@ from config import (
     SYNTHESIS_PROMPT_PATH,
     OPENAI_MODEL_PRICING_PER_1M,
     OPENAI_WEB_SEARCH_PRICING_PER_1K,
+    FACT_FIRST_DEEP_DIVE_ENABLED,
 )
 from intake import run_intake, IntakeError
 from assembly import (
@@ -74,7 +76,9 @@ from deep_dive_prompts import (
     load_template_sections,
     section_group_prompt,
     bookend_prompt,
+    fact_first_writer_prompt,
 )
+from api.services.claims_ledger import parse_and_validate_fact_first_output
 
 
 # ---------------------------------------------------------------------------
@@ -335,7 +339,7 @@ async def run_research_phase(
     then merge into a unified brief.  Returns the research brief markdown.
     """
     _p = lambda s, d="": progress(s, d, _on_progress=on_progress, _start=start_time)
-    _p("Stage 2", "Phase 1/3: Researching (6 parallel lanes)...")
+    _p("Stage 2", "Researching (6 parallel lanes)...")
 
     # Launch all lanes in parallel with an outer timeout
     lane_tasks = [
@@ -495,23 +499,131 @@ async def run_bookend_phase(
                 )
 
 
+async def run_fact_first_deep_dive(
+    company: str,
+    research_brief: str,
+    usage_tracker: UsageTracker | None = None,
+    on_progress=None,
+    start_time=None,
+) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
+    """
+    Generate strict fact-first deep dive output:
+      - PART A markdown narrative
+      - PART B claims ledger JSON (parsed/validated to Python list)
+    """
+    _p = lambda s, d="": progress(s, d, _on_progress=on_progress, _start=start_time)
+    _p("Stage 2", "Phase 2/2: Writing fact-first narrative and claims ledger...")
+
+    system_prompt, user_prompt = fact_first_writer_prompt(company, research_brief)
+    last_error: Exception | None = None
+
+    for attempt in range(1 + MAX_RETRIES):
+        try:
+            response = await asyncio.wait_for(
+                client.responses.create(
+                    model=SECTION_WRITE_MODEL,
+                    instructions=system_prompt,
+                    input=user_prompt,
+                    max_output_tokens=SECTION_WRITE_MAX_TOKENS,
+                ),
+                timeout=SECTION_WRITE_TIMEOUT,
+            )
+            if usage_tracker:
+                usage_tracker.record_response(response)
+
+            raw_output = response.output_text
+            if not raw_output:
+                raise ValueError("Fact-first writer returned empty output")
+
+            part_a, claims_ledger, claims_meta = parse_and_validate_fact_first_output(raw_output)
+            if not part_a:
+                raise ValueError("PART A narrative was empty after parsing")
+
+            # One targeted repair attempt for malformed claims JSON.
+            if claims_meta.get("parse_errors") and attempt < MAX_RETRIES:
+                _p("Stage 2", "Claims ledger parse issues detected. Running one repair pass...")
+                repair_instructions = (
+                    "Repair the claims ledger ONLY. "
+                    "Return ONLY a valid JSON array using the exact schema from PART B. "
+                    "Do not add markdown fences or commentary."
+                )
+                repair_input = (
+                    f"Original output:\n\n{raw_output}\n\n"
+                    f"Parse errors:\n{json.dumps(claims_meta.get('parse_errors', []), indent=2)}\n\n"
+                    "Now provide corrected JSON array only."
+                )
+                repair_response = await asyncio.wait_for(
+                    client.responses.create(
+                        model=SECTION_WRITE_MODEL,
+                        instructions=repair_instructions,
+                        input=repair_input,
+                        max_output_tokens=SECTION_WRITE_MAX_TOKENS,
+                    ),
+                    timeout=SECTION_WRITE_TIMEOUT,
+                )
+                if usage_tracker:
+                    usage_tracker.record_response(repair_response)
+
+                repair_text = (
+                    f"PART A) Narrative Deep Dive (markdown)\n\n{part_a}\n\n"
+                    f"PART B) Claims Ledger (JSON array)\n\n{repair_response.output_text or ''}"
+                )
+                _, repaired_claims, repaired_meta = parse_and_validate_fact_first_output(repair_text)
+                claims_ledger = repaired_claims
+                claims_meta = repaired_meta
+
+            _p("Stage 2", f"Fact-first deep dive complete ({len(part_a):,} chars)")
+            return part_a, claims_ledger, claims_meta
+
+        except Exception as e:
+            last_error = e
+            if attempt < MAX_RETRIES:
+                _p("Stage 2", f"Fact-first write attempt {attempt + 1} failed: {e}. Retrying...")
+                await asyncio.sleep(RETRY_DELAY_SECONDS)
+            else:
+                break
+
+    raise RuntimeError(f"Fact-first deep dive failed: {last_error}")
+
+
 async def run_deep_dive(
     prepared_template: str,
     usage_tracker: UsageTracker | None = None,
     on_progress=None,
     start_time=None,
     company_name: str = "",
-) -> str:
+) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
     """
-    Orchestrate the 3-phase deep dive pipeline:
-      2A. Research (GPT-5 + web search)
-      2B. Parallel section writes (4 groups, GPT-5-mini)
-      2C. Bookend sections 0,12,13 (GPT-5-mini)
+    Orchestrate Stage 2 deep-dive generation.
 
-    Returns the full concatenated deep dive report.
+    FACT_FIRST_DEEP_DIVE_ENABLED=True:
+      2A. Research (parallel web-search lanes + merge)
+      2B. Fact-first writer (PART A narrative + PART B claims ledger)
+
+    Else: legacy 3-phase deep dive path.
+
+    Returns:
+      (deep_dive_markdown, claims_ledger, claims_ledger_meta)
     """
     _p = lambda s, d="": progress(s, d, _on_progress=on_progress, _start=start_time)
-    _p("Stage 2", "Starting deep dive analysis (3-phase pipeline)...")
+    _p("Stage 2", "Starting deep dive analysis...")
+
+    if FACT_FIRST_DEEP_DIVE_ENABLED:
+        research_brief = await run_research_phase(
+            company_name,
+            usage_tracker=usage_tracker,
+            on_progress=on_progress,
+            start_time=start_time,
+        )
+        deep_dive, claims_ledger, claims_meta = await run_fact_first_deep_dive(
+            company=company_name,
+            research_brief=research_brief,
+            usage_tracker=usage_tracker,
+            on_progress=on_progress,
+            start_time=start_time,
+        )
+        _p("Stage 2", f"Deep dive complete ({len(deep_dive):,} characters)")
+        return deep_dive, claims_ledger, claims_meta
 
     # Load section templates from the due diligence prompt
     templates = load_template_sections()
@@ -592,7 +704,14 @@ async def run_deep_dive(
     full_report = "\n\n---\n\n".join(final_parts)
 
     _p("Stage 2", f"Deep dive complete ({len(full_report):,} characters)")
-    return full_report
+    legacy_meta = {
+        "valid": False,
+        "parse_errors": ["Claims ledger unavailable in legacy deep-dive mode."],
+        "normalization_notes": [],
+        "claim_count": 0,
+        "raw_json_extracted": False,
+    }
+    return full_report, [], legacy_meta
 
 
 # ---------------------------------------------------------------------------
@@ -782,7 +901,7 @@ async def run_pipeline(
     on_progress=None,
     on_section=None,
     return_usage: bool = False,
-) -> Path | tuple[Path, dict[str, int | float]]:
+) -> Path | tuple[Path, dict[str, Any]]:
     """
     Execute the full TriView Capital analysis pipeline.
 
@@ -792,7 +911,7 @@ async def run_pipeline(
         on_section: Optional callback(section_name, content, extra_data) for streaming partial results
 
     Returns:
-        Path to the saved report file, or (path, usage_snapshot) when return_usage=True
+        Path to the saved report file, or (path, run_metadata) when return_usage=True
     """
     pipeline_start = time.time()
     usage_tracker = UsageTracker()
@@ -809,10 +928,10 @@ async def run_pipeline(
     if on_progress:
         on_progress("Stage 1", "complete", f"Resolved: {company_name} ({ticker})")
 
-    # ---- Stage 2: Deep Dive (3-phase pipeline) ----
+    # ---- Stage 2: Deep Dive ----
     if on_progress:
         on_progress("Stage 2", "running", "Starting deep dive analysis...")
-    deep_dive = await run_deep_dive(
+    deep_dive, claims_ledger, claims_ledger_meta = await run_deep_dive(
         prepared_template,
         usage_tracker=usage_tracker,
         on_progress=on_progress,
@@ -887,7 +1006,11 @@ async def run_pipeline(
     _p("Usage", f"Estimated OpenAI cost: ${usage_snapshot['total_cost_usd']:.4f}")
 
     if return_usage:
-        return filepath, usage_snapshot
+        return filepath, {
+            "usage": usage_snapshot,
+            "claims_ledger": claims_ledger,
+            "claims_ledger_meta": claims_ledger_meta,
+        }
     return filepath
 
 

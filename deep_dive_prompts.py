@@ -71,6 +71,89 @@ Produce the report sections in **markdown** with:
 """
 
 
+SOURCE_DISCIPLINE_BLOCK = """\
+### Source Priority and Verification Rules (Required)
+
+1. Source in this order:
+   - Tier 1: SEC/IR primary docs (10-K, 10-Q, 8-K, earnings releases, investor presentations, proxy statements)
+   - Tier 2: reputable market data providers, exchanges, and regulators
+   - Tier 3: aggregators/screeners/blogs only as fallback
+2. For every numeric metric, include:
+   - timeframe
+   - unit
+   - source_type: one of [SEC/IR, reputable_market_data, estimate, unknown]
+   - source_citation: URL, filing reference, or "unverified"
+3. If a metric is from low-quality aggregators or cannot be verified from Tier 1/2:
+   - label it exactly as: Unverified / needs source
+   - set source_type to unknown
+   - set source_citation to unverified
+4. If aggregator data conflicts with SEC/IR, keep SEC/IR and explicitly note the discrepancy.
+5. Never compute or assert net debt unless all components are sourced.
+"""
+
+
+FACT_FIRST_SYSTEM_PROMPT = """\
+Role: You are an institutional research analyst. Produce a fact-first deep dive that is SAFE against hallucinated metrics.
+
+Company: {company}
+
+Hard rules (must follow):
+1) Do NOT state specific numeric financial metrics (revenue, margins, debt, FCF, net debt, leverage ratios, market share, CAC/LTV, TAM) unless you provide:
+   - timeframe (e.g., FY2025, TTM, Q4 2025, as-of date)
+   - unit
+   - source_type = one of [SEC/IR, reputable_market_data, estimate, unknown]
+   - source_citation = URL or filing reference (10-K/10-Q/8-K/earnings release) OR "unverified"
+2) If you cannot cite it, you may discuss it qualitatively, but label it clearly as:
+   - Unverified / needs source
+3) Never compute or claim net debt unless ALL components are cited. If unclear, say:
+   - Net debt not computed due to sourcing limits.
+4) For companies with project finance / VIE / non-recourse structures, you MUST separate:
+   - corporate/recourse debt & liquidity
+   - non-recourse/project/VIE liabilities
+   If you cant source it, explicitly state that you cannot separate in this run.
+5) Do NOT compare across mismatched business models (e.g., residential installer vs panel manufacturer). If peers are unclear, say:
+   - Peer set uncertain; business model mismatch risk.
+
+Output format (strict):
+Return TWO parts:
+
+PART A) Narrative Deep Dive (markdown)
+- Business model & how money is made (plain English)
+- Moat / differentiation (whats real vs marketing)
+- Unit economics (only sourced; otherwise list whats needed)
+- Capital structure & liquidity (recourse vs non-recourse/VIE if applicable)
+- Key risks (ranked, with triggers)
+- Key upside drivers (ranked, with triggers)
+- 5 KPIs to monitor (definition + why it matters)
+- What would need to be true for the bear case to be wrong?
+- What would need to be true for the bull case to be wrong?
+- Verification Needed (list the top 8 claims that require checking)
+
+PART B) Claims Ledger (JSON array)
+Each entry = a single claim. Include BOTH numeric and non-numeric claims.
+Schema:
+[
+  {{
+    "claim_type": "numeric" | "qualitative",
+    "metric": "string (if numeric, name the metric; if qualitative, concise label)",
+    "value": "number or null",
+    "unit": "string or null",
+    "timeframe": "string or null",
+    "statement": "string (the claim)",
+    "confidence": "low" | "medium" | "high",
+    "source_type": "SEC/IR" | "reputable_market_data" | "estimate" | "unknown",
+    "source_citation": "url or filing reference or 'unverified'",
+    "notes": "string (assumptions, caveats, or what would verify it)"
+  }}
+]
+
+Quality bar:
+- Prefer fewer claims with higher sourcing quality over many claims.
+- If a claim is commonly misstated by analysts (e.g., leverage/net debt in VIE structures, gross margin vs contribution margin), warn about definition risk in notes.
+- Keep it readable: no fluff, no hype.
+"""
+
+
 # ---------------------------------------------------------------------------
 # Research prompt — Phase 2A
 # ---------------------------------------------------------------------------
@@ -164,7 +247,7 @@ so completeness and accuracy are critical.
 # Prompts are focused to trigger only 3-5 web searches per lane.
 
 RESEARCH_LANE_PROMPTS = {
-    "R1": """\
+    "R1": SOURCE_DISCIPLINE_BLOCK + """
 You are a senior equity research analyst. Gather **raw data** for {company} \
 on the topics below. Use web search. Focus on data density, not polished prose.
 
@@ -185,7 +268,7 @@ Use markdown headers, tables for financial data. Include source URLs. \
 Mark unavailable data as `[Not found]`.
 """,
 
-    "R2": """\
+    "R2": SOURCE_DISCIPLINE_BLOCK + """
 You are a senior equity research analyst. Gather **raw data** for {company} \
 on the topics below. Use web search. Focus on data density, not polished prose.
 
@@ -205,7 +288,7 @@ Use markdown headers, tables for financial data. Include source URLs. \
 Mark unavailable data as `[Not found]`.
 """,
 
-    "R3": """\
+    "R3": SOURCE_DISCIPLINE_BLOCK + """
 You are a senior equity research analyst. Gather **raw data** for {company} \
 on the topics below. Use web search. Focus on data density, not polished prose.
 
@@ -220,7 +303,7 @@ Use markdown headers, tables where useful. Include source URLs. \
 Mark unavailable data as `[Not found]`.
 """,
 
-    "R4": """\
+    "R4": SOURCE_DISCIPLINE_BLOCK + """
 You are a senior equity research analyst. Gather **raw data** for {company} \
 on the topics below. Use web search. Focus on data density, not polished prose.
 
@@ -235,7 +318,7 @@ Use markdown headers, tables for comparisons. Include source URLs. \
 Mark unavailable data as `[Not found]`.
 """,
 
-    "R5": """\
+    "R5": SOURCE_DISCIPLINE_BLOCK + """
 You are a senior equity research analyst. Gather **raw data** for {company} \
 on the topics below. Use web search. Focus on data density, not polished prose.
 
@@ -255,7 +338,7 @@ Use markdown headers, tables for financial data. Include source URLs. \
 Mark unavailable data as `[Not found]`.
 """,
 
-    "R6": """\
+    "R6": SOURCE_DISCIPLINE_BLOCK + """
 You are a senior equity research analyst. Gather **raw data** for {company} \
 on the topics below. Use web search. Focus on data density, not polished prose.
 
@@ -304,14 +387,50 @@ most detailed/sourced version.
 4. **Mark gaps** — if a data point was not found by any lane, mark it as \
 `[Not found]`.
 
-5. Use markdown tables for financial data. Use bullet points for other data.
+5. Preserve sourcing envelope for numeric metrics:
+   - timeframe
+   - unit
+   - source_type
+   - source_citation
+   If a metric is only from low-quality aggregators or has weak citation, \
+   label it: `Unverified / needs source` and set source_citation to `unverified`.
 
-6. Do NOT add analysis, opinions, or commentary. This is raw data only.
+6. Use markdown tables for financial data. Use bullet points for other data.
+
+7. Do NOT add analysis, opinions, or commentary. This is raw data only.
 
 ## Lane Outputs
 
 {lane_outputs}
 """
+
+
+def fact_first_writer_prompt(company: str, research_brief: str) -> tuple[str, str]:
+    """
+    Build (system_prompt, user_prompt) for strict fact-first deep-dive output.
+
+    Output contract:
+      - PART A markdown narrative
+      - PART B JSON claims ledger array
+    """
+    system_prompt = FACT_FIRST_SYSTEM_PROMPT.format(company=company)
+    user_prompt = f"""Use the research brief below as your primary evidence base.
+Do not invent sources. If evidence is weak or missing, label as Unverified / needs source.
+
+## Research Brief for {company}
+
+{research_brief}
+
+Return exactly:
+1) PART A) Narrative Deep Dive in markdown
+2) PART B) Claims Ledger as a valid JSON array
+
+JSON requirements for PART B:
+- No markdown fences.
+- Must parse with json.loads().
+- Include only array entries that follow the schema in the instructions.
+"""
+    return system_prompt, user_prompt
 
 
 # ---------------------------------------------------------------------------

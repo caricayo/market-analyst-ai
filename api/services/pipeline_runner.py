@@ -62,7 +62,7 @@ async def execute_pipeline(session: AnalysisSession) -> None:
             session.emit_section(section_name, content, extra)
 
         # Run the pipeline with a 10-minute global timeout
-        filepath, usage = await asyncio.wait_for(
+        filepath, run_meta = await asyncio.wait_for(
             run_pipeline(
                 session.ticker,
                 on_progress=on_progress,
@@ -71,6 +71,9 @@ async def execute_pipeline(session: AnalysisSession) -> None:
             ),
             timeout=600,
         )
+        usage = run_meta.get("usage", {}) if isinstance(run_meta, dict) else {}
+        claims_ledger = run_meta.get("claims_ledger", []) if isinstance(run_meta, dict) else []
+        claims_ledger_meta = run_meta.get("claims_ledger_meta", {}) if isinstance(run_meta, dict) else {}
 
         if session.is_cancelled:
             return
@@ -108,6 +111,8 @@ async def execute_pipeline(session: AnalysisSession) -> None:
             "sections": sections,
             "persona_verdicts": persona_verdicts,
             "usage": usage,
+            "claims_ledger": claims_ledger,
+            "claims_ledger_meta": claims_ledger_meta,
         }
 
         # Update analysis record with result (record + credit deducted in analyze.py)
