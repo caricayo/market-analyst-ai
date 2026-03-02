@@ -19,17 +19,28 @@ export default function ReportView({ result }: ReportViewProps) {
   const [focusQuery, setFocusQuery] = useState<string>("");
 
   const evidenceSummary = useMemo(() => {
+    const isVerifiedClaim = (claim: NonNullable<AnalysisResult["claims_ledger"]>[number]) => {
+      if (typeof claim.verified_for_counter === "boolean") return claim.verified_for_counter;
+      const sourceType = String(claim.source_type || "").trim();
+      const citation = String(claim.source_citation || "").trim().toLowerCase();
+      return (sourceType === "SEC/IR" || sourceType === "reputable_market_data") && citation !== "unverified";
+    };
+
     const summarizeFromClaims = () => {
       const claims = result.claims_ledger || [];
-      const secIr = claims.filter((claim) => claim.source_type === "SEC/IR").length;
+      const secIr = claims.filter(
+        (claim) => claim.source_type === "SEC/IR" && isVerifiedClaim(claim)
+      ).length;
       const unverified = claims.filter(
         (claim) =>
           String(claim.source_citation || "").toLowerCase() === "unverified"
           || claim.source_type === "unknown"
+          || !isVerifiedClaim(claim)
       ).length;
       const sourceCount = new Set(
         claims
-          .map((claim) => String(claim.source_citation || "").trim())
+          .filter((claim) => isVerifiedClaim(claim))
+          .map((claim) => String(claim.source_url || claim.source_citation || "").trim())
           .filter((source) => source && source.toLowerCase() !== "unverified")
       ).size;
       return {
@@ -58,6 +69,9 @@ export default function ReportView({ result }: ReportViewProps) {
 
     if (result.evidence_summary) {
       const es = result.evidence_summary;
+      if ((result.claims_ledger?.length || 0) > 0) {
+        return es;
+      }
       const looksZero = (es.sec_ir_claims || 0) === 0 && (es.unverified_claims || 0) === 0 && (es.source_count || 0) === 0;
       if (!looksZero) return es;
       // Back-compat for older runs with stale zero summaries.
@@ -172,6 +186,9 @@ export default function ReportView({ result }: ReportViewProps) {
           {evidenceSummary.inferred && (
             <span className="text-t-amber">[inferred]</span>
           )}
+          {!evidenceSummary.inferred && (
+            <span className="text-t-green">[validated]</span>
+          )}
           {generatedDisplay && <span className="text-t-dim">Generated: {generatedDisplay}</span>}
         </div>
       </div>
@@ -232,7 +249,11 @@ export default function ReportView({ result }: ReportViewProps) {
               }}
             />
           )}
-          <DeepDiveTab content={result.sections.deep_dive} focusQuery={focusQuery} />
+          <DeepDiveTab
+            content={result.sections.deep_dive}
+            focusQuery={focusQuery}
+            claims={result.claims_ledger || []}
+          />
         </Tabs.Content>
 
         <Tabs.Content value="perspectives" className="outline-none">

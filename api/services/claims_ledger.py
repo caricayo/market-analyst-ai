@@ -12,6 +12,12 @@ import json
 import re
 from typing import Any, Awaitable, Callable
 
+from api.services.source_policy import (
+    classify_claim_source,
+    extract_source_domain,
+    normalize_source_url,
+)
+
 
 REQUIRED_KEYS = {
     "claim_type",
@@ -26,9 +32,20 @@ REQUIRED_KEYS = {
     "notes",
 }
 
+OPTIONAL_KEYS = {
+    "claim_id",
+    "source_url",
+    "source_title",
+    "source_domain",
+    "source_trust_tier",
+    "verified_for_counter",
+}
+
 CLAIM_TYPE_VALUES = {"numeric", "qualitative"}
 CONFIDENCE_VALUES = {"low", "medium", "high"}
 SOURCE_TYPE_VALUES = {"SEC/IR", "reputable_market_data", "estimate", "unknown"}
+SOURCE_TRUST_TIER_VALUES = {"tier1", "tier2", "tier3", "unknown"}
+CLAIM_ID_RE = re.compile(r"^C\d+$", re.IGNORECASE)
 
 DEAL_KEYWORDS = (
     "acquire",
@@ -40,6 +57,7 @@ DEAL_KEYWORDS = (
 )
 
 PART_B_MARKER_RE = re.compile(r"(?im)^\s*part\s*b\b")
+CLAIM_MARKER_RE = re.compile(r"\[(C\d+)\]")
 NUMERIC_TOKEN_RE = re.compile(
     r"(?ix)"
     r"(?:\$?\d[\d,]*(?:\.\d+)?(?:\s?(?:%|x|bp|bps))?)"
@@ -147,14 +165,25 @@ def _append_note(claim: dict[str, Any], note: str) -> None:
         claim["notes"] = note
 
 
+def _normalize_claim_id(value: Any, idx: int, normalization_notes: list[str]) -> str:
+    candidate = str(value or "").strip().upper()
+    if CLAIM_ID_RE.fullmatch(candidate):
+        return candidate
+    generated = f"C{idx + 1}"
+    normalization_notes.append(f"Claim {idx}: claim_id normalized to {generated}.")
+    return generated
+
+
 def _normalize_claim(raw_claim: dict[str, Any], idx: int, normalization_notes: list[str]) -> dict[str, Any]:
-    claim: dict[str, Any] = {key: raw_claim.get(key) for key in REQUIRED_KEYS}
+    claim: dict[str, Any] = {key: raw_claim.get(key) for key in REQUIRED_KEYS.union(OPTIONAL_KEYS)}
 
     missing = sorted(REQUIRED_KEYS - set(raw_claim.keys()))
     if missing:
         normalization_notes.append(
             f"Claim {idx}: missing keys filled with defaults: {', '.join(missing)}."
         )
+
+    claim["claim_id"] = _normalize_claim_id(claim.get("claim_id"), idx, normalization_notes)
 
     if claim.get("claim_type") not in CLAIM_TYPE_VALUES:
         claim["claim_type"] = "qualitative"
@@ -189,6 +218,19 @@ def _normalize_claim(raw_claim: dict[str, Any], idx: int, normalization_notes: l
 
     if not isinstance(claim.get("notes"), str):
         claim["notes"] = ""
+
+    if not isinstance(claim.get("source_title"), str) or not str(claim["source_title"]).strip():
+        claim["source_title"] = None
+
+    source_url = normalize_source_url(claim.get("source_url"))
+    if not source_url:
+        source_url = normalize_source_url(claim.get("source_citation"))
+    claim["source_url"] = source_url
+    claim["source_domain"] = (
+        str(claim.get("source_domain")).strip().lower()
+        if isinstance(claim.get("source_domain"), str) and str(claim.get("source_domain")).strip()
+        else extract_source_domain(source_url)
+    )
 
     value = claim.get("value")
     if value is not None and not isinstance(value, (int, float)):
@@ -227,6 +269,18 @@ def _normalize_claim(raw_claim: dict[str, Any], idx: int, normalization_notes: l
                 claim["statement"] = "Net debt not computed due to sourcing limits."
                 _append_note(claim, "Net debt claim neutralized due to incomplete sourcing.")
 
+    source_trust_tier, verified_for_counter = classify_claim_source(
+        source_type=str(claim.get("source_type", "")),
+        source_citation=str(claim.get("source_citation", "")),
+        source_url=claim.get("source_url"),
+    )
+    claim["source_trust_tier"] = (
+        source_trust_tier if source_trust_tier in SOURCE_TRUST_TIER_VALUES else "unknown"
+    )
+    claim["verified_for_counter"] = bool(verified_for_counter)
+    if claim["source_trust_tier"] == "unknown" and str(claim.get("source_citation", "")).lower() != "unverified":
+        _append_note(claim, "Source trust tier unknown; treated as unverified for counters.")
+
     return claim
 
 
@@ -240,6 +294,11 @@ def _line_has_unverified_envelope(line: str) -> bool:
         and "source_type" in line_l
         and "source_citation" in line_l
     )
+
+
+def _extract_part_a_markers(part_a_md: str) -> list[str]:
+    markers = [m.group(1).upper() for m in CLAIM_MARKER_RE.finditer(part_a_md or "")]
+    return markers
 
 
 def _validate_part_a_numeric_coverage(part_a_md: str, ledger: list[dict[str, Any]], parse_errors: list[str]) -> None:
@@ -256,10 +315,11 @@ def _validate_part_a_numeric_coverage(part_a_md: str, ledger: list[dict[str, Any
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
-        tokens = [m.group(0).lower() for m in NUMERIC_TOKEN_RE.finditer(line)]
+        line_without_markers = CLAIM_MARKER_RE.sub("", line)
+        tokens = [m.group(0).lower() for m in NUMERIC_TOKEN_RE.finditer(line_without_markers)]
         if not tokens:
             continue
-        if _line_has_unverified_envelope(line):
+        if _line_has_unverified_envelope(line_without_markers):
             continue
 
         missing = []
@@ -298,6 +358,44 @@ def _validate_management_claim_coverage(part_a_md: str, ledger: list[dict[str, A
         parse_errors.append(
             "Leadership, Governance & Incentives present in PART A but corresponding governance claims were not found in PART B."
         )
+
+
+def _validate_claim_id_binding(
+    part_a_md: str,
+    ledger: list[dict[str, Any]],
+    parse_errors: list[str],
+) -> tuple[list[str], list[str]]:
+    markers = _extract_part_a_markers(part_a_md)
+    marker_set = set(markers)
+
+    ledger_ids: list[str] = []
+    duplicates: set[str] = set()
+    for claim in ledger:
+        if not isinstance(claim, dict):
+            continue
+        cid = str(claim.get("claim_id", "")).strip().upper()
+        if not CLAIM_ID_RE.fullmatch(cid):
+            parse_errors.append(f"Invalid claim_id in ledger: {cid or '[missing]'}")
+            continue
+        if cid in ledger_ids:
+            duplicates.add(cid)
+        ledger_ids.append(cid)
+
+    if duplicates:
+        parse_errors.append(f"Duplicate claim_id entries in ledger: {sorted(duplicates)}")
+
+    ledger_set = set(ledger_ids)
+    missing_claim_ids = sorted(marker_set - ledger_set)
+    orphan_claim_ids = sorted(ledger_set - marker_set)
+
+    if not markers:
+        parse_errors.append("PART A contains no claim markers ([C#]).")
+    if missing_claim_ids:
+        parse_errors.append(f"PART A markers missing in PART B ledger: {missing_claim_ids}")
+    if orphan_claim_ids:
+        parse_errors.append(f"PART B claim_ids not referenced in PART A: {orphan_claim_ids}")
+
+    return missing_claim_ids, orphan_claim_ids
 
 
 def load_and_validate_ledger(ledger_json_text: str | None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -374,6 +472,9 @@ def parse_and_validate_stage2_output(
     _validate_required_sections(part_a, parse_errors)
     _validate_part_a_numeric_coverage(part_a, claims_ledger, parse_errors)
     _validate_management_claim_coverage(part_a, claims_ledger, parse_errors)
+    missing_claim_ids, orphan_claim_ids = _validate_claim_id_binding(
+        part_a, claims_ledger, parse_errors
+    )
 
     merged_meta = {
         "valid": len(parse_errors) == 0,
@@ -382,6 +483,9 @@ def parse_and_validate_stage2_output(
         "claim_count": meta.get("claim_count", len(claims_ledger)),
         "repair_used": False,
         "deal_detected": bool(deal_detected),
+        "citation_binding_valid": len(missing_claim_ids) == 0 and len(orphan_claim_ids) == 0,
+        "missing_claim_ids": missing_claim_ids,
+        "orphan_claim_ids": orphan_claim_ids,
     }
     return part_a, claims_ledger, merged_meta
 

@@ -6,10 +6,12 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import type { Components } from "react-markdown";
+import type { ClaimLedgerEntry } from "@/lib/types";
 
 interface DeepDiveTabProps {
   content: string;
   focusQuery?: string;
+  claims?: ClaimLedgerEntry[];
 }
 
 function flattenText(node: ReactNode): string {
@@ -58,16 +60,24 @@ const markdownComponents: Components = {
   em: ({ children }) => (
     <em className="text-t-amber italic">{children}</em>
   ),
-  a: ({ href, children }) => (
-    <a
-      href={href}
-      className="text-t-amber underline underline-offset-2 hover:text-t-amber-dim"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      {children}
-    </a>
-  ),
+  a: ({ href, children }) => {
+    const label = flattenText(children).trim();
+    const isCitationChip = /^C\d+src$/.test(label);
+    return (
+      <a
+        href={href}
+        className={
+          isCitationChip
+            ? "inline-flex align-super ml-1 px-1 py-0.5 border border-t-cyan/50 text-[10px] leading-none text-t-cyan hover:bg-t-cyan/10 no-underline"
+            : "text-t-amber underline underline-offset-2 hover:text-t-amber-dim"
+        }
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {children}
+      </a>
+    );
+  },
   ul: ({ children }) => (
     <ul className="list-disc space-y-2 mb-5 ml-6 text-t-text text-[14px] md:text-[15px]">{children}</ul>
   ),
@@ -131,8 +141,40 @@ function normalizeForMatch(input: string): string {
   return input.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-export default function DeepDiveTab({ content, focusQuery }: DeepDiveTabProps) {
+function sanitizeTitleFragment(input: string): string {
+  return (input || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
+}
+
+function withCitationLinks(content: string, claims: ClaimLedgerEntry[]): string {
+  if (!content || !claims?.length) return content;
+
+  const claimById = new Map<string, ClaimLedgerEntry>();
+  for (const claim of claims) {
+    const claimId = String(claim.claim_id || "").trim().toUpperCase();
+    if (claimId) claimById.set(claimId, claim);
+  }
+
+  return content.replace(/\[(C\d+)\]/g, (_match, rawId: string) => {
+    const claimId = String(rawId || "").toUpperCase();
+    const claim = claimById.get(claimId);
+    if (!claim) return `\`${claimId}\``;
+
+    const sourceUrl = String(claim.source_url || "").trim();
+    const titleBits = [
+      claim.source_title || "",
+      claim.source_domain || "",
+      claim.source_citation || "",
+    ].filter(Boolean);
+    const title = sanitizeTitleFragment(titleBits.join(" | ") || "source");
+
+    if (!sourceUrl) return `\`${claimId}\``;
+    return `[${claimId}src](${sourceUrl} "${title}")`;
+  });
+}
+
+export default function DeepDiveTab({ content, focusQuery, claims = [] }: DeepDiveTabProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const renderedContent = useMemo(() => withCitationLinks(content, claims), [content, claims]);
   const sectionHeadings = useMemo(() => {
     const matches = Array.from(content.matchAll(/^(#{1,3})\s+(.+)$/gm));
     return matches
@@ -209,7 +251,7 @@ export default function DeepDiveTab({ content, focusQuery }: DeepDiveTabProps) {
             rehypePlugins={[rehypeSanitize]}
             components={markdownComponents}
           >
-            {content}
+            {renderedContent}
           </ReactMarkdown>
         </div>
       </div>

@@ -78,6 +78,37 @@ def _fallback_evidence_summary_from_markdown(deep_dive: str) -> dict[str, int]:
     }
 
 
+def _build_sources_index(claims_ledger: list[dict]) -> list[dict]:
+    """Build a compact source index from validated claims ledger entries."""
+    indexed: dict[tuple[str, str], dict] = {}
+    for claim in claims_ledger:
+        if not isinstance(claim, dict):
+            continue
+        claim_id = str(claim.get("claim_id", "")).strip()
+        source_url = str(claim.get("source_url", "")).strip()
+        if not claim_id or not source_url:
+            continue
+        key = (claim_id, source_url)
+        indexed[key] = {
+            "claim_id": claim_id,
+            "url": source_url,
+            "title": claim.get("source_title") or None,
+            "domain": claim.get("source_domain") or None,
+            "trust_tier": claim.get("source_trust_tier") or "unknown",
+            "source_type": claim.get("source_type") or "unknown",
+            "source_citation": claim.get("source_citation") or "unverified",
+        }
+    return list(indexed.values())
+
+
+def _is_verified_claim(claim: dict) -> bool:
+    if "verified_for_counter" in claim:
+        return bool(claim.get("verified_for_counter"))
+    source_type = str(claim.get("source_type", "")).strip()
+    source_citation = str(claim.get("source_citation", "")).strip().lower()
+    return source_type in {"SEC/IR", "reputable_market_data"} and source_citation != "unverified"
+
+
 async def execute_pipeline(session: AnalysisSession) -> None:
     """Run the pipeline and emit events to the session."""
     try:
@@ -151,9 +182,12 @@ async def execute_pipeline(session: AnalysisSession) -> None:
             "claims_ledger_meta": claims_ledger_meta,
             "institutional_layer_meta": institutional_layer_meta,
         }
+        result_data["sources_index"] = _build_sources_index(claims_ledger)
         sec_ir_claims = sum(
             1 for c in claims_ledger
-            if isinstance(c, dict) and c.get("source_type") == "SEC/IR"
+            if isinstance(c, dict)
+            and c.get("source_type") == "SEC/IR"
+            and _is_verified_claim(c)
         )
         unverified_claims = sum(
             1 for c in claims_ledger
@@ -161,18 +195,25 @@ async def execute_pipeline(session: AnalysisSession) -> None:
             and (
                 str(c.get("source_citation", "")).strip().lower() == "unverified"
                 or c.get("source_type") == "unknown"
+                or not _is_verified_claim(c)
             )
         )
         source_count = len({
-            str(c.get("source_citation", "")).strip()
+            (str(c.get("source_url", "")).strip() or str(c.get("source_citation", "")).strip())
             for c in claims_ledger
             if isinstance(c, dict)
-            and str(c.get("source_citation", "")).strip()
-            and str(c.get("source_citation", "")).strip().lower() != "unverified"
+            and _is_verified_claim(c)
+            and (
+                str(c.get("source_url", "")).strip()
+                or (
+                    str(c.get("source_citation", "")).strip()
+                    and str(c.get("source_citation", "")).strip().lower() != "unverified"
+                )
+            )
         })
 
         inferred = False
-        if not claims_ledger or (sec_ir_claims == 0 and unverified_claims == 0 and source_count == 0):
+        if not claims_ledger:
             inferred_counts = _fallback_evidence_summary_from_markdown(sections.get("deep_dive", ""))
             sec_ir_claims = max(sec_ir_claims, inferred_counts["sec_ir_claims"])
             unverified_claims = max(unverified_claims, inferred_counts["unverified_claims"])

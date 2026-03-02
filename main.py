@@ -670,7 +670,7 @@ async def run_fact_first_diligence_deep_dive(
                 "Repair the PART B Claims Ledger JSON array only.\n\n"
                 f"Parse errors:\n{json.dumps(meta.get('parse_errors', []), indent=2)}\n\n"
                 "Required schema keys per object:\n"
-                "claim_type, metric, value, unit, timeframe, statement, confidence, source_type, source_citation, notes\n"
+                "claim_type, metric, value, unit, timeframe, statement, confidence, source_type, source_citation, notes, claim_id, source_url, source_title, source_domain\n"
                 f"\nOriginal Stage-2 output:\n{output_text}"
             )
             return await _call_model(repair_instructions, repair_input)

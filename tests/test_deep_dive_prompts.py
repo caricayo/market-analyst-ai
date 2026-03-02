@@ -58,6 +58,7 @@ class FactFirstDiligencePromptTests(unittest.TestCase):
         required = [
             "PART A",
             "PART B  CLAIMS LEDGER",
+            "[C1], [C2], [C3]",
             "Business Model & Revenue Architecture",
             "Competitive Position & Power Structure",
             "Financial Quality Snapshot",
@@ -69,6 +70,10 @@ class FactFirstDiligencePromptTests(unittest.TestCase):
             "Market Belief vs Mispricing Hypothesis",
             "Deal-Arb Appendix",
             "Investment Framing Summary",
+            "claim_id",
+            "source_url",
+            "source_title",
+            "source_domain",
         ]
         for needle in required:
             self.assertIn(needle, user_prompt)

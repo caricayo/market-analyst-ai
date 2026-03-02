@@ -31,13 +31,13 @@ class Stage2DiligenceSmokeTests(unittest.TestCase):
         part_a = """## Business Model & Revenue Architecture
 Unverified  requires primary filing review.
 ## Competitive Position & Power Structure
-Competitive intensity elevated. timeframe=FY2025 unit=percent source_type=estimate source_citation=unverified
+Competitive intensity elevated. timeframe=FY2025 unit=percent source_type=estimate source_citation=unverified [C4]
 ## Financial Quality Snapshot
-Gross margin trend was 42%. timeframe=FY2025 unit=percent source_type=SEC/IR source_citation=10-K
+Gross margin trend was 42%. timeframe=FY2025 unit=percent source_type=SEC/IR source_citation=10-K [C1]
 ## Capital Structure & Liquidity
 Net debt not computed due to sourcing limits.
 ## Leadership, Governance & Incentives
-CEO has prior operator experience and board oversight remains stable. timeframe=FY2025 unit=event source_type=SEC/IR source_citation=10-K
+CEO has prior operator experience and board oversight remains stable. timeframe=FY2025 unit=event source_type=SEC/IR source_citation=10-K [C2]
 ## SBC & Dilution Analysis
 Unverified  requires primary filing review.
 ## Structural vs Cyclical Risk Separation
@@ -47,7 +47,7 @@ Unverified  requires primary filing review.
 ## Market Belief vs Mispricing Hypothesis
 Unverified  requires primary filing review.
 ## Deal-Arb Appendix
-Definitive agreement announced. timeframe=Q1 2026 unit=event source_type=SEC/IR source_citation=8-K
+Definitive agreement announced. timeframe=Q1 2026 unit=event source_type=SEC/IR source_citation=8-K [C3]
 ## Investment Framing Summary
 Unverified  requires primary filing review.
 """
@@ -63,6 +63,10 @@ Unverified  requires primary filing review.
                 "source_type": "SEC/IR",
                 "source_citation": "10-K",
                 "notes": "Definition risk may apply.",
+                "claim_id": "C1",
+                "source_url": "https://www.sec.gov/ixviewer/ix.html",
+                "source_title": "AAPL 10-K",
+                "source_domain": "sec.gov",
             },
             {
                 "claim_type": "qualitative",
@@ -75,6 +79,10 @@ Unverified  requires primary filing review.
                 "source_type": "SEC/IR",
                 "source_citation": "10-K",
                 "notes": "",
+                "claim_id": "C2",
+                "source_url": "https://www.sec.gov/ixviewer/ix.html",
+                "source_title": "AAPL 10-K",
+                "source_domain": "sec.gov",
             },
             {
                 "claim_type": "qualitative",
@@ -87,6 +95,26 @@ Unverified  requires primary filing review.
                 "source_type": "SEC/IR",
                 "source_citation": "8-K",
                 "notes": "",
+                "claim_id": "C3",
+                "source_url": "https://www.sec.gov/ixviewer/ix.html",
+                "source_title": "AAPL 8-K",
+                "source_domain": "sec.gov",
+            },
+            {
+                "claim_type": "qualitative",
+                "metric": "competitive_intensity",
+                "value": None,
+                "unit": "percent",
+                "timeframe": "FY2025",
+                "statement": "Competitive intensity elevated. timeframe=FY2025 unit=percent source_type=estimate source_citation=unverified",
+                "confidence": "low",
+                "source_type": "estimate",
+                "source_citation": "unverified",
+                "notes": "",
+                "claim_id": "C4",
+                "source_url": None,
+                "source_title": None,
+                "source_domain": None,
             },
         ]
         output = f"PART A\n{part_a}\nPART B  CLAIMS LEDGER\n{json.dumps(ledger)}"

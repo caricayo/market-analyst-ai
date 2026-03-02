@@ -35,6 +35,9 @@ export interface UsageSummary {
   input_token_cost_usd: number;
   output_token_cost_usd: number;
   web_search_cost_usd: number;
+  estimated_cache_savings_usd?: number;
+  cache_enabled?: boolean;
+  cache_retention?: string;
   total_cost_usd: number;
 }
 
@@ -53,6 +56,12 @@ export interface ClaimLedgerEntry {
   source_type: ClaimSourceType;
   source_citation: string;
   notes: string;
+  claim_id?: string;
+  source_url?: string | null;
+  source_title?: string | null;
+  source_domain?: string | null;
+  source_trust_tier?: "tier1" | "tier2" | "tier3" | "unknown";
+  verified_for_counter?: boolean;
 }
 
 export interface ClaimsLedgerMeta {
@@ -64,6 +73,9 @@ export interface ClaimsLedgerMeta {
   repair_used?: boolean;
   deal_detected?: boolean;
   degraded_ledger?: boolean;
+  citation_binding_valid?: boolean;
+  missing_claim_ids?: string[];
+  orphan_claim_ids?: string[];
 }
 
 export interface EvidenceSummary {
@@ -94,6 +106,15 @@ export interface AnalysisResult {
   claims_ledger?: ClaimLedgerEntry[];
   claims_ledger_meta?: ClaimsLedgerMeta;
   evidence_summary?: EvidenceSummary;
+  sources_index?: Array<{
+    claim_id: string;
+    url: string;
+    title?: string | null;
+    domain?: string | null;
+    trust_tier?: "tier1" | "tier2" | "tier3" | "unknown";
+    source_type?: ClaimSourceType;
+    source_citation?: string;
+  }>;
   output_quality_meta?: OutputQualityMeta;
 }
 

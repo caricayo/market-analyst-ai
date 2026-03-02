@@ -92,7 +92,7 @@ Unverified  requires primary filing review.
 ## Market Belief vs Mispricing Hypothesis
 Unverified  requires primary filing review.
 ## Investment Framing Summary
-Unverified  requires primary filing review.
+Unverified  requires primary filing review. [C1]
 
 PART B  CLAIMS LEDGER
 [{broken json}
@@ -114,6 +114,10 @@ PART B  CLAIMS LEDGER
                         "source_type": "unknown",
                         "source_citation": "unverified",
                         "notes": "Missing primary filing support.",
+                        "claim_id": "C1",
+                        "source_url": None,
+                        "source_title": None,
+                        "source_domain": None,
                     }
                 ]
             )
@@ -132,7 +136,7 @@ PART B  CLAIMS LEDGER
     async def test_repair_invalid_keeps_degraded_salvage_claims(self):
         bad_output = """PART A
 ## Business Model & Revenue Architecture
-Revenue reached 12%. timeframe=FY2025 unit=percent source_type=SEC/IR source_citation=10-K
+Revenue reached 12%. timeframe=FY2025 unit=percent source_type=SEC/IR source_citation=10-K [C1]
 ## Competitive Position & Power Structure
 Unverified  requires primary filing review.
 ## Financial Quality Snapshot
@@ -140,7 +144,7 @@ Unverified  requires primary filing review.
 ## Capital Structure & Liquidity
 Net debt not computed due to sourcing limits.
 ## Leadership, Governance & Incentives
-CEO has operating background. timeframe=FY2025 unit=event source_type=SEC/IR source_citation=10-K
+CEO has operating background. timeframe=FY2025 unit=event source_type=SEC/IR source_citation=10-K [C2]
 ## SBC & Dilution Analysis
 Unverified  requires primary filing review.
 ## Structural vs Cyclical Risk Separation
@@ -171,6 +175,10 @@ PART B  CLAIMS LEDGER
                         "source_type": "SEC/IR",
                         "source_citation": "10-K",
                         "notes": "",
+                        "claim_id": "C1",
+                        "source_url": "https://www.sec.gov/ixviewer/ix.html",
+                        "source_title": "10-K",
+                        "source_domain": "sec.gov",
                     }
                 ]
             )
@@ -196,7 +204,7 @@ Unverified  requires primary filing review.
 ## Capital Structure & Liquidity
 Unverified  requires primary filing review.
 ## Leadership, Governance & Incentives
-CEO transition underway. timeframe=FY2025 unit=event source_type=SEC/IR source_citation=10-K
+CEO transition underway. timeframe=FY2025 unit=event source_type=SEC/IR source_citation=10-K [C1]
 ## SBC & Dilution Analysis
 Unverified  requires primary filing review.
 ## Structural vs Cyclical Risk Separation
@@ -209,11 +217,46 @@ Unverified  requires primary filing review.
 Unverified  requires primary filing review.
 
 PART B  CLAIMS LEDGER
-[{"claim_type":"qualitative","metric":"demand_trend","value":null,"unit":null,"timeframe":null,"statement":"Unverified  requires primary filing review.","confidence":"low","source_type":"unknown","source_citation":"unverified","notes":""}]
+[{"claim_type":"qualitative","metric":"demand_trend","value":null,"unit":null,"timeframe":null,"statement":"Unverified  requires primary filing review.","confidence":"low","source_type":"unknown","source_citation":"unverified","notes":"","claim_id":"C1","source_url":null,"source_title":null,"source_domain":null}]
 """
         _, _, meta = parse_and_validate_stage2_output(text, deal_detected=False)
         self.assertFalse(meta["valid"])
         self.assertTrue(any("governance claims were not found" in err for err in meta["parse_errors"]))
+
+    def test_claim_marker_binding_detects_orphans(self):
+        text = """PART A
+## Business Model & Revenue Architecture
+Claim one. [C1]
+## Competitive Position & Power Structure
+Claim two. [C2]
+## Financial Quality Snapshot
+Unverified  requires primary filing review.
+## Capital Structure & Liquidity
+Unverified  requires primary filing review.
+## Leadership, Governance & Incentives
+CEO has prior operating role. [C3]
+## SBC & Dilution Analysis
+Unverified  requires primary filing review.
+## Structural vs Cyclical Risk Separation
+Unverified  requires primary filing review.
+## Strategic Optionality & Upside Drivers
+Unverified  requires primary filing review.
+## Market Belief vs Mispricing Hypothesis
+Unverified  requires primary filing review.
+## Investment Framing Summary
+Unverified  requires primary filing review.
+
+PART B  CLAIMS LEDGER
+[
+  {"claim_type":"qualitative","metric":"m1","value":null,"unit":null,"timeframe":null,"statement":"Claim one.","confidence":"medium","source_type":"SEC/IR","source_citation":"10-K","notes":"","claim_id":"C1","source_url":"https://www.sec.gov/ixviewer/ix.html","source_title":"10-K","source_domain":"sec.gov"},
+  {"claim_type":"qualitative","metric":"m2","value":null,"unit":null,"timeframe":null,"statement":"Claim two.","confidence":"medium","source_type":"SEC/IR","source_citation":"10-K","notes":"","claim_id":"C9","source_url":"https://www.sec.gov/ixviewer/ix.html","source_title":"10-K","source_domain":"sec.gov"}
+]
+"""
+        _, _, meta = parse_and_validate_stage2_output(text, deal_detected=False)
+        self.assertFalse(meta["valid"])
+        self.assertFalse(meta.get("citation_binding_valid"))
+        self.assertIn("C2", meta.get("missing_claim_ids", []))
+        self.assertIn("C9", meta.get("orphan_claim_ids", []))
 
 
 class DealDetectionTests(unittest.TestCase):

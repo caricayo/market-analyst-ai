@@ -92,6 +92,11 @@ export default function ClaimsLedgerPanel({ claims, onLocate }: ClaimsLedgerPane
             {filteredClaims.map((claim, idx) => (
               <li key={`${claim.metric}-${idx}`} className="px-4 py-3">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
+                  {claim.claim_id && (
+                    <span className="border border-t-cyan/60 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-t-cyan">
+                      {claim.claim_id}
+                    </span>
+                  )}
                   <span className="text-xs font-bold text-t-amber">{claim.metric}</span>
                   <span className="border border-t-border px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-t-dim">
                     {claim.claim_type}
@@ -107,6 +112,16 @@ export default function ClaimsLedgerPanel({ claims, onLocate }: ClaimsLedgerPane
                 <p className="text-[11px] text-t-dim">
                   Citation: {claim.source_citation || "unverified"}
                 </p>
+                {claim.source_url && (
+                  <a
+                    href={claim.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 inline-block text-[11px] text-t-cyan hover:text-t-cyan/80 underline underline-offset-2"
+                  >
+                    Open source link
+                  </a>
+                )}
                 <div className="mt-2">
                   <button
                     type="button"

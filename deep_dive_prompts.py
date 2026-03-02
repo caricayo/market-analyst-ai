@@ -176,6 +176,8 @@ Critical enforcement:
 6) SBC & Dilution Analysis section is mandatory even when data is missing.
 7) Deal-Arb Appendix appears only if acquisition/merger evidence appears in the research brief.
 8) PART A claims must be mirrored in PART B ledger entries.
+9) Every factual claim sentence in PART A must end with one or more claim markers in this format: [C1], [C2], etc.
+10) Every claim marker in PART A must map to exactly one PART B claim_id entry.
 """
 
 
@@ -502,6 +504,8 @@ Formatting requirements:
 - Committee-ready writing, concise but deep.
 - Every numeric/factual claim in PART A must include sourcing envelope:
   timeframe, unit, source_type, source_citation
+- Every factual sentence in PART A must append one or more claim markers in this exact format:
+  [C1], [C2], [C3], ...
 - source_type enum: SEC/IR | reputable_market_data | estimate | unknown
 - If claim cannot be verified, label:
   Unverified  requires primary filing review.
@@ -511,10 +515,13 @@ Formatting requirements:
 PART B requirements:
 - Return a valid JSON array only for PART B.
 - Each claim object must include keys:
-  claim_type, metric, value, unit, timeframe, statement, confidence, source_type, source_citation, notes
+  claim_type, metric, value, unit, timeframe, statement, confidence, source_type, source_citation, notes, claim_id, source_url, source_title, source_domain
 - claim_type enum: numeric | qualitative
 - confidence enum: low | medium | high
 - source_type enum: SEC/IR | reputable_market_data | estimate | unknown
+- claim_id must match one or more PART A markers (e.g. C1)
+- source_url should be a direct link when available; otherwise null
+- source_title/source_domain should be filled when known; otherwise null
 - If output budget gets tight, compress PART A prose and ALWAYS include complete PART B JSON.
 
 INPUT BRIEF:
