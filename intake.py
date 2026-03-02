@@ -172,12 +172,6 @@ def resolve_ticker(sanitized: str) -> tuple[str, str]:
     if upper in TICKER_LOOKUP:
         return upper, TICKER_LOOKUP[upper]
 
-    # Check if input matches a company name (case-insensitive)
-    lower = sanitized.lower()
-    for ticker, name in TICKER_LOOKUP.items():
-        if name.lower() == lower or name.lower().startswith(lower):
-            return ticker, name
-
     # Check loaded ticker data (available when running inside the server)
     try:
         from api.services.ticker_data import get_ticker_name
@@ -187,6 +181,18 @@ def resolve_ticker(sanitized: str) -> tuple[str, str]:
             return upper, loaded_name
     except ImportError:
         pass
+
+    # Avoid mapping short ticker-like inputs ("BE") to company-name prefixes
+    # ("Berkshire Hathaway...") when symbol data is missing.
+    looks_like_ticker = bool(re.fullmatch(r"[A-Z0-9]{1,5}(\.[A-Z])?", upper))
+    if looks_like_ticker:
+        return upper, sanitized
+
+    # Check if input matches a company name (case-insensitive)
+    lower = sanitized.lower()
+    for ticker, name in TICKER_LOOKUP.items():
+        if name.lower() == lower or name.lower().startswith(lower):
+            return ticker, name
 
     # Not found in lookup — treat input as-is (could be a valid but unlisted ticker)
     return sanitized.upper(), sanitized

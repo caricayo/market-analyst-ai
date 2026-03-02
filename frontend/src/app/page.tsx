@@ -380,7 +380,7 @@ function AppContent({ userEmail }: { userEmail?: string }) {
 
             {/* Show partial report as sections stream in */}
             {(partialSections.deep_dive || partialSections.perspectives || partialSections.synthesis) && (
-              <div className="border border-t-border bg-t-dark mt-2 overflow-hidden min-w-0">
+              <div className="border border-t-border bg-t-dark mt-2 overflow-x-hidden min-w-0">
                 <div className="px-4 py-2 border-b border-t-border">
                   <span className="text-xs text-t-green font-bold uppercase tracking-wider">
                     Report Preview: {ticker}
@@ -434,7 +434,7 @@ function AppContent({ userEmail }: { userEmail?: string }) {
         {phase === "complete" && result && (
           <div>
             <PipelineTracker stages={stages} collapsed />
-            <div className="border border-t-border bg-t-dark mt-2 overflow-hidden min-w-0">
+            <div className="border border-t-border bg-t-dark mt-2 overflow-x-hidden min-w-0">
               <div className="px-4 py-2 border-b border-t-border flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <button

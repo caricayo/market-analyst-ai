@@ -11,15 +11,15 @@ interface SynthesisTabProps {
 
 const markdownComponents: Components = {
   h2: ({ children }) => (
-    <h2 className="text-2xl font-bold text-t-amber mt-8 mb-4 border-b border-t-amber/30 pb-2">
+    <h2 className="text-2xl font-bold text-t-amber mt-8 mb-4 border-b border-t-amber/30 pb-2 break-words">
       {children}
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-lg font-bold text-t-green mt-6 mb-3">{children}</h3>
+    <h3 className="text-lg font-bold text-t-green mt-6 mb-3 break-words">{children}</h3>
   ),
   p: ({ children }) => (
-    <p className="text-t-text leading-8 mb-4 text-[14px] md:text-[15px]">{children}</p>
+    <p className="text-t-text leading-8 mb-4 text-[14px] md:text-[15px] break-words">{children}</p>
   ),
   strong: ({ children }) => (
     <strong className="text-t-green font-bold">{children}</strong>
@@ -36,12 +36,12 @@ const markdownComponents: Components = {
     </ol>
   ),
   li: ({ children }) => (
-    <li className="leading-7">
+    <li className="leading-7 break-words">
       {children}
     </li>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="border-l-2 border-t-amber pl-4 py-3 my-4 bg-t-dark/70 text-t-white">
+    <blockquote className="border-l-2 border-t-amber pl-4 py-3 my-4 bg-t-dark/70 text-t-white break-words">
       {children}
     </blockquote>
   ),
@@ -54,17 +54,17 @@ const markdownComponents: Components = {
   ),
   thead: ({ children }) => <thead className="border-b border-t-amber/40 bg-t-dark/70">{children}</thead>,
   th: ({ children }) => (
-    <th className="text-left py-2 px-2 text-t-amber font-bold uppercase tracking-[0.08em] text-[11px]">
+    <th className="text-left py-2 px-2 text-t-amber font-bold uppercase tracking-[0.08em] text-[11px] break-words">
       {children}
     </th>
   ),
   td: ({ children }) => (
-    <td className="py-2 px-2 text-t-white border-b border-t-border/30 align-top">{children}</td>
+    <td className="py-2 px-2 text-t-white border-b border-t-border/30 align-top break-words">{children}</td>
   ),
   a: ({ href, children }) => (
     <a
       href={href}
-      className="text-t-amber underline underline-offset-2 hover:text-t-amber-dim"
+      className="text-t-amber underline underline-offset-2 hover:text-t-amber-dim break-all"
       target="_blank"
       rel="noopener noreferrer"
     >
@@ -72,14 +72,14 @@ const markdownComponents: Components = {
     </a>
   ),
   code: ({ children }) => (
-    <code className="bg-t-dark text-t-amber px-1 py-0.5 text-xs">{children}</code>
+    <code className="bg-t-dark text-t-amber px-1 py-0.5 text-xs whitespace-pre-wrap break-all">{children}</code>
   ),
   hr: () => <hr className="border-t-border my-6" />,
 };
 
 export default function SynthesisTab({ content }: SynthesisTabProps) {
   return (
-    <div className="px-5 py-5 md:px-8 min-w-0 [overflow-wrap:anywhere] text-[14px]">
+    <div className="px-5 py-5 md:px-8 min-w-0 overflow-x-auto [overflow-wrap:anywhere] text-[14px]">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSanitize]}

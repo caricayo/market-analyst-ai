@@ -221,7 +221,7 @@ export default function ReportView({ result }: ReportViewProps) {
           </Tabs.Trigger>
         </Tabs.List>
 
-        <Tabs.Content value="deep-dive" className="outline-none">
+        <Tabs.Content value="deep-dive" className="outline-none min-w-0">
           <div className="flex flex-wrap justify-end gap-2 px-4 pt-4">
             {(result.claims_ledger?.length || 0) > 0 && (
               <button
@@ -256,7 +256,7 @@ export default function ReportView({ result }: ReportViewProps) {
           />
         </Tabs.Content>
 
-        <Tabs.Content value="perspectives" className="outline-none">
+        <Tabs.Content value="perspectives" className="outline-none min-w-0">
           <div className="flex justify-end px-4 pt-4">
             <button
               type="button"
@@ -270,7 +270,7 @@ export default function ReportView({ result }: ReportViewProps) {
           <PerspectiveTab content={result.sections.perspectives} verdicts={result.persona_verdicts} />
         </Tabs.Content>
 
-        <Tabs.Content value="synthesis" className="outline-none">
+        <Tabs.Content value="synthesis" className="outline-none min-w-0">
           <div className="flex justify-end px-4 pt-4">
             <button
               type="button"
