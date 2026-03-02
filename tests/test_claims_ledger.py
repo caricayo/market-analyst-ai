@@ -73,7 +73,25 @@ PART B  CLAIMS LEDGER
 class RepairFlowTests(unittest.IsolatedAsyncioTestCase):
     async def test_repair_path_invoked_on_malformed_json(self):
         bad_output = """PART A
-## SBC & Dilution Analysis (Mandatory)
+## Business Model & Revenue Architecture
+Unverified  requires primary filing review.
+## Competitive Position & Power Structure
+Unverified  requires primary filing review.
+## Financial Quality Snapshot
+Unverified  requires primary filing review.
+## Capital Structure & Liquidity
+Unverified  requires primary filing review.
+## Leadership, Governance & Incentives
+Unverified  requires primary filing review.
+## SBC & Dilution Analysis
+Unverified  requires primary filing review.
+## Structural vs Cyclical Risk Separation
+Unverified  requires primary filing review.
+## Strategic Optionality & Upside Drivers
+Unverified  requires primary filing review.
+## Market Belief vs Mispricing Hypothesis
+Unverified  requires primary filing review.
+## Investment Framing Summary
 Unverified  requires primary filing review.
 
 PART B  CLAIMS LEDGER
@@ -87,7 +105,7 @@ PART B  CLAIMS LEDGER
                 [
                     {
                         "claim_type": "qualitative",
-                        "metric": "sbc_data_gap",
+                        "metric": "governance_data_gap",
                         "value": None,
                         "unit": None,
                         "timeframe": None,
@@ -105,11 +123,41 @@ PART B  CLAIMS LEDGER
             deal_detected=False,
             repair_ledger_json_fn=repair_fn,
         )
-        self.assertIn("SBC & Dilution Analysis", part_a)
+        self.assertIn("Leadership, Governance & Incentives", part_a)
         self.assertEqual(called["count"], 1)
         self.assertTrue(meta["repair_used"])
         self.assertTrue(meta["valid"])
         self.assertEqual(len(claims), 1)
+
+    def test_management_section_requires_management_claims(self):
+        text = """PART A
+## Business Model & Revenue Architecture
+Unverified  requires primary filing review.
+## Competitive Position & Power Structure
+Unverified  requires primary filing review.
+## Financial Quality Snapshot
+Unverified  requires primary filing review.
+## Capital Structure & Liquidity
+Unverified  requires primary filing review.
+## Leadership, Governance & Incentives
+CEO transition underway. timeframe=FY2025 unit=event source_type=SEC/IR source_citation=10-K
+## SBC & Dilution Analysis
+Unverified  requires primary filing review.
+## Structural vs Cyclical Risk Separation
+Unverified  requires primary filing review.
+## Strategic Optionality & Upside Drivers
+Unverified  requires primary filing review.
+## Market Belief vs Mispricing Hypothesis
+Unverified  requires primary filing review.
+## Investment Framing Summary
+Unverified  requires primary filing review.
+
+PART B  CLAIMS LEDGER
+[{"claim_type":"qualitative","metric":"demand_trend","value":null,"unit":null,"timeframe":null,"statement":"Unverified  requires primary filing review.","confidence":"low","source_type":"unknown","source_citation":"unverified","notes":""}]
+"""
+        _, _, meta = parse_and_validate_stage2_output(text, deal_detected=False)
+        self.assertFalse(meta["valid"])
+        self.assertTrue(any("governance claims were not found" in err for err in meta["parse_errors"]))
 
 
 class DealDetectionTests(unittest.TestCase):
@@ -121,4 +169,3 @@ class DealDetectionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

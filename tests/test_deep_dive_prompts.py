@@ -62,6 +62,7 @@ class FactFirstDiligencePromptTests(unittest.TestCase):
             "Competitive Position & Power Structure",
             "Financial Quality Snapshot",
             "Capital Structure & Liquidity",
+            "Leadership, Governance & Incentives (Mandatory)",
             "SBC & Dilution Analysis (Mandatory)",
             "Structural vs Cyclical Risk Separation",
             "Strategic Optionality & Upside Drivers",
@@ -76,6 +77,7 @@ class FactFirstDiligencePromptTests(unittest.TestCase):
         self.assertIn("No naked numbers", FACT_FIRST_DILIGENCE_SYSTEM)
         self.assertIn("Do not fabricate facts", FACT_FIRST_DILIGENCE_SYSTEM)
         self.assertIn("SBC & Dilution Analysis section is mandatory", FACT_FIRST_DILIGENCE_SYSTEM)
+        self.assertIn("Leadership, Governance & Incentives section is mandatory", FACT_FIRST_DILIGENCE_SYSTEM)
 
 
 if __name__ == "__main__":

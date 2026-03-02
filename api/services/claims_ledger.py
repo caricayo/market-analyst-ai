@@ -47,6 +47,31 @@ NUMERIC_TOKEN_RE = re.compile(
     r"(?:\d[\d,]*(?:\.\d+)?\s?(?:million|billion|trillion|mn|bn|mm))"
 )
 
+MANDATORY_PART_A_SECTIONS = [
+    "Business Model & Revenue Architecture",
+    "Competitive Position & Power Structure",
+    "Financial Quality Snapshot",
+    "Capital Structure & Liquidity",
+    "Leadership, Governance & Incentives",
+    "SBC & Dilution Analysis",
+    "Structural vs Cyclical Risk Separation",
+    "Strategic Optionality & Upside Drivers",
+    "Market Belief vs Mispricing Hypothesis",
+    "Investment Framing Summary",
+]
+
+MANAGEMENT_CLAIM_TERMS = (
+    "ceo",
+    "cfo",
+    "board",
+    "director",
+    "governance",
+    "executive",
+    "incentive",
+    "compensation",
+    "chair",
+)
+
 
 def detect_deal_signal(research_brief: str) -> bool:
     """Heuristic acquisition detection from research brief text."""
@@ -248,6 +273,33 @@ def _validate_part_a_numeric_coverage(part_a_md: str, ledger: list[dict[str, Any
             )
 
 
+def _validate_required_sections(part_a_md: str, parse_errors: list[str]) -> None:
+    text_l = part_a_md.lower()
+    for section in MANDATORY_PART_A_SECTIONS:
+        if f"## {section}".lower() not in text_l:
+            parse_errors.append(f"PART A missing mandatory section: {section}")
+
+
+def _validate_management_claim_coverage(part_a_md: str, ledger: list[dict[str, Any]], parse_errors: list[str]) -> None:
+    text_l = part_a_md.lower()
+    if "## leadership, governance & incentives" not in text_l:
+        return
+
+    ledger_blob = " ".join(
+        " ".join(
+            str(claim.get(k, ""))
+            for k in ("metric", "statement", "notes")
+        )
+        for claim in ledger
+        if isinstance(claim, dict)
+    ).lower()
+
+    if not any(term in ledger_blob for term in MANAGEMENT_CLAIM_TERMS):
+        parse_errors.append(
+            "Leadership, Governance & Incentives present in PART A but corresponding governance claims were not found in PART B."
+        )
+
+
 def load_and_validate_ledger(ledger_json_text: str | None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """
     Parse and validate claims ledger JSON array.
@@ -319,7 +371,9 @@ def parse_and_validate_stage2_output(
     if ledger_json_text is None:
         parse_errors.append("PART B marker missing or JSON array not found.")
 
+    _validate_required_sections(part_a, parse_errors)
     _validate_part_a_numeric_coverage(part_a, claims_ledger, parse_errors)
+    _validate_management_claim_coverage(part_a, claims_ledger, parse_errors)
 
     merged_meta = {
         "valid": len(parse_errors) == 0,

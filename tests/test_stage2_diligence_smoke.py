@@ -36,7 +36,9 @@ Competitive intensity elevated. timeframe=FY2025 unit=percent source_type=estima
 Gross margin trend was 42%. timeframe=FY2025 unit=percent source_type=SEC/IR source_citation=10-K
 ## Capital Structure & Liquidity
 Net debt not computed due to sourcing limits.
-## SBC & Dilution Analysis (Mandatory)
+## Leadership, Governance & Incentives
+CEO has prior operator experience and board oversight remains stable. timeframe=FY2025 unit=event source_type=SEC/IR source_citation=10-K
+## SBC & Dilution Analysis
 Unverified  requires primary filing review.
 ## Structural vs Cyclical Risk Separation
 Unverified  requires primary filing review.
@@ -64,6 +66,18 @@ Unverified  requires primary filing review.
             },
             {
                 "claim_type": "qualitative",
+                "metric": "governance_quality",
+                "value": None,
+                "unit": "event",
+                "timeframe": "FY2025",
+                "statement": "CEO has prior operator experience and board oversight remains stable. timeframe=FY2025 unit=event source_type=SEC/IR source_citation=10-K",
+                "confidence": "medium",
+                "source_type": "SEC/IR",
+                "source_citation": "10-K",
+                "notes": "",
+            },
+            {
+                "claim_type": "qualitative",
                 "metric": "deal_status",
                 "value": None,
                 "unit": None,
@@ -87,7 +101,8 @@ Unverified  requires primary filing review.
             "## Competitive Position & Power Structure",
             "## Financial Quality Snapshot",
             "## Capital Structure & Liquidity",
-            "## SBC & Dilution Analysis (Mandatory)",
+            "## Leadership, Governance & Incentives",
+            "## SBC & Dilution Analysis",
             "## Structural vs Cyclical Risk Separation",
             "## Strategic Optionality & Upside Drivers",
             "## Market Belief vs Mispricing Hypothesis",
@@ -121,4 +136,3 @@ Moderate
 
 if __name__ == "__main__":
     unittest.main()
-

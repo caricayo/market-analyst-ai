@@ -169,9 +169,13 @@ Critical enforcement:
 4) Do not compute/assert net debt unless cash + total debt (+ recourse vs non-recourse/VIE split if applicable) are all sourced.
    If not fully sourced, state:
    Net debt not computed due to sourcing limits.
-5) SBC & Dilution Analysis section is mandatory even when data is missing.
-6) Deal-Arb Appendix appears only if acquisition/merger evidence appears in the research brief.
-7) PART A claims must be mirrored in PART B ledger entries.
+5) Leadership, Governance & Incentives section is mandatory and must cover:
+   - CEO/CFO background, tenure, prior operating roles/businesses
+   - board composition/independence, committee quality, and governance risk signals
+   - incentive alignment and accountability quality
+6) SBC & Dilution Analysis section is mandatory even when data is missing.
+7) Deal-Arb Appendix appears only if acquisition/merger evidence appears in the research brief.
+8) PART A claims must be mirrored in PART B ledger entries.
 """
 
 
@@ -480,12 +484,19 @@ PART A requirements (markdown, in exact section order):
 2) Competitive Position & Power Structure
 3) Financial Quality Snapshot
 4) Capital Structure & Liquidity
-5) SBC & Dilution Analysis (Mandatory)
-6) Structural vs Cyclical Risk Separation
-7) Strategic Optionality & Upside Drivers
-8) Market Belief vs Mispricing Hypothesis
-9) Deal-Arb Appendix (ONLY if acquisition evidence appears in INPUT BRIEF)
-10) Investment Framing Summary
+5) Leadership, Governance & Incentives (Mandatory)
+6) SBC & Dilution Analysis (Mandatory)
+7) Structural vs Cyclical Risk Separation
+8) Strategic Optionality & Upside Drivers
+9) Market Belief vs Mispricing Hypothesis
+10) Deal-Arb Appendix (ONLY if acquisition evidence appears in INPUT BRIEF)
+11) Investment Framing Summary
+
+Mandatory depth inside Section 5:
+- CEO/CFO/Chair background and tenure with prior business/operator context.
+- Board quality: composition, independence, key committees, governance provisions.
+- Incentives/alignment: compensation architecture, potential misalignment, accountability.
+- Include controversies/related-party signals when present, or explicitly mark data gaps.
 
 Formatting requirements:
 - Committee-ready writing, concise but deep.
