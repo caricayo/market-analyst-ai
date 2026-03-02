@@ -75,6 +75,7 @@ from assembly import (
     assemble_report,
     save_report,
     extract_executive_summary,
+    PERSONA_SPLIT_MARKER,
 )
 from deep_dive_prompts import (
     RESEARCH_LANE_PROMPTS,
@@ -768,8 +769,9 @@ async def run_deep_dive(
 
     _p("Stage 2", f"Deep dive complete ({len(full_report):,} characters)")
     legacy_meta = {
-        "valid": False,
-        "parse_errors": ["Claims ledger unavailable in legacy deep-dive mode."],
+        "valid": True,
+        "not_applicable": True,
+        "parse_errors": [],
         "normalization_notes": [],
         "claim_count": 0,
         "raw_json_extracted": False,
@@ -1065,7 +1067,7 @@ async def run_pipeline(
         on_progress("Stage 3", "complete", f"{available}/{len(persona_outputs)} personas complete")
     if on_section:
         # Format persona outputs the same way assembly.py does
-        formatted_personas = "\n\n---\n\n".join(
+        formatted_personas = PERSONA_SPLIT_MARKER.join(
             output for output in persona_outputs.values() if output is not None
         )
         on_section("perspectives", formatted_personas, {"persona_outputs": persona_outputs})

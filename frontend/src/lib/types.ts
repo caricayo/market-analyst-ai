@@ -57,6 +57,7 @@ export interface ClaimLedgerEntry {
 
 export interface ClaimsLedgerMeta {
   valid: boolean;
+  not_applicable?: boolean;
   parse_errors: string[];
   normalization_notes: string[];
   claim_count: number;

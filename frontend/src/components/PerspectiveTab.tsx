@@ -72,7 +72,12 @@ const markdownComponents: Components = {
 
 export default function PerspectiveTab({ content, verdicts }: PerspectiveTabProps) {
   const [openPanels, setOpenPanels] = useState<Set<string>>(new Set());
-  const blocks = content.split(/\n---\n/).filter((b) => b.trim());
+  const blocks = (content.includes("<!-- PERSONA_SPLIT -->")
+    ? content.split("<!-- PERSONA_SPLIT -->")
+    : content.split(/\n---\n/)
+  ).map((b) => b.trim()).filter((b) => b.length > 0);
+  const panelCount = verdicts.length > 0 ? verdicts.length : blocks.length;
+  const panelIndexes = Array.from({ length: panelCount }, (_, i) => i);
 
   function togglePanel(id: string) {
     setOpenPanels((prev) => {
@@ -93,7 +98,8 @@ export default function PerspectiveTab({ content, verdicts }: PerspectiveTabProp
       </div>
 
       <div className="space-y-3">
-        {blocks.map((block, i) => {
+        {panelIndexes.map((i) => {
+          const block = blocks[i] || "_No persona output captured for this slot._";
           const verdict = verdicts[i];
           const id = verdict?.persona_id || `persona-${i}`;
           const isOpen = openPanels.has(id);

@@ -63,6 +63,8 @@ EXPECTED_SYNTHESIS_HEADERS = [
     "### Disclaimer",
 ]
 
+PERSONA_SPLIT_MARKER = "\n\n<!-- PERSONA_SPLIT -->\n\n"
+
 FACT_FIRST_REQUIRED_SECTIONS = [
     "business model & how money is made",
     "moat / differentiation",
@@ -231,7 +233,7 @@ def assemble_report(
         "",
         "# Part II: Perspective Panel",
         "",
-        "\n\n---\n\n".join(persona_sections),
+        PERSONA_SPLIT_MARKER.join(persona_sections),
         "",
         "---",
         "",

@@ -25,6 +25,7 @@ from config import PERSONAS
 from api.services.event_bus import AnalysisSession
 from api.services.persona_parser import parse_persona
 
+PERSONA_SPLIT_MARKER = "<!-- PERSONA_SPLIT -->"
 
 _URL_RE = re.compile(r"https?://[^\s)>\"]+")
 _FILING_RE = re.compile(r"\b(10-K|10-Q|8-K|DEF 14A|20-F|6-K|earnings release)\b", re.IGNORECASE)
@@ -120,11 +121,14 @@ async def execute_pipeline(session: AnalysisSession) -> None:
         # Re-run persona parsing on the raw persona outputs
         # We need to parse from the perspectives section of the report
         perspectives_text = sections["perspectives"]
-        # Split by the --- separator between personas
-        persona_blocks = re.split(r"\n---\n", perspectives_text)
+        # Split by explicit marker first; fallback to legacy separator for older rows.
+        if PERSONA_SPLIT_MARKER in perspectives_text:
+            persona_blocks = [b.strip() for b in perspectives_text.split(PERSONA_SPLIT_MARKER) if b.strip()]
+        else:
+            persona_blocks = [b.strip() for b in re.split(r"\n---\n", perspectives_text) if b.strip()]
 
         for i, persona_cfg in enumerate(PERSONAS):
-            block = persona_blocks[i].strip() if i < len(persona_blocks) else None
+            block = persona_blocks[i] if i < len(persona_blocks) else None
             if block and block.startswith(">"):
                 # This is an unavailable notice
                 block = None

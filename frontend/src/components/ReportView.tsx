@@ -96,6 +96,18 @@ export default function ReportView({ result }: ReportViewProps) {
     return parsed.toLocaleString();
   }, [evidenceSummary.as_of]);
 
+  const showLedgerWarning = useMemo(() => {
+    const meta = result.claims_ledger_meta;
+    if (!meta) return false;
+    if (meta.not_applicable) return false;
+    if (meta.valid !== false) return false;
+    const errs = meta.parse_errors || [];
+    const legacyUnavailable = errs.some((e: string) =>
+      String(e).toLowerCase().includes("claims ledger unavailable in legacy deep-dive mode")
+    );
+    return !legacyUnavailable;
+  }, [result.claims_ledger_meta]);
+
   const downloadSection = useCallback(
     (sectionName: "deep-dive" | "perspectives" | "synthesis", content: string) => {
       const trimmed = content.trim();
@@ -138,7 +150,7 @@ export default function ReportView({ result }: ReportViewProps) {
           </p>
         </div>
       )}
-      {result.claims_ledger_meta && result.claims_ledger_meta.valid === false && (
+      {showLedgerWarning && (
         <div className="mx-4 mt-2 border border-t-amber/40 bg-t-amber/5 px-4 py-3">
           <p className="text-xs text-t-amber">
             Claims ledger quality check flagged issues for this run. Evidence counters may include
