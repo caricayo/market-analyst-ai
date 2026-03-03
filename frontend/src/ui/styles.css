@@ -168,6 +168,12 @@ button:disabled {
   font-size: 0.75rem;
 }
 
+.chip-recommended {
+  background: rgba(211, 155, 87, 0.2);
+  border-color: rgba(232, 188, 127, 0.7);
+  color: #f2d3a6;
+}
+
 .danger {
   margin-top: 0.45rem;
   color: #d9a469;
@@ -210,6 +216,16 @@ button:disabled {
 .alert-line {
   color: #e2b67b;
   font-weight: 600;
+}
+
+.step-list {
+  margin-top: 0.35rem;
+  margin-bottom: 0.75rem;
+  padding-left: 1.15rem;
+}
+
+.step-list li {
+  margin-bottom: 0.25rem;
 }
 
 .log-panel ul {

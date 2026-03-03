@@ -23,7 +23,7 @@ describe("arc completion", () => {
     const resolved = resolveArcEnd(state, arc, "dawn");
 
     expect(resolved.endingSummary?.unlockedCards).toContain("card_thorn_bastion");
-    expect(resolved.endingSummary?.unlockedCards).not.toContain("card_root_archive");
+    expect(resolved.endingSummary?.unlockedCards).not.toContain("card_cinder_market");
   });
 });
 

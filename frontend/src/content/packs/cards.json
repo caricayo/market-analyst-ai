@@ -39,7 +39,15 @@
     ],
     "danger": 2,
     "rarity": "uncommon",
-    "entrySceneId": "archive_query"
+    "entrySceneId": "archive_query",
+    "requires": [
+      {
+        "type": "flag",
+        "key": "arc_ember_discovered",
+        "op": "==",
+        "value": true
+      }
+    ]
   },
   {
     "id": "card_mire_bridge",
@@ -51,7 +59,15 @@
     ],
     "danger": 3,
     "rarity": "uncommon",
-    "entrySceneId": "mire_crossing"
+    "entrySceneId": "mire_crossing",
+    "requires": [
+      {
+        "type": "flag",
+        "key": "arc_ember_discovered",
+        "op": "==",
+        "value": true
+      }
+    ]
   },
   {
     "id": "card_thorn_bastion",

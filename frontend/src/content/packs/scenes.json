@@ -37,6 +37,21 @@
             "phase": "discovery"
           },
           {
+            "type": "transformCard",
+            "cardId": "card_thorn_bastion",
+            "toStatus": "visible"
+          },
+          {
+            "type": "transformCard",
+            "cardId": "card_root_archive",
+            "toStatus": "visible"
+          },
+          {
+            "type": "transformCard",
+            "cardId": "card_mire_bridge",
+            "toStatus": "visible"
+          },
+          {
             "type": "gainXp",
             "amount": 12
           }
@@ -413,6 +428,13 @@
     "tags": [
       "arc1",
       "dungeon"
+    ],
+    "onEnterEffects": [
+      {
+        "type": "transformCard",
+        "cardId": "card_ashen_gate",
+        "toStatus": "visible"
+      }
     ],
     "choices": [
       {

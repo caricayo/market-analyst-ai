@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { getRegistry } from "../engine/registry";
 import { createInitialState, loadGame, saveGame } from "../engine/save";
-import { RISK_BASE, RISK_DIFFICULTY_MULTIPLIER, RISK_STAT_MULTIPLIER } from "../engine/checks";
+import { getDoctrineRiskModifier, getRiskTarget } from "../engine/checks";
 import { canPayCost, isCardUnlocked, spendStatPoint } from "../engine/state";
 import { enterCard, getCurrentScene, resolveCurrentChoice } from "../engine/story";
 import { evaluateRequires } from "../engine/predicates";
 import type { CardDefinition, Choice, GameState, StatKey } from "../engine/types";
+import { getCampaignGuidance } from "../engine/objectives";
 import { CardImage } from "./components/CardImage";
 
 const DOCTRINE_LABELS: Array<{ key: string; label: string }> = [
@@ -24,8 +25,10 @@ function statusBadge(value: string): string {
 function formatRiskPreview(state: GameState, choice: Choice): string | null {
   if (!choice.check) return null;
   const statValue = state.player.stats[choice.check.stat];
-  const target = RISK_BASE + statValue * RISK_STAT_MULTIPLIER - choice.check.difficulty * RISK_DIFFICULTY_MULTIPLIER;
-  return `risk: ${choice.check.stat.toUpperCase()} ${statValue}, diff ${choice.check.difficulty}, target ${target}, mixed up to ${target + 15}`;
+  const policy = getDoctrineRiskModifier(state, choice.check);
+  const target = getRiskTarget(state, choice.check);
+  const policyText = policy === 0 ? "policy +0" : `policy ${policy > 0 ? "+" : ""}${policy}`;
+  return `risk: ${choice.check.stat.toUpperCase()} ${statValue}, diff ${choice.check.difficulty}, ${policyText}, target ${target}, mixed up to ${target + 15}`;
 }
 
 export function App() {
@@ -38,6 +41,7 @@ export function App() {
   const [reducedMotion, setReducedMotion] = useState<boolean>(() => localStorage.getItem("ui_reduced_motion") === "true");
   const [theme, setTheme] = useState<"dark" | "light">((localStorage.getItem("ui_theme") as "dark" | "light") ?? "dark");
   const [showWorldPanel, setShowWorldPanel] = useState(true);
+  const [showRecommendedOnly, setShowRecommendedOnly] = useState(false);
 
   useEffect(() => {
     if (state.currentScreen !== "title") {
@@ -61,19 +65,22 @@ export function App() {
   const tags = Array.from(new Set(registry.cards.flatMap((card) => card.tags))).sort();
   const unspentStatPoints = Number(state.flags.stat_points ?? 0);
   const activeDoctrines = DOCTRINE_LABELS.filter((entry) => state.flags[entry.key] === true).map((entry) => entry.label);
-
-  const campaignObjective = (() => {
-    const ember = state.arcStates.arc_ember_crown ?? "inactive";
-    const astral = state.arcStates.arc_astral_well ?? "inactive";
-    if (!String(ember).startsWith("resolved_")) return "Stabilize Ember Hollow and resolve the Crownfire knot.";
-    if (!String(astral).startsWith("resolved_")) return "Pursue the Starwell harmonic and settle the sky-knot.";
-    return "Campaign complete: explore aftermath cards, reputations, and New Game+ variants.";
-  })();
+  const guidance = getCampaignGuidance(state);
+  const recommendedCardIds = new Set(guidance.recommendedCardIds);
 
   const cards = registry.cards.filter((card) => {
     if (filterRegion !== "all" && card.regionId !== filterRegion) return false;
     if (filterTag !== "all" && !card.tags.includes(filterTag)) return false;
+    if (showRecommendedOnly && !recommendedCardIds.has(card.id)) return false;
     return true;
+  }).sort((a, b) => {
+    const aRecommended = recommendedCardIds.has(a.id) ? 1 : 0;
+    const bRecommended = recommendedCardIds.has(b.id) ? 1 : 0;
+    if (aRecommended !== bRecommended) return bRecommended - aRecommended;
+    const aUnlocked = isCardUnlocked(state, registry, a.id) ? 1 : 0;
+    const bUnlocked = isCardUnlocked(state, registry, b.id) ? 1 : 0;
+    if (aUnlocked !== bUnlocked) return bUnlocked - aUnlocked;
+    return a.title.localeCompare(b.title);
   });
 
   const beginNewRun = () => {
@@ -167,8 +174,12 @@ export function App() {
             <p>Level {state.player.level} ({state.player.xp}/{state.player.xpToNext} XP)</p>
             <p>HP {state.player.hp}/{state.player.maxHp} | Mana {state.player.mana}/{state.player.maxMana}</p>
             <p>Corruption: {state.player.corruption}</p>
-            <p><strong>Campaign Objective:</strong> {campaignObjective}</p>
+            <p><strong>Campaign Objective:</strong> {guidance.objective}</p>
             {state.activeDungeon && <p className="alert-line">Expedition active: finish the current dungeon route.</p>}
+            <h3>Next Steps</h3>
+            <ol className="step-list">
+              {guidance.steps.map((step) => <li key={step}>{step}</li>)}
+            </ol>
             <h3>Arc Status</h3>
             <ul>
               {registry.arcs.map((arc) => (
@@ -205,6 +216,13 @@ export function App() {
                   ))}
                 </select>
               </label>
+              <button
+                type="button"
+                className={showRecommendedOnly ? "primary" : ""}
+                onClick={() => setShowRecommendedOnly((value) => !value)}
+              >
+                {showRecommendedOnly ? "Show All Cards" : "Focus Recommended"}
+              </button>
             </div>
 
             <div className="card-grid">
@@ -226,6 +244,7 @@ export function App() {
                       <p>{card.flavor}</p>
                       <div className="chip-row">
                         {card.tags.slice(0, 4).map((tag) => <span key={tag} className="chip">{tag}</span>)}
+                        {recommendedCardIds.has(card.id) && <span className="chip chip-recommended">recommended</span>}
                       </div>
                       <p className="danger">Danger {card.danger}/5 | {card.rarity}</p>
                       <p className="status">Status: {locationState?.status ?? "hidden"}{variantTriggered ? " (Variant Shift)" : ""}</p>
