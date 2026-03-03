@@ -70,9 +70,24 @@
     "description": "Accepted and retained mirror-lake prophecy."
   },
   {
+    "key": "ember_oath_advance",
+    "type": "boolean",
+    "description": "Arc 1 escalation advanced through formal Bastion force."
+  },
+  {
+    "key": "ember_rogue_breach",
+    "type": "boolean",
+    "description": "Arc 1 escalation advanced through unsanctioned smokeline tactics."
+  },
+  {
     "key": "wound_marks",
     "type": "number",
     "description": "Persistent injury indicator."
+  },
+  {
+    "key": "ember_wait_used",
+    "type": "number",
+    "description": "Tracks whether the Ashen Gate delay option has already been consumed."
   },
   {
     "key": "stat_points",

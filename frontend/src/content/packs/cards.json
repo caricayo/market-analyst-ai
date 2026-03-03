@@ -11,6 +11,7 @@
     "danger": 2,
     "rarity": "common",
     "entrySceneId": "ember_discovery_1",
+    "postArcId": "arc_ember_crown",
     "postArcVariantId": "card_ember_hollow_resolved",
     "postArcStatus": "cleared",
     "postArcSceneId": "ember_aftermath"
@@ -108,6 +109,7 @@
     "danger": 2,
     "rarity": "common",
     "entrySceneId": "astral_discovery_1",
+    "postArcId": "arc_astral_well",
     "postArcVariantId": "card_prism_step_resolved",
     "postArcStatus": "cleared",
     "postArcSceneId": "astral_aftermath",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getRegistry } from "../engine/registry";
 import { createInitialState } from "../engine/save";
 import { isCardUnlocked } from "../engine/state";
+import { evaluatePredicate } from "../engine/predicates";
 
 describe("gating resolver", () => {
   const registry = getRegistry();
@@ -29,6 +30,11 @@ describe("gating resolver", () => {
     };
 
     expect(isCardUnlocked(unlockedState, registry, "card_ashen_gate")).toBe(true);
+  });
+
+  it("treats missing boolean flags as false for equality checks", () => {
+    const state = createInitialState("seed-b", registry);
+    expect(evaluatePredicate(state, { type: "flag", key: "nonexistent_flag", op: "==", value: false })).toBe(true);
   });
 });
 

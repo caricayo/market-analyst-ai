@@ -94,6 +94,10 @@ export type CardDefinition = {
   requires?: Predicate[];
   corruptionVariantAt?: number;
   variantId?: string;
+  postArcId?: string;
+  postArcSceneId?: string;
+  postArcStatus?: CardStatus;
+  postArcVariantId?: string;
 };
 
 export type RegionDefinition = {

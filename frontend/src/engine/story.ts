@@ -145,6 +145,23 @@ export function enterCard(state: GameState, registry: ContentRegistry, cardId: s
   if (!card) return state;
   const regionCorruption = state.world.regions[card.regionId]?.corruption ?? 0;
   let updated = state;
+
+  let entrySceneId = card.entrySceneId;
+  const arcPhase = card.postArcId ? state.arcStates[card.postArcId] : undefined;
+  const arcResolved = typeof arcPhase === "string" && arcPhase.startsWith("resolved_");
+  if (arcResolved && card.postArcSceneId) {
+    entrySceneId = card.postArcSceneId;
+    if (card.postArcStatus || card.postArcVariantId) {
+      const transformed = applyEffects(updated, [{
+        type: "transformCard",
+        cardId: card.id,
+        toStatus: card.postArcStatus,
+        toVariant: card.postArcVariantId,
+      }], registry);
+      updated = transformed.state;
+    }
+  }
+
   if (card.corruptionVariantAt !== undefined && regionCorruption >= card.corruptionVariantAt) {
     const transformed = applyEffects(updated, [{
       type: "transformCard",
@@ -159,10 +176,10 @@ export function enterCard(state: GameState, registry: ContentRegistry, cardId: s
   const base: GameState = {
     ...updated,
     activeCardId: cardId,
-    activeSceneId: card.entrySceneId,
+    activeSceneId: entrySceneId,
     currentScreen: "scene",
   };
-  return applySceneOnEnter(base, card.entrySceneId, registry);
+  return applySceneOnEnter(base, entrySceneId, registry);
 }
 
 export function getCurrentScene(state: GameState, registry: ContentRegistry): Scene | null {

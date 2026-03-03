@@ -133,6 +133,13 @@ describe("gameplay coverage", () => {
     expect(endings).toContain("arc_astral_well:tide");
   });
 
+  it("routes resolved arc cards to their post-arc aftermath scenes", () => {
+    let state: GameState = { ...createInitialState("aftermath-seed", registry), currentScreen: "atlas" };
+    state = runArcPath(state, EMBER_PATH);
+    const revisit = enterCard({ ...state, currentScreen: "atlas" }, registry, "card_ember_hollow");
+    expect(revisit.activeSceneId).toBe("ember_aftermath");
+  });
+
   it("applies fail-forward penalties independent of narrative text", () => {
     let failingSeed: number | null = null;
     for (let seed = 1; seed < 5000; seed += 1) {

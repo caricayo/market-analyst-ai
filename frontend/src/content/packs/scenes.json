@@ -110,7 +110,7 @@
       },
       {
         "id": "ember_break_siege",
-        "text": "Run an unsanctioned breach scout alone",
+        "text": "Run an unsanctioned smokeline breach with local guides",
         "cost": {
           "time": 1,
           "corruption": 1
@@ -128,7 +128,7 @@
         ],
         "next": {
           "type": "scene",
-          "sceneId": "ember_escalation_2"
+          "sceneId": "ember_escalation_rogue"
         }
       }
     ],
@@ -140,11 +140,11 @@
   },
   {
     "id": "ember_escalation_2",
-    "title": "Procession of Braziers",
+    "title": "Oathbound Procession",
     "cardId": "card_ashen_gate",
     "body": [
-      "Pilgrim chanters march mirrored braziers toward Ashen Gate to damp the Choir pulse before breach.",
-      "If their rhythm breaks, the Regent below will wake fully and weaponize the heat-song."
+      "Concord wardens and pilgrim chanters march mirrored braziers toward Ashen Gate beneath your sworn command.",
+      "If formation breaks, the Regent below wakes fully and the oath you swore becomes public failure."
     ],
     "tags": [
       "arc1",
@@ -225,7 +225,144 @@
       },
       {
         "id": "ember_push_smoke",
-        "text": "Cut through smoke and abandon ritual cover",
+        "text": "Invoke Bastion authority and force a fast, costly advance",
+        "cost": {
+          "time": 2,
+          "hp": 2,
+          "mana": 1
+        },
+        "effects": [
+          {
+            "type": "setFlag",
+            "key": "arc_ember_escalated",
+            "value": true
+          },
+          {
+            "type": "setFlag",
+            "key": "ember_oath_advance",
+            "value": true
+          },
+          {
+            "type": "advanceArcPhase",
+            "arcId": "arc_ember_crown",
+            "phase": "escalation"
+          },
+          {
+            "type": "adjustRep",
+            "faction": "concord",
+            "by": 1
+          }
+        ],
+        "next": {
+          "type": "scene",
+          "sceneId": "ember_dungeon_gate"
+        }
+      }
+    ],
+    "npcs": [
+      "Cantor Hale",
+      "Pilgrim Torchline"
+    ],
+    "lore": "Mirrored braziers buffer Choir pulses long enough to open a controlled breach."
+  },
+  {
+    "id": "ember_escalation_rogue",
+    "title": "Smokeline Breach",
+    "cardId": "card_ashen_gate",
+    "body": [
+      "Smuggler-guides thread you through collapsed shrine lanes where Bastion banners never held.",
+      "If you misread the smoke currents, the Regent wakes before any formal breach line can form."
+    ],
+    "tags": [
+      "arc1",
+      "escalation"
+    ],
+    "choices": [
+      {
+        "id": "ember_smuggle_braziers",
+        "text": "Coordinate covert braziers through undercourt alleys",
+        "cost": {
+          "time": 2,
+          "hp": 1
+        },
+        "check": {
+          "type": "risk",
+          "stat": "craft",
+          "difficulty": 3
+        },
+        "outcomes": {
+          "success": {
+            "text": "Your covert route reaches Ashen Gate before Concord scouts can react.",
+            "effects": [
+              {
+                "type": "setFlag",
+                "key": "arc_ember_escalated",
+                "value": true
+              },
+              {
+                "type": "advanceArcPhase",
+                "arcId": "arc_ember_crown",
+                "phase": "escalation"
+              },
+              {
+                "type": "adjustRep",
+                "faction": "pilgrims",
+                "by": 2
+              },
+              {
+                "type": "gainXp",
+                "amount": 20
+              }
+            ]
+          },
+          "mixed": {
+            "text": "You reach the gate, but half the line arrives injured and furious.",
+            "effects": [
+              {
+                "type": "setFlag",
+                "key": "arc_ember_escalated",
+                "value": true
+              },
+              {
+                "type": "incFlag",
+                "key": "wound_marks",
+                "by": 1
+              },
+              {
+                "type": "adjustRep",
+                "faction": "concord",
+                "by": -1
+              }
+            ]
+          },
+          "failForward": {
+            "text": "A tunnel collapse isolates your rear guard, but your vanguard still reaches the gate.",
+            "effects": [
+              {
+                "type": "setFlag",
+                "key": "arc_ember_escalated",
+                "value": true
+              },
+              {
+                "type": "incFlag",
+                "key": "wound_marks",
+                "by": 2
+              },
+              {
+                "type": "log",
+                "message": "Fail-forward: your unsanctioned route burns goodwill, not momentum."
+              }
+            ]
+          }
+        },
+        "next": {
+          "type": "scene",
+          "sceneId": "ember_dungeon_gate"
+        }
+      },
+      {
+        "id": "ember_torch_sprint",
+        "text": "Sprint the last span and accept brutal losses",
         "cost": {
           "time": 2,
           "hp": 2,
@@ -243,8 +380,13 @@
             "phase": "escalation"
           },
           {
-            "type": "incFlag",
-            "key": "wound_marks",
+            "type": "setFlag",
+            "key": "ember_rogue_breach",
+            "value": true
+          },
+          {
+            "type": "adjustRep",
+            "faction": "undercourt",
             "by": 1
           }
         ],
@@ -255,10 +397,10 @@
       }
     ],
     "npcs": [
-      "Cantor Hale",
-      "Pilgrim Torchline"
+      "Guide Vara Flint",
+      "Undercourt Torchline"
     ],
-    "lore": "Mirrored braziers buffer Choir pulses long enough to open a controlled breach."
+    "lore": "Smokeline routes bypass formal command, trading discipline for speed."
   },
   {
     "id": "ember_dungeon_gate",
@@ -301,13 +443,33 @@
       },
       {
         "id": "ember_wait",
-        "text": "Delay the breach and gamble on calmer conditions",
+        "text": "Delay once to evacuate stragglers and brace the outer wards",
+        "requires": [
+          {
+            "type": "flag",
+            "key": "ember_wait_used",
+            "op": "==",
+            "value": 0
+          }
+        ],
         "cost": {
           "time": 3,
           "corruption": 2
         },
+        "effects": [
+          {
+            "type": "incFlag",
+            "key": "ember_wait_used",
+            "by": 1
+          },
+          {
+            "type": "log",
+            "message": "Delay buys evacuations but the knot surges harder."
+          }
+        ],
         "next": {
-          "type": "atlas"
+          "type": "scene",
+          "sceneId": "ember_gate_after_delay"
         }
       }
     ],
@@ -315,6 +477,76 @@
       "Breach Captain Dema"
     ],
     "lore": "Ashen Gate murals record the first treaty that failed to contain Crownfire."
+  },
+  {
+    "id": "ember_gate_after_delay",
+    "title": "Crownfire Surge Window",
+    "cardId": "card_ashen_gate",
+    "body": [
+      "Evacuation horns fade as the gate shudders; you bought lives, but pressure spikes through every wardline.",
+      "There is no safe stall left. The next move decides whether this delay becomes mercy or catastrophe."
+    ],
+    "tags": [
+      "arc1",
+      "dungeon"
+    ],
+    "choices": [
+      {
+        "id": "ember_enter_vault_after_delay",
+        "text": "Commit the breach now under surge conditions",
+        "requires": [
+          {
+            "type": "flag",
+            "key": "arc_ember_escalated",
+            "op": "==",
+            "value": true
+          }
+        ],
+        "cost": {
+          "time": 1,
+          "hp": 1
+        },
+        "effects": [
+          {
+            "type": "advanceArcPhase",
+            "arcId": "arc_ember_crown",
+            "phase": "dungeon"
+          },
+          {
+            "type": "gainXp",
+            "amount": 8
+          }
+        ],
+        "next": {
+          "type": "dungeon",
+          "dungeonId": "dungeon_embervault"
+        }
+      },
+      {
+        "id": "ember_seek_market_relief",
+        "text": "Dispatch emergency caravans through Cinder Market first",
+        "cost": {
+          "time": 1,
+          "mana": 1
+        },
+        "effects": [
+          {
+            "type": "adjustRep",
+            "faction": "pilgrims",
+            "by": 1
+          }
+        ],
+        "next": {
+          "type": "scene",
+          "sceneId": "market_barter"
+        }
+      }
+    ],
+    "npcs": [
+      "Breach Captain Dema",
+      "Relief Warden Talis"
+    ],
+    "lore": "Delays convert tactical risk into civic debt; someone always pays for extra time."
   },
   {
     "id": "ember_climax",

@@ -79,6 +79,12 @@ for (const card of cards) {
   if (card.postArcSceneId && !sceneIds.has(card.postArcSceneId)) {
     errors.push(`cards.json: card ${card.id} references missing postArcSceneId ${card.postArcSceneId}`);
   }
+  if (card.postArcId && !arcIds.has(card.postArcId)) {
+    errors.push(`cards.json: card ${card.id} references unknown postArcId ${card.postArcId}`);
+  }
+  if (card.postArcSceneId && !card.postArcId) {
+    errors.push(`cards.json: card ${card.id} sets postArcSceneId without postArcId`);
+  }
   const imagePath = path.join(assetsDir, `${card.id}.png`);
   if (!fs.existsSync(imagePath)) {
     errors.push(`assets: missing card image ${card.id}.png`);
