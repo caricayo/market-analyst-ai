@@ -31,6 +31,13 @@ const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
 
 const errors: string[] = [];
+const ARC_GLOSSARY = ["fracture", "choir", "crown", "crownfire", "wellsong", "starwell", "regent", "harmonic", "ash", "glass", "accord", "veil", "chorus", "compact"];
+const HUB_GLOSSARY = ["pilgrim", "concord", "undercourt", "fracture", "choir", "pressure", "corruption", "rumor", "route", "relief", "crisis", "faction", "supply", "evacuation", "ruling", "wellsong", "regent"];
+
+function hasGlossaryToken(text: string, glossary: string[]): boolean {
+  const lower = text.toLowerCase();
+  return glossary.some((token) => lower.includes(token));
+}
 
 for (const [schemaFile, dataFile] of targets) {
   const schema = loadJson(path.join(schemaDir, schemaFile));
@@ -79,7 +86,38 @@ for (const card of cards) {
 }
 
 for (const scene of scenes) {
+  if (!Array.isArray(scene.body) || scene.body.length < 2) {
+    errors.push(`scenes.json: ${scene.id} must have at least 2 body lines for narrative clarity`);
+  }
+  for (const [index, line] of (scene.body ?? []).entries()) {
+    if (typeof line !== "string" || line.trim().length < 8) {
+      errors.push(`scenes.json: ${scene.id} body[${index}] is too short or empty`);
+    }
+  }
+
+  const sceneNarrativeText = [
+    scene.title ?? "",
+    ...(scene.body ?? []),
+    ...(scene.choices ?? []).map((choice: any) => choice.text ?? ""),
+  ].join(" ");
+
+  if ((scene.tags ?? []).some((tag: string) => tag === "arc1" || tag === "arc2")) {
+    if (!hasGlossaryToken(sceneNarrativeText, ARC_GLOSSARY)) {
+      errors.push(`scenes.json: ${scene.id} arc scene missing canonical crisis vocabulary`);
+    }
+  }
+
+  if ((scene.tags ?? []).includes("hub")) {
+    if (!hasGlossaryToken(sceneNarrativeText, HUB_GLOSSARY)) {
+      errors.push(`scenes.json: ${scene.id} hub scene missing faction/crisis linkage vocabulary`);
+    }
+  }
+
   for (const choice of scene.choices ?? []) {
+    if (typeof choice.text !== "string" || choice.text.trim().length < 6 || choice.text.trim().length > 80) {
+      errors.push(`scenes.json: ${scene.id}/${choice.id} choice text length must be 6..80`);
+    }
+
     const next = choice.next;
     if (!next || typeof next.type !== "string") {
       errors.push(`scenes.json: ${scene.id}/${choice.id} missing next target`);
