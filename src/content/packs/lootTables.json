@@ -1,0 +1,43 @@
+[
+  {
+    "id": "loot_dungeon_common",
+    "entries": [
+      {"itemId":"item_ember_knife","weight":20},
+      {"itemId":"item_glass_needle","weight":20},
+      {"itemId":"item_briar_tonic","weight":25},
+      {"itemId":"item_scorch_lantern","weight":15},
+      {"itemId":"item_ashbuckler_coat","weight":20}
+    ]
+  },
+  {
+    "id": "loot_dungeon_rare",
+    "entries": [
+      {"itemId":"item_royal_censer","weight":8,"minLevel":2},
+      {"itemId":"item_storm_folio","weight":8,"minLevel":2},
+      {"itemId":"item_orrery_key","weight":10,"minLevel":2},
+      {"itemId":"item_pale_compass","weight":10,"minLevel":3},
+      {"itemId":"item_wellglass_shield","weight":8,"minLevel":3},
+      {"itemId":"item_quietum_vial","weight":8,"minLevel":2}
+    ]
+  },
+  {
+    "id": "loot_boss_ember",
+    "entries": [
+      {"itemId":"artifact_hollow_crown","weight":4,"uniqueOnly":true},
+      {"itemId":"artifact_dawn_key","weight":4,"uniqueOnly":true},
+      {"itemId":"item_archon_fang","weight":10},
+      {"itemId":"item_bastion_seal","weight":10},
+      {"itemId":"artifact_bloodquill","weight":6,"uniqueOnly":true}
+    ]
+  },
+  {
+    "id": "loot_boss_astral",
+    "entries": [
+      {"itemId":"artifact_void_lens","weight":5,"uniqueOnly":true},
+      {"itemId":"artifact_chronicle_die","weight":5,"uniqueOnly":true},
+      {"itemId":"item_lion_of_glass","weight":9},
+      {"itemId":"item_starline_reel","weight":9},
+      {"itemId":"artifact_tide_compass","weight":6,"uniqueOnly":true}
+    ]
+  }
+]

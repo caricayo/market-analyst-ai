@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "entries"],
+    "properties": {
+      "id": { "type": "string" },
+      "entries": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["itemId", "weight"],
+          "properties": {
+            "itemId": { "type": "string" },
+            "weight": { "type": "number", "minimum": 1 },
+            "minLevel": { "type": "number" },
+            "maxLevel": { "type": "number" },
+            "uniqueOnly": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}

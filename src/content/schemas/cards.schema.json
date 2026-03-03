@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "title", "flavor", "regionId", "tags", "danger", "rarity", "entrySceneId"],
+    "properties": {
+      "id": { "type": "string" },
+      "title": { "type": "string" },
+      "flavor": { "type": "string" },
+      "regionId": { "type": "string" },
+      "tags": { "type": "array", "items": { "type": "string" } },
+      "danger": { "type": "number", "minimum": 1, "maximum": 5 },
+      "rarity": { "enum": ["common", "uncommon", "rare", "mythic"] },
+      "entrySceneId": { "type": "string" },
+      "requires": { "type": "array" },
+      "corruptionVariantAt": { "type": "number" },
+      "variantId": { "type": "string" }
+    }
+  }
+}

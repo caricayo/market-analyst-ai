@@ -1,0 +1,12 @@
+[
+  {"id":"affix_emberforged","prefix":"Emberforged","effectText":"+1 might in combat nodes."},
+  {"id":"affix_of_vigil","suffix":"of Vigil","effectText":"+1 resolve on hazard checks."},
+  {"id":"affix_mirrored","prefix":"Mirrored","effectText":"Mixed outcomes grant +1 xp."},
+  {"id":"affix_of_tithe","suffix":"of Tithe","effectText":"Gain +1 reputation from social choices."},
+  {"id":"affix_starchased","prefix":"Starchased","effectText":"+1 knowledge in puzzle scenes."},
+  {"id":"affix_of_hearth","suffix":"of Hearth","effectText":"Recover +1 mana at day change."},
+  {"id":"affix_hollow","prefix":"Hollow","effectText":"-1 hp penalties once per scene."},
+  {"id":"affix_of_bargains","suffix":"of Bargains","effectText":"Card trade choices cost -1 turn."},
+  {"id":"affix_veiled","prefix":"Veiled","effectText":"Hidden cards reveal one step earlier."},
+  {"id":"affix_of_remnants","suffix":"of Remnants","effectText":"+1 loot quality tier on boss nodes."}
+]

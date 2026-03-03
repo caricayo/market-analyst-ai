@@ -1,0 +1,14 @@
+[
+  {
+    "id": "gloamreach",
+    "title": "Gloamreach Wilds",
+    "flavor": "A fungal forest lit by embers trapped in bark.",
+    "tags": ["surface", "forest", "embers"]
+  },
+  {
+    "id": "glasswaste",
+    "title": "The Glasswaste",
+    "flavor": "Shattered crystal dunes whisper beneath starlight.",
+    "tags": ["desert", "astral", "ruins"]
+  }
+]

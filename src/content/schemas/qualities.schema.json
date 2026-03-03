@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["key", "type", "description"],
+    "properties": {
+      "key": { "type": "string" },
+      "type": { "enum": ["boolean", "number"] },
+      "description": { "type": "string" }
+    }
+  }
+}
