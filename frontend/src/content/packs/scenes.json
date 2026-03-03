@@ -1,0 +1,416 @@
+﻿[
+  {
+    "id": "ember_discovery_1",
+    "title": "The Crown Beneath Ash",
+    "cardId": "card_ember_hollow",
+    "body": [
+      "A novice courier presses a scorched sigil into your palm.",
+      "The Ember Crown has awakened beneath the hollow and local shrines are burning from the inside out."
+    ],
+    "tags": ["arc1", "discovery"],
+    "onEnterEffects": [
+      { "type": "setFlag", "key": "arc_ember_intro_seen", "value": true }
+    ],
+    "choices": [
+      {
+        "id": "ember_follow_courier",
+        "text": "Follow the courier to Thorn Bastion",
+        "cost": { "time": 1 },
+        "effects": [
+          { "type": "setFlag", "key": "arc_ember_discovered", "value": true },
+          { "type": "advanceArcPhase", "arcId": "arc_ember_crown", "phase": "discovery" },
+          { "type": "gainXp", "amount": 12 }
+        ],
+        "next": { "type": "scene", "sceneId": "ember_escalation_1" }
+      },
+      {
+        "id": "ember_delay",
+        "text": "Delay and gather rumors in Cinder Market",
+        "cost": { "time": 2 },
+        "effects": [
+          { "type": "adjustRep", "faction": "pilgrims", "by": 1 }
+        ],
+        "next": { "type": "scene", "sceneId": "market_barter" }
+      }
+    ]
+  },
+  {
+    "id": "ember_escalation_1",
+    "title": "Bastion Council",
+    "cardId": "card_thorn_bastion",
+    "body": [
+      "Commanders argue whether to collapse the vault tunnels.",
+      "A map marks three breach points and one forbidden gate."
+    ],
+    "tags": ["arc1", "escalation"],
+    "choices": [
+      {
+        "id": "ember_take_oath",
+        "text": "Swear to recover the Crown intact",
+        "cost": { "time": 1, "mana": 1 },
+        "effects": [
+          { "type": "setFlag", "key": "ember_oath_bound", "value": true },
+          { "type": "adjustRep", "faction": "concord", "by": 2 }
+        ],
+        "next": { "type": "scene", "sceneId": "ember_escalation_2" }
+      },
+      {
+        "id": "ember_break_siege",
+        "text": "Break protocol and scout alone",
+        "cost": { "time": 1, "corruption": 1 },
+        "effects": [
+          { "type": "adjustRep", "faction": "concord", "by": -1 },
+          { "type": "gainXp", "amount": 10 }
+        ],
+        "next": { "type": "scene", "sceneId": "ember_escalation_2" }
+      }
+    ]
+  },
+  {
+    "id": "ember_escalation_2",
+    "title": "Ashen Procession",
+    "cardId": "card_ashen_gate",
+    "body": [
+      "Pilgrims chant while carrying mirrored braziers toward the gate.",
+      "If the braziers dim, the Regent inside will fully awaken."
+    ],
+    "tags": ["arc1", "escalation"],
+    "choices": [
+      {
+        "id": "ember_guard_braziers",
+        "text": "Guard the procession through the smoke",
+        "cost": { "time": 2, "mana": 1 },
+        "check": { "type": "risk", "stat": "resolve", "difficulty": 3 },
+        "outcomes": {
+          "success": {
+            "text": "The braziers hold steady.",
+            "effects": [
+              { "type": "setFlag", "key": "arc_ember_escalated", "value": true },
+              { "type": "advanceArcPhase", "arcId": "arc_ember_crown", "phase": "escalation" },
+              { "type": "gainXp", "amount": 20 }
+            ]
+          },
+          "mixed": {
+            "text": "You arrive singed but prepared.",
+            "effects": [
+              { "type": "setFlag", "key": "arc_ember_escalated", "value": true },
+              { "type": "incFlag", "key": "wound_marks", "by": 1 }
+            ]
+          },
+          "failForward": {
+            "text": "The route collapses behind you; retreat is impossible now.",
+            "effects": [
+              { "type": "setFlag", "key": "arc_ember_escalated", "value": true },
+              { "type": "incFlag", "key": "wound_marks", "by": 2 },
+              { "type": "log", "message": "Fail-forward: the story surges toward the gate." }
+            ]
+          }
+        },
+        "next": { "type": "scene", "sceneId": "ember_dungeon_gate" }
+      }
+    ]
+  },
+  {
+    "id": "ember_dungeon_gate",
+    "title": "The Vault Mouth",
+    "cardId": "card_ashen_gate",
+    "body": [
+      "The gate yawns like a furnace lung.",
+      "Below it, old murals depict an oath broken three hundred years ago."
+    ],
+    "tags": ["arc1", "dungeon"],
+    "choices": [
+      {
+        "id": "ember_enter_vault",
+        "text": "Descend into the Embervault",
+        "requires": [
+          { "type": "flag", "key": "arc_ember_escalated", "op": "==", "value": true }
+        ],
+        "cost": { "time": 1 },
+        "effects": [
+          { "type": "advanceArcPhase", "arcId": "arc_ember_crown", "phase": "dungeon" }
+        ],
+        "next": { "type": "dungeon", "dungeonId": "dungeon_embervault" }
+      },
+      {
+        "id": "ember_wait",
+        "text": "Wait until dawn (risk rising corruption)",
+        "cost": { "time": 3, "corruption": 2 },
+        "next": { "type": "atlas" }
+      }
+    ]
+  },
+  {
+    "id": "ember_climax",
+    "title": "Crownfire Verdict",
+    "cardId": "card_ember_hollow",
+    "body": [
+      "The Ash Regent kneels, defeated, while the Crown hovers in molten light.",
+      "Three rites are possible. One heals, one conquers, one binds."
+    ],
+    "tags": ["arc1", "climax"],
+    "choices": [
+      { "id": "ember_choose_dawn", "text": "Quench the Crown and release its heat", "cost": { "time": 1, "mana": 2 }, "next": { "type": "scene", "sceneId": "ember_resolution_dawn" } },
+      { "id": "ember_choose_ash", "text": "Wear the Crown and command the blaze", "cost": { "time": 1, "corruption": 4 }, "next": { "type": "scene", "sceneId": "ember_resolution_ash" } },
+      { "id": "ember_choose_oath", "text": "Bind the Crown to the Bastion oath", "cost": { "time": 1, "hp": 3 }, "next": { "type": "scene", "sceneId": "ember_resolution_oath" } }
+    ]
+  },
+  {
+    "id": "ember_resolution_dawn",
+    "title": "Dawn in the Hollow",
+    "cardId": "card_ember_hollow",
+    "body": [
+      "Steam rises as fire gives way to warm rain.",
+      "Pilgrims call this ending the Dawn Mercy."
+    ],
+    "tags": ["arc1", "resolution"],
+    "choices": [
+      { "id": "ember_end_dawn", "text": "Seal this ending", "effects": [{"type":"gainXp","amount":35}], "next": { "type": "endArc", "arcId": "arc_ember_crown", "endingId": "dawn" } }
+    ]
+  },
+  {
+    "id": "ember_resolution_ash",
+    "title": "Ash Regent Reborn",
+    "cardId": "card_ember_hollow",
+    "body": [
+      "The Crown brands your brow and the forest kneels.",
+      "A dark peace descends over Gloamreach."
+    ],
+    "tags": ["arc1", "resolution"],
+    "choices": [
+      { "id": "ember_end_ash", "text": "Claim dominion", "effects": [{"type":"gainXp","amount":35}], "next": { "type": "endArc", "arcId": "arc_ember_crown", "endingId": "ash" } }
+    ]
+  },
+  {
+    "id": "ember_resolution_oath",
+    "title": "The Binding Oath",
+    "cardId": "card_thorn_bastion",
+    "body": [
+      "The Crown is sealed beneath new iron sigils.",
+      "The Bastion survives, but now demands tribute forever."
+    ],
+    "tags": ["arc1", "resolution"],
+    "choices": [
+      { "id": "ember_end_oath", "text": "Ratify the binding", "effects": [{"type":"gainXp","amount":35}], "next": { "type": "endArc", "arcId": "arc_ember_crown", "endingId": "oath" } }
+    ]
+  },
+
+  {
+    "id": "astral_discovery_1",
+    "title": "Song Beneath Glass",
+    "cardId": "card_prism_step",
+    "body": [
+      "A tonal pulse hums from beneath the desert crust.",
+      "The Starwell has begun calling names in the voices of the dead."
+    ],
+    "tags": ["arc2", "discovery"],
+    "choices": [
+      {
+        "id": "astral_trace_song",
+        "text": "Trace the pulse to Sunken Orrery",
+        "cost": { "time": 1 },
+        "effects": [
+          { "type": "setFlag", "key": "arc_astral_discovered", "value": true },
+          { "type": "advanceArcPhase", "arcId": "arc_astral_well", "phase": "discovery" },
+          { "type": "gainXp", "amount": 12 }
+        ],
+        "next": { "type": "scene", "sceneId": "astral_escalation_1" }
+      },
+      {
+        "id": "astral_ignore",
+        "text": "Ignore it and inspect Mirror Lake first",
+        "cost": { "time": 2 },
+        "next": { "type": "scene", "sceneId": "mirror_reflection" }
+      }
+    ]
+  },
+  {
+    "id": "astral_escalation_1",
+    "title": "The Orrery Fracture",
+    "cardId": "card_sunken_orrery",
+    "body": [
+      "The mechanical planets spin backwards.",
+      "A hidden chamber reveals a map to the Starwell rim."
+    ],
+    "tags": ["arc2", "escalation"],
+    "choices": [
+      {
+        "id": "astral_decode",
+        "text": "Decode the map with careful study",
+        "cost": { "time": 1, "mana": 1 },
+        "check": { "type": "risk", "stat": "knowledge", "difficulty": 3 },
+        "outcomes": {
+          "success": { "text": "The map aligns perfectly.", "effects": [{"type":"gainXp","amount":18}] },
+          "mixed": { "text": "You decode enough, but trigger alarms.", "effects": [{"type":"incFlag","key":"alarm_count","by":1}] },
+          "failForward": { "text": "A collapse forces a dangerous shortcut.", "effects": [{"type":"incFlag","key":"alarm_count","by":2}] }
+        },
+        "next": { "type": "scene", "sceneId": "astral_escalation_2" }
+      }
+    ]
+  },
+  {
+    "id": "astral_escalation_2",
+    "title": "Eclipse Jurors",
+    "cardId": "card_eclipse_court",
+    "body": [
+      "Obsidian judges offer passage if you surrender memory.",
+      "Refusing means taking the long route through starstorms."
+    ],
+    "tags": ["arc2", "escalation"],
+    "choices": [
+      {
+        "id": "astral_bargain",
+        "text": "Offer memory to gain swift passage",
+        "cost": { "time": 1, "hp": 2 },
+        "effects": [
+          { "type": "setFlag", "key": "arc_astral_escalated", "value": true },
+          { "type": "advanceArcPhase", "arcId": "arc_astral_well", "phase": "escalation" },
+          { "type": "adjustRep", "faction": "undercourt", "by": 2 }
+        ],
+        "next": { "type": "scene", "sceneId": "astral_dungeon_gate" }
+      },
+      {
+        "id": "astral_refuse",
+        "text": "Refuse and cross the starstorm",
+        "cost": { "time": 2, "corruption": 2 },
+        "effects": [
+          { "type": "setFlag", "key": "arc_astral_escalated", "value": true },
+          { "type": "advanceArcPhase", "arcId": "arc_astral_well", "phase": "escalation" }
+        ],
+        "next": { "type": "scene", "sceneId": "astral_dungeon_gate" }
+      }
+    ]
+  },
+  {
+    "id": "astral_dungeon_gate",
+    "title": "Rim of the Well",
+    "cardId": "card_starwell_rim",
+    "body": [
+      "Below you, constellations spiral into a lightless throat.",
+      "The descent path appears only while the moon is eclipsed."
+    ],
+    "tags": ["arc2", "dungeon"],
+    "choices": [
+      {
+        "id": "astral_enter_well",
+        "text": "Descend into the Starwell",
+        "requires": [{ "type": "flag", "key": "arc_astral_escalated", "op": "==", "value": true }],
+        "cost": { "time": 1 },
+        "effects": [{ "type": "advanceArcPhase", "arcId": "arc_astral_well", "phase": "dungeon" }],
+        "next": { "type": "dungeon", "dungeonId": "dungeon_starwell" }
+      },
+      {
+        "id": "astral_wait",
+        "text": "Wait for calmer stars",
+        "cost": { "time": 3, "corruption": 1 },
+        "next": { "type": "atlas" }
+      }
+    ]
+  },
+  {
+    "id": "astral_climax",
+    "title": "The Well Sings Your Name",
+    "cardId": "card_starwell_rim",
+    "body": [
+      "The Wellsong Seraph offers three final harmonics.",
+      "You can calm the tide, shroud the sky, or bind the song to all factions."
+    ],
+    "tags": ["arc2", "climax"],
+    "choices": [
+      { "id": "astral_choose_tide", "text": "Calm the cosmic tide", "cost": { "time": 1, "mana": 2 }, "next": { "type": "scene", "sceneId": "astral_resolution_tide" } },
+      { "id": "astral_choose_shroud", "text": "Shroud the sky in controlled night", "cost": { "time": 1, "corruption": 4 }, "next": { "type": "scene", "sceneId": "astral_resolution_shroud" } },
+      { "id": "astral_choose_union", "text": "Bind all factions to shared song", "cost": { "time": 1, "hp": 3 }, "next": { "type": "scene", "sceneId": "astral_resolution_union" } }
+    ]
+  },
+  {
+    "id": "astral_resolution_tide",
+    "title": "The Restored Sky",
+    "cardId": "card_prism_step",
+    "body": ["Stars return to their rightful paths.", "Travelers call this ending the Tide Accord."],
+    "tags": ["arc2", "resolution"],
+    "choices": [{ "id": "astral_end_tide", "text": "Seal the accord", "effects": [{"type":"gainXp","amount":35}], "next": { "type": "endArc", "arcId": "arc_astral_well", "endingId": "tide" } }]
+  },
+  {
+    "id": "astral_resolution_shroud",
+    "title": "Eternal Veil",
+    "cardId": "card_starwell_rim",
+    "body": ["You drape the world in permanent twilight.", "Power stabilizes, but hope dims."],
+    "tags": ["arc2", "resolution"],
+    "choices": [{ "id": "astral_end_shroud", "text": "Claim the veil", "effects": [{"type":"gainXp","amount":35}], "next": { "type": "endArc", "arcId": "arc_astral_well", "endingId": "shroud" } }]
+  },
+  {
+    "id": "astral_resolution_union",
+    "title": "Chorus Compact",
+    "cardId": "card_eclipse_court",
+    "body": ["Every faction hears the same oath in their sleep.", "The Glasswaste becomes a council, not a battlefield."],
+    "tags": ["arc2", "resolution"],
+    "choices": [{ "id": "astral_end_union", "text": "Ratify the chorus", "effects": [{"type":"gainXp","amount":35}], "next": { "type": "endArc", "arcId": "arc_astral_well", "endingId": "union" } }]
+  },
+
+  {
+    "id": "market_barter",
+    "title": "Cinder Market Bargain",
+    "cardId": "card_cinder_market",
+    "body": ["A mask-seller offers relic scraps for your stories."],
+    "tags": ["hub"],
+    "choices": [
+      {"id":"market_buy_tonic","text":"Buy ember tonic","cost":{"time":1},"effects":[{"type":"gainXp","amount":5}],"next":{"type":"atlas"}},
+      {"id":"market_leave","text":"Leave quietly","cost":{"time":1},"next":{"type":"atlas"}}
+    ]
+  },
+  {
+    "id": "archive_query",
+    "title": "Root Archive",
+    "cardId": "card_root_archive",
+    "body": ["Living bark opens to reveal records of old crowns."],
+    "tags": ["hub"],
+    "choices": [
+      {"id":"archive_study","text":"Study forbidden annals","cost":{"time":2,"mana":1},"effects":[{"type":"setFlag","key":"lore_ember_regent","value":true},{"type":"gainXp","amount":8}],"next":{"type":"atlas"}},
+      {"id":"archive_exit","text":"Close the archive","cost":{"time":1},"next":{"type":"atlas"}}
+    ]
+  },
+  {
+    "id": "mire_crossing",
+    "title": "Mire Crossing",
+    "cardId": "card_mire_bridge",
+    "body": ["The rope bridge thrums above acidic fog."],
+    "tags": ["hub", "hazard"],
+    "choices": [
+      {
+        "id": "mire_dash",
+        "text": "Dash across",
+        "cost": {"time":1},
+        "check": {"type":"risk","stat":"resolve","difficulty":2},
+        "outcomes": {
+          "success": {"text":"You cross cleanly."},
+          "mixed": {"text":"A burn marks your hand.","effects":[{"type":"incFlag","key":"wound_marks","by":1}]},
+          "failForward": {"text":"You fall, climb back, and lose supplies.","effects":[{"type":"incFlag","key":"wound_marks","by":2}]}
+        },
+        "next": {"type":"atlas"}
+      }
+    ]
+  },
+  {
+    "id": "mirror_reflection",
+    "title": "Mirror of Alternate Paths",
+    "cardId": "card_mirror_lake",
+    "body": ["The lake reflects lives where you chose differently."],
+    "tags": ["hub", "vision"],
+    "choices": [
+      {"id":"mirror_accept","text":"Accept a harsher truth","cost":{"time":1,"corruption":1},"effects":[{"type":"gainXp","amount":7}],"next":{"type":"atlas"}},
+      {"id":"mirror_dismiss","text":"Dismiss the vision","cost":{"time":1},"next":{"type":"atlas"}}
+    ]
+  },
+  {
+    "id": "forge_tithe",
+    "title": "Shard Forge Tithe",
+    "cardId": "card_shard_forge",
+    "body": ["Artisans ask for meteor-ash to repair a sky compass."],
+    "tags": ["hub", "craft"],
+    "choices": [
+      {"id":"forge_help","text":"Help at the forge","cost":{"time":1,"hp":1},"effects":[{"type":"adjustRep","faction":"pilgrims","by":1},{"type":"gainXp","amount":6}],"next":{"type":"atlas"}},
+      {"id":"forge_leave","text":"Decline and move on","cost":{"time":1},"next":{"type":"atlas"}}
+    ]
+  }
+]
+

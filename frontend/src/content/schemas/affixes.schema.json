@@ -1,0 +1,15 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "effectText"],
+    "properties": {
+      "id": { "type": "string" },
+      "prefix": { "type": "string" },
+      "suffix": { "type": "string" },
+      "effectText": { "type": "string" }
+    }
+  }
+}
+

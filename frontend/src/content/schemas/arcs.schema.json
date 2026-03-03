@@ -1,0 +1,18 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "title", "discoveryEntrySceneId", "dungeonId", "climaxSceneId", "endingSceneIds", "worldTransforms"],
+    "properties": {
+      "id": { "type": "string" },
+      "title": { "type": "string" },
+      "discoveryEntrySceneId": { "type": "string" },
+      "dungeonId": { "type": "string" },
+      "climaxSceneId": { "type": "string" },
+      "endingSceneIds": { "type": "array", "items": { "type": "string" }, "minItems": 2 },
+      "worldTransforms": { "type": "object" }
+    }
+  }
+}
+

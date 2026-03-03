@@ -1,0 +1,18 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "arcId", "title", "entryTemplateId", "bossTemplateId", "exitTemplateId", "middleTemplateIds"],
+    "properties": {
+      "id": { "type": "string" },
+      "arcId": { "type": "string" },
+      "title": { "type": "string" },
+      "entryTemplateId": { "type": "string" },
+      "bossTemplateId": { "type": "string" },
+      "exitTemplateId": { "type": "string" },
+      "middleTemplateIds": { "type": "array", "items": { "type": "string" }, "minItems": 2 }
+    }
+  }
+}
+
