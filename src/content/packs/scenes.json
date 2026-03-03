@@ -21,7 +21,7 @@
     "choices": [
       {
         "id": "ember_follow_courier",
-        "text": "Escort the courier to Bastion command",
+        "text": "Report to Thorn Bastion for command briefing",
         "cost": {
           "time": 1
         },
@@ -48,7 +48,7 @@
       },
       {
         "id": "ember_delay",
-        "text": "Detour through Cinder Market for Choir intelligence",
+        "text": "Work Cinder Market for leverage before reporting",
         "cost": {
           "time": 2
         },
@@ -81,7 +81,7 @@
     "choices": [
       {
         "id": "ember_take_oath",
-        "text": "Take the Concord oath and lead the rite",
+        "text": "Swear Concord custody over the Crownfire response",
         "cost": {
           "time": 1,
           "mana": 1
@@ -105,7 +105,7 @@
       },
       {
         "id": "ember_break_siege",
-        "text": "Bypass command and scout the gate alone",
+        "text": "Run an unsanctioned breach scout alone",
         "cost": {
           "time": 1,
           "corruption": 1
@@ -143,7 +143,7 @@
     "choices": [
       {
         "id": "ember_guard_braziers",
-        "text": "Shield the braziers through the smoke corridor",
+        "text": "Hold ritual formation and keep braziers lit",
         "cost": {
           "time": 2,
           "mana": 1
@@ -215,7 +215,7 @@
       },
       {
         "id": "ember_push_smoke",
-        "text": "Force a direct route and ignore the rites",
+        "text": "Cut through smoke and abandon ritual cover",
         "cost": {
           "time": 2,
           "hp": 2,
@@ -260,7 +260,7 @@
     "choices": [
       {
         "id": "ember_enter_vault",
-        "text": "Descend now and cut the Crownfire source",
+        "text": "Breach now and sever the Crownfire knot",
         "requires": [
           {
             "type": "flag",
@@ -286,7 +286,7 @@
       },
       {
         "id": "ember_wait",
-        "text": "Hold position and wait for safer light",
+        "text": "Delay the breach and gamble on calmer conditions",
         "cost": {
           "time": 3,
           "corruption": 2
@@ -312,7 +312,7 @@
     "choices": [
       {
         "id": "ember_choose_dawn",
-        "text": "Disperse the heat-song into shared rain",
+        "text": "Diffuse Crownfire into rain for civilian relief",
         "cost": {
           "time": 1,
           "mana": 2
@@ -324,7 +324,7 @@
       },
       {
         "id": "ember_choose_ash",
-        "text": "Take the Crown and command the Choir",
+        "text": "Crown yourself and centralize command by fear",
         "cost": {
           "time": 1,
           "corruption": 4
@@ -336,7 +336,7 @@
       },
       {
         "id": "ember_choose_oath",
-        "text": "Bind the Crown to Bastion law",
+        "text": "Chain Crownfire to Bastion treaty law",
         "cost": {
           "time": 1,
           "hp": 3
@@ -363,7 +363,7 @@
     "choices": [
       {
         "id": "ember_end_dawn",
-        "text": "Record the Dawn Mercy settlement",
+        "text": "Canonize the Dawn Mercy precedent",
         "effects": [
           {
             "type": "gainXp",
@@ -393,7 +393,7 @@
     "choices": [
       {
         "id": "ember_end_ash",
-        "text": "Seal the Ash Regency doctrine",
+        "text": "Formalize the Ash Regency order",
         "effects": [
           {
             "type": "gainXp",
@@ -423,7 +423,7 @@
     "choices": [
       {
         "id": "ember_end_oath",
-        "text": "Ratify the Iron Binding charter",
+        "text": "Enact the Iron Binding charter",
         "effects": [
           {
             "type": "gainXp",
