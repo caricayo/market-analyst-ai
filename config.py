@@ -41,6 +41,36 @@ OPENAI_PROMPT_CACHE_NAMESPACE = os.getenv("OPENAI_PROMPT_CACHE_NAMESPACE", "triv
 # Standard token pricing (USD per 1M tokens), aligned with docs pricing.
 # Override via env vars if your account tier differs (batch/flex/priority).
 OPENAI_MODEL_PRICING_PER_1M = {
+    "gpt-5.2": {
+        "input": _env_float("OPENAI_GPT52_INPUT_PER_1M", 1.75),
+        "cached_input": _env_float("OPENAI_GPT52_CACHED_INPUT_PER_1M", 0.175),
+        "output": _env_float("OPENAI_GPT52_OUTPUT_PER_1M", 14.00),
+    },
+    "gpt-5.2-pro": {
+        "input": _env_float("OPENAI_GPT52_PRO_INPUT_PER_1M", 21.00),
+        "cached_input": _env_float("OPENAI_GPT52_PRO_CACHED_INPUT_PER_1M", 0.0),
+        "output": _env_float("OPENAI_GPT52_PRO_OUTPUT_PER_1M", 168.00),
+    },
+    "gpt-5": {
+        "input": _env_float("OPENAI_GPT5_INPUT_PER_1M", 1.25),
+        "cached_input": _env_float("OPENAI_GPT5_CACHED_INPUT_PER_1M", 0.125),
+        "output": _env_float("OPENAI_GPT5_OUTPUT_PER_1M", 10.00),
+    },
+    "gpt-5-pro": {
+        "input": _env_float("OPENAI_GPT5_PRO_INPUT_PER_1M", 15.00),
+        "cached_input": _env_float("OPENAI_GPT5_PRO_CACHED_INPUT_PER_1M", 0.0),
+        "output": _env_float("OPENAI_GPT5_PRO_OUTPUT_PER_1M", 120.00),
+    },
+    "gpt-5-mini": {
+        "input": _env_float("OPENAI_GPT5_MINI_INPUT_PER_1M", 0.25),
+        "cached_input": _env_float("OPENAI_GPT5_MINI_CACHED_INPUT_PER_1M", 0.025),
+        "output": _env_float("OPENAI_GPT5_MINI_OUTPUT_PER_1M", 2.00),
+    },
+    "gpt-5-nano": {
+        "input": _env_float("OPENAI_GPT5_NANO_INPUT_PER_1M", 0.05),
+        "cached_input": _env_float("OPENAI_GPT5_NANO_CACHED_INPUT_PER_1M", 0.005),
+        "output": _env_float("OPENAI_GPT5_NANO_OUTPUT_PER_1M", 0.40),
+    },
     "gpt-4.1": {
         "input": _env_float("OPENAI_GPT41_INPUT_PER_1M", 2.00),
         "cached_input": _env_float("OPENAI_GPT41_CACHED_INPUT_PER_1M", 0.50),

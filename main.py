@@ -249,6 +249,17 @@ def _effective_research_parallelism(total_lanes: int) -> int:
     return max(1, min(total_lanes, configured))
 
 
+def _is_reasoning_family_model(model_name: str) -> bool:
+    name = str(model_name or "").strip().lower()
+    return name.startswith("gpt-5") or name.startswith("o1") or name.startswith("o3") or name.startswith("o4")
+
+
+def _web_search_rate_per_1k(model_name: str) -> float:
+    if _is_reasoning_family_model(model_name):
+        return OPENAI_WEB_SEARCH_PRICING_PER_1K.get("web_search_preview_reasoning", 0.0)
+    return OPENAI_WEB_SEARCH_PRICING_PER_1K.get("web_search_preview_non_reasoning", 0.0)
+
+
 def _deep_dive_quality_stats(markdown: str) -> dict[str, int | bool]:
     text = markdown or ""
     h2_count = len(re.findall(r"(?m)^##\s+", text))
@@ -396,9 +407,7 @@ class UsageTracker:
 
         search_calls = _count_web_search_calls(response)
         self.web_search_calls += search_calls
-        self.web_search_cost_usd += (
-            search_calls * OPENAI_WEB_SEARCH_PRICING_PER_1K.get("web_search_preview_non_reasoning", 0.0)
-        ) / 1_000
+        self.web_search_cost_usd += (search_calls * _web_search_rate_per_1k(model_name)) / 1_000
 
     def snapshot(self) -> dict[str, int | float]:
         total_cost = self.input_token_cost_usd + self.output_token_cost_usd + self.web_search_cost_usd
