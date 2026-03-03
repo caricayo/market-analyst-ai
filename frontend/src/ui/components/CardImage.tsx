@@ -1,4 +1,4 @@
-﻿type Props = {
+type Props = {
   cardId: string;
   alt: string;
   compact?: boolean;

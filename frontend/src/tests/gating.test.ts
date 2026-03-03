@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { getRegistry } from "../engine/registry";
 import { createInitialState } from "../engine/save";
 import { isCardUnlocked } from "../engine/state";

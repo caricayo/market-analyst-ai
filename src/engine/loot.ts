@@ -1,4 +1,4 @@
-﻿import { pickWeighted, rollInt } from "./rng";
+import { pickWeighted, rollInt } from "./rng";
 import type { ContentRegistry, GameState, ItemDefinition, LootTable } from "./types";
 
 function filteredEntries(table: LootTable, level: number) {

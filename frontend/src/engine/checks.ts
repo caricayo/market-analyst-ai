@@ -1,4 +1,4 @@
-﻿import { rollD100, type SeededRng } from "./rng";
+import { rollD100, type SeededRng } from "./rng";
 import type { GameState, RiskCheck } from "./types";
 
 export const RISK_BASE = 60;

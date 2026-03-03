@@ -1,4 +1,4 @@
-﻿[
+[
   {"key":"arc_ember_intro_seen","type":"boolean","description":"Seen Ember intro scene."},
   {"key":"arc_ember_discovered","type":"boolean","description":"Ember arc discovery complete."},
   {"key":"arc_ember_escalated","type":"boolean","description":"Ember arc escalation complete."},

@@ -1,4 +1,4 @@
-﻿# GOLDEN_PATH
+# GOLDEN_PATH
 
 This file lists deterministic end-to-end completion routes for both arcs using exact IDs.
 

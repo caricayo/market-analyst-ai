@@ -1,4 +1,4 @@
-﻿import { createSeedFromString } from "./rng";
+import { createSeedFromString } from "./rng";
 import type { ContentRegistry, GameState } from "./types";
 
 export const SAVE_VERSION = 1;

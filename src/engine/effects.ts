@@ -1,4 +1,4 @@
-﻿import type { ContentRegistry, Effect, GameState } from "./types";
+import type { ContentRegistry, Effect, GameState } from "./types";
 import { generateDungeonGraph } from "./dungeon";
 
 export function applyEffects(state: GameState, effects: Effect[] | undefined, registry: ContentRegistry): { state: GameState; logs: string[] } {

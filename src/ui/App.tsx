@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getRegistry } from "../engine/registry";
 import { createInitialState, loadGame, saveGame } from "../engine/save";
 import { canPayCost, isCardUnlocked } from "../engine/state";

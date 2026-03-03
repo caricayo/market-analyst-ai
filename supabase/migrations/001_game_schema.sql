@@ -1,4 +1,4 @@
-﻿-- Game schema for Mystic Atlas RPG
+-- Game schema for Mystic Atlas RPG
 
 create table if not exists public.game_profiles (
   id uuid primary key references auth.users(id) on delete cascade,

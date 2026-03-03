@@ -1,4 +1,4 @@
-﻿import regionsData from "../content/packs/regions.json";
+import regionsData from "../content/packs/regions.json";
 import cardsData from "../content/packs/cards.json";
 import scenesData from "../content/packs/scenes.json";
 import arcsData from "../content/packs/arcs.json";

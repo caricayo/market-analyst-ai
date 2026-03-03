@@ -1,4 +1,4 @@
-﻿import type { GameState, Predicate } from "./types";
+import type { GameState, Predicate } from "./types";
 
 export function evaluatePredicate(state: GameState, predicate: Predicate): boolean {
   switch (predicate.type) {

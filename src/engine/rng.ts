@@ -1,4 +1,4 @@
-﻿export type SeededRng = { seed: number; step: number };
+export type SeededRng = { seed: number; step: number };
 
 function mix32(value: number): number {
   let x = value | 0;

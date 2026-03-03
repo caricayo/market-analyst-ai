@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { getRegistry } from "../engine/registry";
 import { createInitialState } from "../engine/save";
 import { resolveRiskCheck, RISK_BASE, RISK_DIFFICULTY_MULTIPLIER, RISK_STAT_MULTIPLIER } from "../engine/checks";

@@ -1,4 +1,4 @@
-﻿import { pickOne, rollInt } from "./rng";
+import { pickOne, rollInt } from "./rng";
 import type { ArcPhase, ContentRegistry, DungeonDefinition, DungeonNode, DungeonNodeTemplate, GameState } from "./types";
 
 const PHASE_DIFFICULTY_OFFSET: Record<string, number> = {

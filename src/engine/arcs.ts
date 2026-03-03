@@ -1,4 +1,4 @@
-﻿import type { ArcDefinition, ArcPhase, GameState, WorldTransform } from "./types";
+import type { ArcDefinition, ArcPhase, GameState, WorldTransform } from "./types";
 
 export function applyWorldTransform(state: GameState, transform: WorldTransform): { state: GameState; changes: string[]; unlockedCards: string[] } {
   let next = state;

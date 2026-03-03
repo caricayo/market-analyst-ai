@@ -1,4 +1,4 @@
-﻿# Mystic Atlas RPG
+# Mystic Atlas RPG
 
 Text-first exploration RPG built around Environment Preview Cards. Gameplay is deterministic and content-driven (no runtime LLM choices/story generation).
 

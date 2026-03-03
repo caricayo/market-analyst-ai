@@ -1,4 +1,4 @@
-﻿[
+[
   {"id":"artifact_void_lens","name":"Void Lens","rarity":"legendary","tags":["artifact","utility"],"lore":"A black crystal that reveals hidden atlas paths.","effects":["Reveal hidden cards that meet non-level gates."],"unique":true},
   {"id":"artifact_bloodquill","name":"Bloodquill Sigil","rarity":"legendary","tags":["artifact","magic"],"lore":"Ink from this quill drinks mana debt and writes in corruption.","effects":["Mana costs can be paid with corruption when mana is insufficient."],"unique":true},
   {"id":"artifact_chronicle_die","name":"Chronicle Die","rarity":"legendary","tags":["artifact","fate"],"lore":"A six-sided relic that remembers one second chance each dawn.","effects":["Gain one risk-check reroll per day."],"unique":true},
