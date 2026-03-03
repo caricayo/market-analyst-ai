@@ -1,16 +1,196 @@
 [
-  {"id":"card_ember_hollow","title":"Ember Hollow","flavor":"Ash snow falls into a cratered shrine.","regionId":"gloamreach","tags":["arc1","sanctum"],"danger":2,"rarity":"common","entrySceneId":"ember_discovery_1"},
-  {"id":"card_cinder_market","title":"Cinder Market","flavor":"Lantern merchants trade promises in smoke.","regionId":"gloamreach","tags":["trade","social"],"danger":1,"rarity":"common","entrySceneId":"market_barter"},
-  {"id":"card_root_archive","title":"Root Archive","flavor":"Trees hold scrolls in living knots.","regionId":"gloamreach","tags":["knowledge"],"danger":2,"rarity":"uncommon","entrySceneId":"archive_query"},
-  {"id":"card_mire_bridge","title":"Mire Bridge","flavor":"A rope span over glowing tar.","regionId":"gloamreach","tags":["hazard"],"danger":3,"rarity":"uncommon","entrySceneId":"mire_crossing"},
-  {"id":"card_thorn_bastion","title":"Thorn Bastion","flavor":"A fort of iron vines and oath-banners.","regionId":"gloamreach","tags":["arc1","military"],"danger":3,"rarity":"rare","entrySceneId":"ember_escalation_1","requires":[{"type":"flag","key":"arc_ember_discovered","op":"==","value":true}]},
-  {"id":"card_ashen_gate","title":"Ashen Gate","flavor":"Bronze doors breathe old war songs.","regionId":"gloamreach","tags":["arc1","dungeon"],"danger":4,"rarity":"rare","entrySceneId":"ember_dungeon_gate","requires":[{"type":"flag","key":"arc_ember_escalated","op":"==","value":true}],"corruptionVariantAt":35,"variantId":"card_ashen_gate_corrupted"},
-
-  {"id":"card_prism_step","title":"Prism Steppe","flavor":"Hexagonal glass plains echo each footfall.","regionId":"glasswaste","tags":["arc2","expanse"],"danger":2,"rarity":"common","entrySceneId":"astral_discovery_1"},
-  {"id":"card_sunken_orrery","title":"Sunken Orrery","flavor":"Broken planets spin beneath the sand.","regionId":"glasswaste","tags":["arc2","ruins"],"danger":3,"rarity":"uncommon","entrySceneId":"astral_escalation_1"},
-  {"id":"card_mirror_lake","title":"Mirror Lake","flavor":"A liquid mirror shows futures that disagree.","regionId":"glasswaste","tags":["vision"],"danger":2,"rarity":"uncommon","entrySceneId":"mirror_reflection"},
-  {"id":"card_shard_forge","title":"Shard Forge","flavor":"Anvils sing under meteor sparks.","regionId":"glasswaste","tags":["craft"],"danger":2,"rarity":"common","entrySceneId":"forge_tithe"},
-  {"id":"card_starwell_rim","title":"Starwell Rim","flavor":"A circular abyss swallowing constellations.","regionId":"glasswaste","tags":["arc2","dungeon"],"danger":4,"rarity":"rare","entrySceneId":"astral_dungeon_gate","requires":[{"type":"flag","key":"arc_astral_escalated","op":"==","value":true}],"corruptionVariantAt":45,"variantId":"card_starwell_rim_corrupted"},
-  {"id":"card_eclipse_court","title":"Eclipse Court","flavor":"Jurors in obsidian masks pass cosmic sentence.","regionId":"glasswaste","tags":["arc2","faction"],"danger":3,"rarity":"rare","entrySceneId":"astral_escalation_2","requires":[{"type":"flag","key":"arc_astral_discovered","op":"==","value":true}]}
+  {
+    "id": "card_ember_hollow",
+    "title": "Ember Hollow",
+    "flavor": "Shrine crater where Crownfire first syncs with the Fracture Choir.",
+    "regionId": "gloamreach",
+    "tags": [
+      "arc1",
+      "sanctum"
+    ],
+    "danger": 2,
+    "rarity": "common",
+    "entrySceneId": "ember_discovery_1",
+    "postArcVariantId": "card_ember_hollow_resolved",
+    "postArcStatus": "cleared",
+    "postArcSceneId": "ember_aftermath"
+  },
+  {
+    "id": "card_cinder_market",
+    "title": "Cinder Market",
+    "flavor": "Smoke bazaar trading crisis routes, favors, and leverage.",
+    "regionId": "gloamreach",
+    "tags": [
+      "trade",
+      "social"
+    ],
+    "danger": 1,
+    "rarity": "common",
+    "entrySceneId": "market_barter"
+  },
+  {
+    "id": "card_root_archive",
+    "title": "Root Archive",
+    "flavor": "Living records that expose who shaped previous fracture cycles.",
+    "regionId": "gloamreach",
+    "tags": [
+      "knowledge"
+    ],
+    "danger": 2,
+    "rarity": "uncommon",
+    "entrySceneId": "archive_query"
+  },
+  {
+    "id": "card_mire_bridge",
+    "title": "Mire Bridge",
+    "flavor": "Supply bridge holding relief lines together under acid fog.",
+    "regionId": "gloamreach",
+    "tags": [
+      "hazard"
+    ],
+    "danger": 3,
+    "rarity": "uncommon",
+    "entrySceneId": "mire_crossing"
+  },
+  {
+    "id": "card_thorn_bastion",
+    "title": "Thorn Bastion",
+    "flavor": "Concord war citadel directing containment doctrine.",
+    "regionId": "gloamreach",
+    "tags": [
+      "arc1",
+      "military"
+    ],
+    "danger": 3,
+    "rarity": "rare",
+    "entrySceneId": "ember_escalation_1",
+    "requires": [
+      {
+        "type": "flag",
+        "key": "arc_ember_discovered",
+        "op": "==",
+        "value": true
+      }
+    ]
+  },
+  {
+    "id": "card_ashen_gate",
+    "title": "Ashen Gate",
+    "flavor": "Vault threshold where the Ember knot can be cut or claimed.",
+    "regionId": "gloamreach",
+    "tags": [
+      "arc1",
+      "dungeon"
+    ],
+    "danger": 4,
+    "rarity": "rare",
+    "entrySceneId": "ember_dungeon_gate",
+    "requires": [
+      {
+        "type": "flag",
+        "key": "arc_ember_escalated",
+        "op": "==",
+        "value": true
+      }
+    ],
+    "corruptionVariantAt": 35,
+    "variantId": "card_ashen_gate_corrupted"
+  },
+  {
+    "id": "card_prism_step",
+    "title": "Prism Steppe",
+    "flavor": "Glass plain broadcasting the Steppe harmonic of the same crisis.",
+    "regionId": "glasswaste",
+    "tags": [
+      "arc2",
+      "expanse"
+    ],
+    "danger": 2,
+    "rarity": "common",
+    "entrySceneId": "astral_discovery_1",
+    "postArcVariantId": "card_prism_step_resolved",
+    "postArcStatus": "cleared",
+    "postArcSceneId": "astral_aftermath"
+  },
+  {
+    "id": "card_sunken_orrery",
+    "title": "Sunken Orrery",
+    "flavor": "Collapsed star machine mapping safe lines through Wellsong drift.",
+    "regionId": "glasswaste",
+    "tags": [
+      "arc2",
+      "ruins"
+    ],
+    "danger": 3,
+    "rarity": "uncommon",
+    "entrySceneId": "astral_escalation_1"
+  },
+  {
+    "id": "card_mirror_lake",
+    "title": "Mirror Lake",
+    "flavor": "Reflective basin modeling alternate outcomes of your rulings.",
+    "regionId": "glasswaste",
+    "tags": [
+      "vision"
+    ],
+    "danger": 2,
+    "rarity": "uncommon",
+    "entrySceneId": "mirror_reflection"
+  },
+  {
+    "id": "card_shard_forge",
+    "title": "Shard Forge",
+    "flavor": "Emergency forge producing navigation tools for pressure fronts.",
+    "regionId": "glasswaste",
+    "tags": [
+      "craft"
+    ],
+    "danger": 2,
+    "rarity": "common",
+    "entrySceneId": "forge_tithe"
+  },
+  {
+    "id": "card_starwell_rim",
+    "title": "Starwell Rim",
+    "flavor": "Abyssal rim where the sky-knot is tuned, chained, or weaponized.",
+    "regionId": "glasswaste",
+    "tags": [
+      "arc2",
+      "dungeon"
+    ],
+    "danger": 4,
+    "rarity": "rare",
+    "entrySceneId": "astral_dungeon_gate",
+    "requires": [
+      {
+        "type": "flag",
+        "key": "arc_astral_escalated",
+        "op": "==",
+        "value": true
+      }
+    ],
+    "corruptionVariantAt": 45,
+    "variantId": "card_starwell_rim_corrupted"
+  },
+  {
+    "id": "card_eclipse_court",
+    "title": "Eclipse Court",
+    "flavor": "Masked jurors trading memory for sanctioned passage.",
+    "regionId": "glasswaste",
+    "tags": [
+      "arc2",
+      "faction"
+    ],
+    "danger": 3,
+    "rarity": "rare",
+    "entrySceneId": "astral_escalation_2",
+    "requires": [
+      {
+        "type": "flag",
+        "key": "arc_astral_discovered",
+        "op": "==",
+        "value": true
+      }
+    ]
+  }
 ]
-

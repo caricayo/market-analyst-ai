@@ -1,11 +1,11 @@
 [
   {
     "id": "ember_discovery_1",
-    "title": "The Crown Beneath Ash",
+    "title": "Ash-Sigil Summons",
     "cardId": "card_ember_hollow",
     "body": [
-      "A novice courier presses a scorched sigil into your palm.",
-      "The Ember Crown has awakened beneath the hollow and local shrines are burning from the inside out."
+      "A courier presses a hot sigil into your palm; it beats in time with the Fracture Choir beneath Ember Hollow.",
+      "If the Crownfire knot is left unattended, shrine wards will fail and Gloamreach will burn from within."
     ],
     "tags": [
       "arc1",
@@ -21,7 +21,7 @@
     "choices": [
       {
         "id": "ember_follow_courier",
-        "text": "Follow the courier to Thorn Bastion",
+        "text": "Escort the courier to Bastion command",
         "cost": {
           "time": 1
         },
@@ -48,7 +48,7 @@
       },
       {
         "id": "ember_delay",
-        "text": "Delay and gather rumors in Cinder Market",
+        "text": "Detour through Cinder Market for Choir intelligence",
         "cost": {
           "time": 2
         },
@@ -68,11 +68,11 @@
   },
   {
     "id": "ember_escalation_1",
-    "title": "Bastion Council",
+    "title": "Council Under Cinders",
     "cardId": "card_thorn_bastion",
     "body": [
-      "Commanders argue whether to collapse the vault tunnels.",
-      "A map marks three breach points and one forbidden gate."
+      "Thorn Bastion commanders argue whether to seal the tunnels or trust an outside atlas-bearer with the descent.",
+      "Your decision sets who controls the Crownfire response: discipline, improvisation, or fear."
     ],
     "tags": [
       "arc1",
@@ -81,7 +81,7 @@
     "choices": [
       {
         "id": "ember_take_oath",
-        "text": "Swear to recover the Crown intact",
+        "text": "Take the Concord oath and lead the rite",
         "cost": {
           "time": 1,
           "mana": 1
@@ -105,7 +105,7 @@
       },
       {
         "id": "ember_break_siege",
-        "text": "Break protocol and scout alone",
+        "text": "Bypass command and scout the gate alone",
         "cost": {
           "time": 1,
           "corruption": 1
@@ -130,11 +130,11 @@
   },
   {
     "id": "ember_escalation_2",
-    "title": "Ashen Procession",
+    "title": "Procession of Braziers",
     "cardId": "card_ashen_gate",
     "body": [
-      "Pilgrims chant while carrying mirrored braziers toward the gate.",
-      "If the braziers dim, the Regent inside will fully awaken."
+      "Pilgrim chanters march mirrored braziers toward Ashen Gate to damp the Choir pulse before breach.",
+      "If their rhythm breaks, the Regent below will wake fully and weaponize the heat-song."
     ],
     "tags": [
       "arc1",
@@ -143,7 +143,7 @@
     "choices": [
       {
         "id": "ember_guard_braziers",
-        "text": "Guard the procession through the smoke",
+        "text": "Shield the braziers through the smoke corridor",
         "cost": {
           "time": 2,
           "mana": 1
@@ -155,7 +155,7 @@
         },
         "outcomes": {
           "success": {
-            "text": "The braziers hold steady.",
+            "text": "You hold formation and the Choir pulse stays stable.",
             "effects": [
               {
                 "type": "setFlag",
@@ -174,7 +174,7 @@
             ]
           },
           "mixed": {
-            "text": "You arrive singed but prepared.",
+            "text": "You keep the line moving, but the smoke brands your lungs.",
             "effects": [
               {
                 "type": "setFlag",
@@ -189,7 +189,7 @@
             ]
           },
           "failForward": {
-            "text": "The route collapses behind you; retreat is impossible now.",
+            "text": "The route collapses behind you; only a forward breach remains.",
             "effects": [
               {
                 "type": "setFlag",
@@ -215,7 +215,7 @@
       },
       {
         "id": "ember_push_smoke",
-        "text": "Push through the smoke without rites",
+        "text": "Force a direct route and ignore the rites",
         "cost": {
           "time": 2,
           "hp": 2,
@@ -247,11 +247,11 @@
   },
   {
     "id": "ember_dungeon_gate",
-    "title": "The Vault Mouth",
+    "title": "Mouth of the Embervault",
     "cardId": "card_ashen_gate",
     "body": [
-      "The gate yawns like a furnace lung.",
-      "Below it, old murals depict an oath broken three hundred years ago."
+      "Ashen Gate opens like a furnace lung while mural saints depict the first oath that failed this region.",
+      "Every delayed minute amplifies Choir pressure through nearby shrines and camps."
     ],
     "tags": [
       "arc1",
@@ -260,7 +260,7 @@
     "choices": [
       {
         "id": "ember_enter_vault",
-        "text": "Descend into the Embervault",
+        "text": "Descend now and cut the Crownfire source",
         "requires": [
           {
             "type": "flag",
@@ -286,7 +286,7 @@
       },
       {
         "id": "ember_wait",
-        "text": "Wait until dawn (risk rising corruption)",
+        "text": "Hold position and wait for safer light",
         "cost": {
           "time": 3,
           "corruption": 2
@@ -299,11 +299,11 @@
   },
   {
     "id": "ember_climax",
-    "title": "Crownfire Verdict",
+    "title": "Verdict of Crownfire",
     "cardId": "card_ember_hollow",
     "body": [
-      "The Ash Regent kneels, defeated, while the Crown hovers in molten light.",
-      "Three rites are possible. One heals, one conquers, one binds."
+      "The Ash Regent kneels as the Ember Crown sings in molten harmonics that can heal, dominate, or bind.",
+      "Your final rite will set Gloamreach policy for every faction watching the breach reports."
     ],
     "tags": [
       "arc1",
@@ -312,7 +312,7 @@
     "choices": [
       {
         "id": "ember_choose_dawn",
-        "text": "Quench the Crown and release its heat",
+        "text": "Disperse the heat-song into shared rain",
         "cost": {
           "time": 1,
           "mana": 2
@@ -324,7 +324,7 @@
       },
       {
         "id": "ember_choose_ash",
-        "text": "Wear the Crown and command the blaze",
+        "text": "Take the Crown and command the Choir",
         "cost": {
           "time": 1,
           "corruption": 4
@@ -336,7 +336,7 @@
       },
       {
         "id": "ember_choose_oath",
-        "text": "Bind the Crown to the Bastion oath",
+        "text": "Bind the Crown to Bastion law",
         "cost": {
           "time": 1,
           "hp": 3
@@ -350,11 +350,11 @@
   },
   {
     "id": "ember_resolution_dawn",
-    "title": "Dawn in the Hollow",
+    "title": "Dawn Mercy Accord",
     "cardId": "card_ember_hollow",
     "body": [
-      "Steam rises as fire gives way to warm rain.",
-      "Pilgrims call this ending the Dawn Mercy."
+      "Steam turns to rain and shrine bells resume a human tempo across Ember Hollow.",
+      "Pilgrims name this ending a mercy: power returned to the commons, not a throne."
     ],
     "tags": [
       "arc1",
@@ -363,7 +363,7 @@
     "choices": [
       {
         "id": "ember_end_dawn",
-        "text": "Seal this ending",
+        "text": "Record the Dawn Mercy settlement",
         "effects": [
           {
             "type": "gainXp",
@@ -380,11 +380,11 @@
   },
   {
     "id": "ember_resolution_ash",
-    "title": "Ash Regent Reborn",
+    "title": "Regency of Ash",
     "cardId": "card_ember_hollow",
     "body": [
-      "The Crown brands your brow and the forest kneels.",
-      "A dark peace descends over Gloamreach."
+      "You wear the Crown and every firepost bows to your cadence before dissent can gather.",
+      "Order arrives quickly, but it is obedience shaped by fear of your heat-song."
     ],
     "tags": [
       "arc1",
@@ -393,7 +393,7 @@
     "choices": [
       {
         "id": "ember_end_ash",
-        "text": "Claim dominion",
+        "text": "Seal the Ash Regency doctrine",
         "effects": [
           {
             "type": "gainXp",
@@ -410,11 +410,11 @@
   },
   {
     "id": "ember_resolution_oath",
-    "title": "The Binding Oath",
+    "title": "Iron Binding Charter",
     "cardId": "card_thorn_bastion",
     "body": [
-      "The Crown is sealed beneath new iron sigils.",
-      "The Bastion survives, but now demands tribute forever."
+      "The Crown is chained beneath Thorn Bastion by sigils that require endless maintenance and tribute.",
+      "Stability holds, but political debt deepens as Concord and pilgrims renegotiate authority."
     ],
     "tags": [
       "arc1",
@@ -423,7 +423,7 @@
     "choices": [
       {
         "id": "ember_end_oath",
-        "text": "Ratify the binding",
+        "text": "Ratify the Iron Binding charter",
         "effects": [
           {
             "type": "gainXp",
@@ -439,12 +439,58 @@
     ]
   },
   {
+    "id": "ember_aftermath",
+    "title": "Hollow Aftermath",
+    "cardId": "card_ember_hollow",
+    "body": [
+      "The oathstones cool, yet your atlas still hums; the Fracture Choir was damped here, not ended.",
+      "New harmonics rise from the glass desert, where the Starwell repeats names from the dead."
+    ],
+    "tags": [
+      "aftermath",
+      "arc1"
+    ],
+    "rewardProfile": "once",
+    "diminishingEligible": false,
+    "choices": [
+      {
+        "id": "ember_aftermath_seek_astral",
+        "text": "Follow the new harmonic toward Prism Steppe",
+        "requires": [
+          {
+            "type": "flag",
+            "key": "arc_astral_discovered",
+            "op": "==",
+            "value": false
+          }
+        ],
+        "cost": {
+          "time": 1
+        },
+        "next": {
+          "type": "scene",
+          "sceneId": "astral_discovery_1"
+        }
+      },
+      {
+        "id": "ember_aftermath_depart",
+        "text": "Log the aftermath and return to atlas",
+        "cost": {
+          "time": 1
+        },
+        "next": {
+          "type": "atlas"
+        }
+      }
+    ]
+  },
+  {
     "id": "astral_discovery_1",
-    "title": "Song Beneath Glass",
+    "title": "Glasswake Summons",
     "cardId": "card_prism_step",
     "body": [
-      "A tonal pulse hums from beneath the desert crust.",
-      "The Starwell has begun calling names in the voices of the dead."
+      "Beneath Prism Steppe, a Wellsong pulse answers the Crownfire cadence you already survived in Gloamreach.",
+      "If unchecked, the second knot will rewrite routes, memories, and command signals across both regions."
     ],
     "tags": [
       "arc2",
@@ -453,7 +499,7 @@
     "choices": [
       {
         "id": "astral_trace_song",
-        "text": "Trace the pulse to Sunken Orrery",
+        "text": "Track the Wellsong to Sunken Orrery",
         "cost": {
           "time": 1
         },
@@ -480,7 +526,7 @@
       },
       {
         "id": "astral_ignore",
-        "text": "Ignore it and inspect Mirror Lake first",
+        "text": "Investigate Mirror Lake before committing",
         "cost": {
           "time": 2
         },
@@ -493,11 +539,11 @@
   },
   {
     "id": "astral_escalation_1",
-    "title": "The Orrery Fracture",
+    "title": "Orrery Breach",
     "cardId": "card_sunken_orrery",
     "body": [
-      "The mechanical planets spin backwards.",
-      "A hidden chamber reveals a map to the Starwell rim."
+      "Collapsed planets spin backward inside the Orrery, projecting a map that points to the Starwell rim.",
+      "Decode quickly and you control the approach; hesitate and rivals seize the route."
     ],
     "tags": [
       "arc2",
@@ -506,7 +552,7 @@
     "choices": [
       {
         "id": "astral_decode",
-        "text": "Decode the map with careful study",
+        "text": "Decode with disciplined harmonic math",
         "cost": {
           "time": 1,
           "mana": 1
@@ -518,7 +564,7 @@
         },
         "outcomes": {
           "success": {
-            "text": "The map aligns perfectly.",
+            "text": "Your calculations align the route with minimal drift.",
             "effects": [
               {
                 "type": "gainXp",
@@ -527,7 +573,7 @@
             ]
           },
           "mixed": {
-            "text": "You decode enough, but trigger alarms.",
+            "text": "You recover a viable route, but trigger defensive alarms.",
             "effects": [
               {
                 "type": "incFlag",
@@ -537,7 +583,7 @@
             ]
           },
           "failForward": {
-            "text": "A collapse forces a dangerous shortcut.",
+            "text": "A collapse blocks retreat and forces a dangerous shortcut.",
             "effects": [
               {
                 "type": "incFlag",
@@ -554,7 +600,7 @@
       },
       {
         "id": "astral_decode_by_touch",
-        "text": "Decode by touch and instinct",
+        "text": "Decode by instinct and tactile memory",
         "cost": {
           "time": 2,
           "hp": 1
@@ -579,11 +625,11 @@
   },
   {
     "id": "astral_escalation_2",
-    "title": "Eclipse Jurors",
+    "title": "Judgment at Eclipse Court",
     "cardId": "card_eclipse_court",
     "body": [
-      "Obsidian judges offer passage if you surrender memory.",
-      "Refusing means taking the long route through starstorms."
+      "Obsidian jurors offer expedited passage if you surrender memory to their archive of leverage.",
+      "Refusal preserves self-rule but costs time while the Wellsong grows louder."
     ],
     "tags": [
       "arc2",
@@ -592,7 +638,7 @@
     "choices": [
       {
         "id": "astral_bargain",
-        "text": "Offer memory to gain swift passage",
+        "text": "Trade memory for sanctioned passage",
         "cost": {
           "time": 1,
           "hp": 2
@@ -621,7 +667,7 @@
       },
       {
         "id": "astral_refuse",
-        "text": "Refuse and cross the starstorm",
+        "text": "Refuse tribute and cross the starstorm",
         "cost": {
           "time": 2,
           "corruption": 2
@@ -647,11 +693,11 @@
   },
   {
     "id": "astral_dungeon_gate",
-    "title": "Rim of the Well",
+    "title": "Rim of the Starwell",
     "cardId": "card_starwell_rim",
     "body": [
-      "Below you, constellations spiral into a lightless throat.",
-      "The descent path appears only while the moon is eclipsed."
+      "Constellations spiral into a black throat; each cycle syncs with echoes from Ember Hollow.",
+      "This descent decides whether the Fracture Choir is tuned, caged, or weaponized."
     ],
     "tags": [
       "arc2",
@@ -660,7 +706,7 @@
     "choices": [
       {
         "id": "astral_enter_well",
-        "text": "Descend into the Starwell",
+        "text": "Descend and confront the Wellsong source",
         "requires": [
           {
             "type": "flag",
@@ -686,7 +732,7 @@
       },
       {
         "id": "astral_wait",
-        "text": "Wait for calmer stars",
+        "text": "Delay for calmer skies and lower risk",
         "cost": {
           "time": 3,
           "corruption": 1
@@ -699,11 +745,11 @@
   },
   {
     "id": "astral_climax",
-    "title": "The Well Sings Your Name",
+    "title": "Seraph Harmonic Verdict",
     "cardId": "card_starwell_rim",
     "body": [
-      "The Wellsong Seraph offers three final harmonics.",
-      "You can calm the tide, shroud the sky, or bind the song to all factions."
+      "The Wellsong Seraph offers three harmonics that can calm, shroud, or politically bind the sky-song.",
+      "Your ruling will set cross-region doctrine for pilgrims, Concord officers, and the Undercourt."
     ],
     "tags": [
       "arc2",
@@ -712,7 +758,7 @@
     "choices": [
       {
         "id": "astral_choose_tide",
-        "text": "Calm the cosmic tide",
+        "text": "Stabilize the sky into a calm tide",
         "cost": {
           "time": 1,
           "mana": 2
@@ -724,7 +770,7 @@
       },
       {
         "id": "astral_choose_shroud",
-        "text": "Shroud the sky in controlled night",
+        "text": "Impose controlled night over the regions",
         "cost": {
           "time": 1,
           "corruption": 4
@@ -736,7 +782,7 @@
       },
       {
         "id": "astral_choose_union",
-        "text": "Bind all factions to shared song",
+        "text": "Bind factions to one enforced chorus",
         "cost": {
           "time": 1,
           "hp": 3
@@ -750,11 +796,11 @@
   },
   {
     "id": "astral_resolution_tide",
-    "title": "The Restored Sky",
+    "title": "Tide Accord",
     "cardId": "card_prism_step",
     "body": [
-      "Stars return to their rightful paths.",
-      "Travelers call this ending the Tide Accord."
+      "Star paths settle and caravans report predictable skies for the first time since the fracture.",
+      "The accord favors shared stewardship and lowers panic across both regions."
     ],
     "tags": [
       "arc2",
@@ -763,7 +809,7 @@
     "choices": [
       {
         "id": "astral_end_tide",
-        "text": "Seal the accord",
+        "text": "Seal the Tide Accord record",
         "effects": [
           {
             "type": "gainXp",
@@ -780,11 +826,11 @@
   },
   {
     "id": "astral_resolution_shroud",
-    "title": "Eternal Veil",
+    "title": "Veil Directorate",
     "cardId": "card_starwell_rim",
     "body": [
-      "You drape the world in permanent twilight.",
-      "Power stabilizes, but hope dims."
+      "You drape the sky in controlled twilight and centralize access to navigable corridors.",
+      "Security improves, but dissent spreads among those locked out of light."
     ],
     "tags": [
       "arc2",
@@ -793,7 +839,7 @@
     "choices": [
       {
         "id": "astral_end_shroud",
-        "text": "Claim the veil",
+        "text": "Seal the Veil Directorate order",
         "effects": [
           {
             "type": "gainXp",
@@ -813,8 +859,8 @@
     "title": "Chorus Compact",
     "cardId": "card_eclipse_court",
     "body": [
-      "Every faction hears the same oath in their sleep.",
-      "The Glasswaste becomes a council, not a battlefield."
+      "Every faction hears the same oath at dawn and policy converges under a mandatory shared rhythm.",
+      "War recedes, yet autonomy narrows as dissent is treated as dissonance."
     ],
     "tags": [
       "arc2",
@@ -823,7 +869,7 @@
     "choices": [
       {
         "id": "astral_end_union",
-        "text": "Ratify the chorus",
+        "text": "Ratify the Chorus Compact covenant",
         "effects": [
           {
             "type": "gainXp",
@@ -839,12 +885,39 @@
     ]
   },
   {
+    "id": "astral_aftermath",
+    "title": "Steppe Aftermath",
+    "cardId": "card_prism_step",
+    "body": [
+      "The glass plains hold steady tempo, and reports confirm both crisis knots now answer your prior rulings.",
+      "Future runs will test alternate doctrines, but this campaign closes with a coherent atlas record."
+    ],
+    "tags": [
+      "aftermath",
+      "arc2"
+    ],
+    "rewardProfile": "once",
+    "diminishingEligible": false,
+    "choices": [
+      {
+        "id": "astral_aftermath_reflect",
+        "text": "Archive this campaign and return to atlas",
+        "cost": {
+          "time": 1
+        },
+        "next": {
+          "type": "atlas"
+        }
+      }
+    ]
+  },
+  {
     "id": "market_barter",
-    "title": "Cinder Market: Smoke Ledger",
+    "title": "Cinder Market Briefing",
     "cardId": "card_cinder_market",
     "body": [
-      "Lantern stalls bloom open as dusk ash drifts over coin trays.",
-      "A broker offers routes, relics, and lies in equal measure."
+      "Brokers auction route rumors and Choir telemetry while faction buyers posture around smoky ledgers.",
+      "Whatever you purchase here changes who reaches the next crisis front first."
     ],
     "tags": [
       "hub",
@@ -854,7 +927,7 @@
     "choices": [
       {
         "id": "market_follow_broker",
-        "text": "Follow a broker into the back alleys",
+        "text": "Shadow a broker into restricted stalls",
         "cost": {
           "time": 1
         },
@@ -871,7 +944,7 @@
       },
       {
         "id": "market_bid_rumor",
-        "text": "Bid on an encrypted route ledger",
+        "text": "Bid on encrypted crisis route data",
         "cost": {
           "time": 1,
           "mana": 1
@@ -883,7 +956,7 @@
         },
         "outcomes": {
           "success": {
-            "text": "You parse the cipher before rivals react.",
+            "text": "You outbid rivals and secure verified route timings.",
             "effects": [
               {
                 "type": "gainXp",
@@ -897,7 +970,7 @@
             ]
           },
           "mixed": {
-            "text": "You decode half and pay extra hush money.",
+            "text": "You win partial data and owe a dangerous favor.",
             "effects": [
               {
                 "type": "incFlag",
@@ -907,7 +980,7 @@
             ]
           },
           "failForward": {
-            "text": "The ledger is booby-trapped, but you salvage coordinates from the ash.",
+            "text": "You lose the bid, but steal enough clues while exiting.",
             "effects": [
               {
                 "type": "incFlag",
@@ -929,7 +1002,7 @@
       },
       {
         "id": "market_leave",
-        "text": "Leave quietly",
+        "text": "Withdraw before terms harden against you",
         "cost": {
           "time": 1
         },
@@ -944,8 +1017,8 @@
     "title": "Root Archive Vestibule",
     "cardId": "card_root_archive",
     "body": [
-      "Living bark folds apart and reveals warm, breathing shelves.",
-      "Every branch remembers a version of history that someone wants erased."
+      "The living archive catalogs every prior Fracture Choir cycle and who profited from each collapse.",
+      "Your next move determines whether knowledge stays civic, military, or black-market."
     ],
     "tags": [
       "hub",
@@ -954,7 +1027,7 @@
     "choices": [
       {
         "id": "archive_enter_deep",
-        "text": "Descend into the deep stacks",
+        "text": "Descend for sealed crisis annals",
         "cost": {
           "time": 1
         },
@@ -965,7 +1038,7 @@
       },
       {
         "id": "archive_parley_curator",
-        "text": "Parley with the root curator",
+        "text": "Negotiate with the root curator",
         "cost": {
           "time": 1,
           "mana": 1
@@ -977,7 +1050,7 @@
       },
       {
         "id": "archive_exit",
-        "text": "Close the archive",
+        "text": "Close your folio and leave quietly",
         "cost": {
           "time": 1
         },
@@ -989,11 +1062,11 @@
   },
   {
     "id": "mire_crossing",
-    "title": "Mire Crossing",
+    "title": "Mire Crossing Under Pressure",
     "cardId": "card_mire_bridge",
     "body": [
-      "The rope bridge thrums above acidic fog.",
-      "Halfway across, you spot a submerged shrine and a fraying anchor line."
+      "Acid fog rises as bridge crews rush supplies meant for Choir containment lines upstream.",
+      "Crossing decisions here decide whether civilians get aid before the next surge."
     ],
     "tags": [
       "hub",
@@ -1002,7 +1075,7 @@
     "choices": [
       {
         "id": "mire_test_anchor",
-        "text": "Test the anchor line and commit",
+        "text": "Commit to the bridge and test anchors",
         "cost": {
           "time": 1
         },
@@ -1013,7 +1086,7 @@
       },
       {
         "id": "mire_drop_to_shrine",
-        "text": "Drop to the shrine below",
+        "text": "Drop to the shrine for emergency stores",
         "cost": {
           "time": 2,
           "hp": 1
@@ -1027,11 +1100,11 @@
   },
   {
     "id": "mirror_reflection",
-    "title": "Mirror of Alternate Paths",
+    "title": "Mirror Lake Diagnostics",
     "cardId": "card_mirror_lake",
     "body": [
-      "The lake reflects lives where you chose differently.",
-      "One reflection gestures for you to step through."
+      "The lake shows alternate responses to the same crisis, each with different faction casualties.",
+      "Step through for hard foresight, or leave before the reflection edits your certainty."
     ],
     "tags": [
       "hub",
@@ -1040,7 +1113,7 @@
     "choices": [
       {
         "id": "mirror_step_through",
-        "text": "Step through the reflected shoreline",
+        "text": "Enter the reflection to audit futures",
         "cost": {
           "time": 1,
           "mana": 1
@@ -1052,7 +1125,7 @@
       },
       {
         "id": "mirror_dismiss",
-        "text": "Dismiss the vision",
+        "text": "Reject the vision and preserve present judgment",
         "cost": {
           "time": 1
         },
@@ -1064,11 +1137,11 @@
   },
   {
     "id": "forge_tithe",
-    "title": "Shard Forge Tithe",
+    "title": "Shard Forge Mobilization",
     "cardId": "card_shard_forge",
     "body": [
-      "Meteor sparks rain across anvils as artisans call for help.",
-      "They can repair a sky compass, but only if someone pays in blood or craft."
+      "Forge crews repair sky compasses needed to route caravans around new Choir pressure fronts.",
+      "Helping now determines which faction controls navigation during the next crisis week."
     ],
     "tags": [
       "hub",
@@ -1077,7 +1150,7 @@
     "choices": [
       {
         "id": "forge_join_line",
-        "text": "Join the forge line",
+        "text": "Join the line and pay in blood",
         "cost": {
           "time": 1,
           "hp": 1
@@ -1089,7 +1162,7 @@
       },
       {
         "id": "forge_negotiate_contract",
-        "text": "Negotiate a contract instead of labor",
+        "text": "Negotiate terms and fund repairs with mana",
         "cost": {
           "time": 1,
           "mana": 1
@@ -1103,11 +1176,11 @@
   },
   {
     "id": "market_backroom",
-    "title": "Backroom of Coals",
+    "title": "Backroom Negotiation",
     "cardId": "card_cinder_market",
     "body": [
-      "Smugglers measure trust by how long you hold eye contact in smoke.",
-      "On the table: a shard buckle and a sealed courier satchel."
+      "Smugglers move heatproof gear and intercepted dispatches from both arc theaters in one room.",
+      "Your handling of this exchange sets trust and rumor flow for upcoming fronts."
     ],
     "tags": [
       "hub",
@@ -1116,7 +1189,7 @@
     "choices": [
       {
         "id": "market_buy_buckle",
-        "text": "Buy the shard buckle from the smugglers",
+        "text": "Purchase gear and lock in smuggler trust",
         "cost": {
           "time": 1,
           "mana": 1
@@ -1138,7 +1211,7 @@
       },
       {
         "id": "market_press_courier",
-        "text": "Press the courier for arc rumors",
+        "text": "Pressure the courier for route names",
         "cost": {
           "time": 1
         },
@@ -1149,7 +1222,7 @@
         },
         "outcomes": {
           "success": {
-            "text": "The courier yields names and gate timings.",
+            "text": "The courier breaks and names gate schedules in full.",
             "effects": [
               {
                 "type": "setFlag",
@@ -1164,7 +1237,7 @@
             ]
           },
           "mixed": {
-            "text": "You get fragments and make an enemy.",
+            "text": "You get fragments, but earn a lasting grudge.",
             "effects": [
               {
                 "type": "adjustRep",
@@ -1174,7 +1247,7 @@
             ]
           },
           "failForward": {
-            "text": "A knife flashes, but the satchel drops open during the scuffle.",
+            "text": "Steel flashes, yet the satchel opens during the struggle.",
             "effects": [
               {
                 "type": "incFlag",
@@ -1196,7 +1269,7 @@
       },
       {
         "id": "market_back_out",
-        "text": "Back out before the deal turns",
+        "text": "Disengage before leverage flips on you",
         "cost": {
           "time": 1
         },
@@ -1208,11 +1281,11 @@
   },
   {
     "id": "market_ledger",
-    "title": "Coal-Ledger Settlement",
+    "title": "Route Ledger Settlement",
     "cardId": "card_cinder_market",
     "body": [
-      "The final terms are written in soot and thumbprints.",
-      "What you fund tonight shapes who controls travel tomorrow."
+      "Final signatures decide whether evacuation lanes favor pilgrim caravans or Undercourt buyers.",
+      "This is logistics warfare disguised as commerce."
     ],
     "tags": [
       "hub",
@@ -1222,7 +1295,7 @@
     "choices": [
       {
         "id": "market_fund_caravan",
-        "text": "Fund a pilgrim caravan route",
+        "text": "Fund civilian caravans and stabilize routes",
         "requires": [
           {
             "type": "flag",
@@ -1252,7 +1325,7 @@
       },
       {
         "id": "market_sell_to_court",
-        "text": "Sell route intel to the Undercourt",
+        "text": "Sell route priority to the Undercourt",
         "cost": {
           "time": 1,
           "corruption": 1
@@ -1280,11 +1353,11 @@
   },
   {
     "id": "archive_deepstacks",
-    "title": "Deep Stacks of Emberscript",
+    "title": "Deepstack Retrieval",
     "cardId": "card_root_archive",
     "body": [
-      "Roots knot into ladders over pits of charred vellum.",
-      "A hidden index names those who once wore the Hollow Crown."
+      "Charred vellum pits contain records linking the Regent lineage to the Wellsong custodians.",
+      "Recovering them can legitimize reform or arm propagandists."
     ],
     "tags": [
       "hub",
@@ -1293,7 +1366,7 @@
     "choices": [
       {
         "id": "archive_study_annals",
-        "text": "Study forbidden annals",
+        "text": "Study sealed annals despite spore risk",
         "cost": {
           "time": 2,
           "mana": 1
@@ -1305,7 +1378,7 @@
         },
         "outcomes": {
           "success": {
-            "text": "You map a lineage of lies with clinical precision.",
+            "text": "You reconstruct the lineage with precise archival control.",
             "effects": [
               {
                 "type": "setFlag",
@@ -1319,7 +1392,7 @@
             ]
           },
           "mixed": {
-            "text": "You gain truth but breathe toxic spores.",
+            "text": "You secure truth, but leave with toxic lung scars.",
             "effects": [
               {
                 "type": "incFlag",
@@ -1334,7 +1407,7 @@
             ]
           },
           "failForward": {
-            "text": "Shelves collapse, but one crucial scroll survives in your hands.",
+            "text": "Stacks collapse, yet one critical scroll survives in hand.",
             "effects": [
               {
                 "type": "setFlag",
@@ -1356,7 +1429,7 @@
       },
       {
         "id": "archive_salvage_tools",
-        "text": "Salvage practical tools instead",
+        "text": "Salvage practical tools for field teams",
         "cost": {
           "time": 1
         },
@@ -1379,11 +1452,11 @@
   },
   {
     "id": "archive_living_index",
-    "title": "The Living Index",
+    "title": "Living Index Decision",
     "cardId": "card_root_archive",
     "body": [
-      "A sap-ink index rewrites itself when you ask the wrong question.",
-      "You can archive the truth, share it, or weaponize it."
+      "The index rewrites in real time as factions submit claims to historical legitimacy.",
+      "Where you publish these records changes command trust across both regions."
     ],
     "tags": [
       "hub",
@@ -1393,7 +1466,7 @@
     "choices": [
       {
         "id": "archive_share_with_pilgrims",
-        "text": "Share the recovered records with pilgrims",
+        "text": "Release records to pilgrim councils",
         "requires": [
           {
             "type": "flag",
@@ -1422,7 +1495,7 @@
       },
       {
         "id": "archive_sell_pages",
-        "text": "Sell curated pages to the Concord war room",
+        "text": "Sell curated pages to Concord command",
         "cost": {
           "time": 1,
           "corruption": 1
@@ -1453,7 +1526,8 @@
     "title": "Midspan Gale",
     "cardId": "card_mire_bridge",
     "body": [
-      "Wind lashes tar vapor into your eyes while the ropes sing under strain."
+      "Bridge cables scream as supply crates swing over acid mist and panicked workers lose cadence.",
+      "A clean crossing keeps the containment line provisioned before nightfall."
     ],
     "tags": [
       "hub",
@@ -1462,7 +1536,7 @@
     "choices": [
       {
         "id": "mire_dash",
-        "text": "Dash across before the next gust",
+        "text": "Dash the final span before cable snap",
         "cost": {
           "time": 1
         },
@@ -1473,7 +1547,7 @@
         },
         "outcomes": {
           "success": {
-            "text": "You cross cleanly and mark a safe route.",
+            "text": "You cross cleanly and mark a safe emergency lane.",
             "effects": [
               {
                 "type": "gainXp",
@@ -1482,7 +1556,7 @@
             ]
           },
           "mixed": {
-            "text": "You cross with burns and rattled nerves.",
+            "text": "You make it across, but inhale burning vapor.",
             "effects": [
               {
                 "type": "incFlag",
@@ -1492,7 +1566,7 @@
             ]
           },
           "failForward": {
-            "text": "You slip, climb back, and lose blood before reaching stone.",
+            "text": "You slip hard, recover, and finish the route bleeding.",
             "effects": [
               {
                 "type": "incFlag",
@@ -1511,10 +1585,11 @@
   },
   {
     "id": "mire_sunken_cache",
-    "title": "Sunken Cache",
+    "title": "Sunken Relief Cache",
     "cardId": "card_mire_bridge",
     "body": [
-      "Under a broken saint icon, a waterproof chest waits in black mud."
+      "A sealed chest under the shrine holds rope kits and stimulant salts for bridge crews.",
+      "Take supplies for yourself or leave them for wider relief."
     ],
     "tags": [
       "hub",
@@ -1524,7 +1599,7 @@
     "choices": [
       {
         "id": "mire_take_cache",
-        "text": "Pry open the chest",
+        "text": "Open the chest and claim emergency gear",
         "cost": {
           "time": 1,
           "mana": 1
@@ -1545,7 +1620,7 @@
       },
       {
         "id": "mire_leave_cache",
-        "text": "Leave it sealed and secure the bridge route",
+        "text": "Leave supplies and secure the route marker",
         "cost": {
           "time": 1
         },
@@ -1571,8 +1646,8 @@
     "title": "Underface Current",
     "cardId": "card_mirror_lake",
     "body": [
-      "Below the surface, mirrored constellations drift like broken law.",
-      "A future-self offers a bargain for certainty."
+      "Below the surface, alternate timelines argue over your prior rulings in Ember Hollow and the Steppe.",
+      "Accepting insight grants precision but increases psychological strain."
     ],
     "tags": [
       "hub",
@@ -1582,7 +1657,7 @@
     "choices": [
       {
         "id": "mirror_accept_truth",
-        "text": "Accept the harsher truth",
+        "text": "Accept the painful forecast and remember it",
         "cost": {
           "time": 1,
           "corruption": 1
@@ -1594,7 +1669,7 @@
         },
         "outcomes": {
           "success": {
-            "text": "You surface with precise foresight.",
+            "text": "You surface with a clear and actionable forecast.",
             "effects": [
               {
                 "type": "gainXp",
@@ -1608,7 +1683,7 @@
             ]
           },
           "mixed": {
-            "text": "You gain insight and a migraine that lasts a day.",
+            "text": "You keep the omen, but it leaves a lasting migraine.",
             "effects": [
               {
                 "type": "setFlag",
@@ -1623,7 +1698,7 @@
             ]
           },
           "failForward": {
-            "text": "The vision fractures your confidence, but reveals one critical warning.",
+            "text": "The vision fractures your confidence, yet reveals one key warning.",
             "effects": [
               {
                 "type": "setFlag",
@@ -1645,7 +1720,7 @@
       },
       {
         "id": "mirror_break_surface",
-        "text": "Break the surface and refuse the bargain",
+        "text": "Abort the dive and keep your judgment intact",
         "cost": {
           "time": 1,
           "hp": 1
@@ -1668,8 +1743,8 @@
     "title": "Wake of Splintered Futures",
     "cardId": "card_mirror_lake",
     "body": [
-      "Your reflection lingers half a beat behind your movement.",
-      "You can keep the omen private or trade it for favor."
+      "Your reflection lags by a heartbeat while scouts ask whether to act on what you learned.",
+      "Sharing or hoarding the omen changes who trusts your crisis doctrine."
     ],
     "tags": [
       "hub",
@@ -1679,7 +1754,7 @@
     "choices": [
       {
         "id": "mirror_share_omen",
-        "text": "Share the omen with the Concord scouts",
+        "text": "Brief Concord scouts on the omen",
         "requires": [
           {
             "type": "flag",
@@ -1708,7 +1783,7 @@
       },
       {
         "id": "mirror_keep_secret",
-        "text": "Keep the omen secret",
+        "text": "Keep the omen private and equip quietly",
         "cost": {
           "time": 1
         },
@@ -1730,10 +1805,11 @@
   },
   {
     "id": "forge_quench",
-    "title": "Quench Trough",
+    "title": "Quench Line",
     "cardId": "card_shard_forge",
     "body": [
-      "Molten shards scream in water as workers shout timings over thunder."
+      "Molten shard batches cool in sequence while foremen shout timings tied to evacuation windows.",
+      "One precise run can restore navigation capacity for an entire district."
     ],
     "tags": [
       "hub",
@@ -1743,7 +1819,7 @@
     "choices": [
       {
         "id": "forge_precise_hammer",
-        "text": "Take precise hammer duty",
+        "text": "Take precision hammer duty at the quench",
         "cost": {
           "time": 1
         },
@@ -1754,7 +1830,7 @@
         },
         "outcomes": {
           "success": {
-            "text": "Your strike pattern stabilizes the whole run.",
+            "text": "Your strike cadence stabilizes the full production run.",
             "effects": [
               {
                 "type": "addItem",
@@ -1767,7 +1843,7 @@
             ]
           },
           "mixed": {
-            "text": "The batch survives, but your hands blister.",
+            "text": "The batch survives, but your hands blister badly.",
             "effects": [
               {
                 "type": "incFlag",
@@ -1781,7 +1857,7 @@
             ]
           },
           "failForward": {
-            "text": "A spill burns the floor; you still salvage enough for repairs.",
+            "text": "A spill burns the floor, yet you salvage enough output.",
             "effects": [
               {
                 "type": "incFlag",
@@ -1804,10 +1880,11 @@
   },
   {
     "id": "forge_commission",
-    "title": "Commission Ledger",
+    "title": "Commission Routing",
     "cardId": "card_shard_forge",
     "body": [
-      "The foreman asks where the repaired compass should be sent."
+      "The repaired compass can guide pilgrim relief columns or privileged Undercourt convoys.",
+      "This dispatch determines who moves first when pressure spikes again."
     ],
     "tags": [
       "hub",
@@ -1817,7 +1894,7 @@
     "choices": [
       {
         "id": "forge_send_pilgrims",
-        "text": "Send it to pilgrim caravans",
+        "text": "Route the compass to pilgrim caravans",
         "cost": {
           "time": 1
         },
@@ -1838,7 +1915,7 @@
       },
       {
         "id": "forge_send_court",
-        "text": "Sell priority access to the Undercourt",
+        "text": "Sell first-route rights to the Undercourt",
         "cost": {
           "time": 1,
           "corruption": 1
