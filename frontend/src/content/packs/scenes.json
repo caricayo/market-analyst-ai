@@ -4,8 +4,8 @@
     "title": "The Ink That Doesn't Dry",
     "cardId": "card_ember_hollow",
     "body": [
-      "Permit denials pile up while a sealed charter case arrives with your true-name sigil.",
-      "The Fracture Choir under the basin is rising, and delay means more legal famine."
+      "Permit denials are stacking up when a sealed charter case lands on your desk.",
+      "The basin is running out of food, and the Fracture Choir pressure keeps getting worse."
     ],
     "tags": [
       "arc1",
@@ -21,7 +21,7 @@
     "choices": [
       {
         "id": "ember_follow_courier",
-        "text": "Carry the charter to Synod council at Gloam Cliffs",
+        "text": "Take the charter straight to Synod council",
         "cost": {
           "time": 1
         },
@@ -48,7 +48,7 @@
       },
       {
         "id": "ember_delay",
-        "text": "Work Debt Gate market before reporting to council",
+        "text": "Check Debt Gate market before reporting",
         "cost": {
           "time": 2
         },
@@ -63,6 +63,34 @@
           "type": "scene",
           "sceneId": "market_barter"
         }
+      },
+      {
+        "id": "ember_verify_archive",
+        "text": "Verify charter signatures in the archive first",
+        "cost": {
+          "time": 1,
+          "mana": 1
+        },
+        "effects": [
+          {
+            "type": "gainXp",
+            "amount": 8
+          },
+          {
+            "type": "setFlag",
+            "key": "arc_ember_discovered",
+            "value": true
+          },
+          {
+            "type": "advanceArcPhase",
+            "arcId": "arc_ember_crown",
+            "phase": "discovery"
+          }
+        ],
+        "next": {
+          "type": "scene",
+          "sceneId": "archive_query"
+        }
       }
     ]
   },
@@ -71,8 +99,8 @@
     "title": "Witness Line",
     "cardId": "card_thorn_bastion",
     "body": [
-      "Debt collectors spring an ambush on the causeway, and Dame Maela Thorn cuts you free.",
-      "At Synod hall, every witness line you choose decides who can speak for the ash charter."
+      "Debt collectors hit your route, and Maela keeps you alive long enough to reach council.",
+      "Now you must decide who gets a legal voice in the ash charter hearing."
     ],
     "tags": [
       "arc1",
@@ -81,7 +109,7 @@
     "choices": [
       {
         "id": "ember_take_oath",
-        "text": "Accept Maela's escort and file the route lawfully",
+        "text": "Accept Maela as official escort",
         "cost": {
           "time": 1,
           "mana": 1
@@ -105,7 +133,7 @@
       },
       {
         "id": "ember_break_siege",
-        "text": "Refuse escort and run the route unsanctioned",
+        "text": "Refuse escort and file alone",
         "cost": {
           "time": 1,
           "corruption": 1
@@ -125,6 +153,33 @@
           "type": "scene",
           "sceneId": "ember_escalation_2"
         }
+      },
+      {
+        "id": "ember_seek_commons_input",
+        "text": "Pause for River Commons testimony",
+        "cost": {
+          "time": 1
+        },
+        "effects": [
+          {
+            "type": "adjustRep",
+            "faction": "pilgrims",
+            "by": 1
+          },
+          {
+            "type": "adjustRep",
+            "faction": "concord",
+            "by": -1
+          },
+          {
+            "type": "gainXp",
+            "amount": 8
+          }
+        ],
+        "next": {
+          "type": "scene",
+          "sceneId": "ember_escalation_2"
+        }
       }
     ]
   },
@@ -133,8 +188,8 @@
     "title": "Lawful Harm",
     "cardId": "card_ashen_gate",
     "body": [
-      "The council demands a denial signature that strands a workers' ward outside relief lines.",
-      "If you obey, order holds; if you resist, the fracture spreads through glass districts."
+      "Council asks you to sign a denial that leaves a workers' ward without aid.",
+      "Either way, people pay the price, and your choice decides how fast the ash crisis escalates."
     ],
     "tags": [
       "arc1",
@@ -143,7 +198,7 @@
     "choices": [
       {
         "id": "ember_guard_braziers",
-        "text": "Hold formation and sign only witnessed denials",
+        "text": "Hold the line and keep the process documented",
         "cost": {
           "time": 2,
           "mana": 1
@@ -155,7 +210,7 @@
         },
         "outcomes": {
           "success": {
-            "text": "You keep process intact and buy time without open panic.",
+            "text": "You keep the convoy moving and preserve a legal record.",
             "effects": [
               {
                 "type": "setFlag",
@@ -174,7 +229,7 @@
             ]
           },
           "mixed": {
-            "text": "The line holds, but smoke and guilt score your lungs.",
+            "text": "Aid moves forward, but your team takes smoke injuries.",
             "effects": [
               {
                 "type": "setFlag",
@@ -189,7 +244,7 @@
             ]
           },
           "failForward": {
-            "text": "Records burn behind you; only a direct push to the weirs remains.",
+            "text": "The route collapses and forces a direct push to the weirs.",
             "effects": [
               {
                 "type": "setFlag",
@@ -215,7 +270,7 @@
       },
       {
         "id": "ember_push_smoke",
-        "text": "Break protocol and force relief through by night",
+        "text": "Break protocol and force aid through",
         "cost": {
           "time": 2,
           "hp": 2,
@@ -242,6 +297,40 @@
           "type": "scene",
           "sceneId": "ember_dungeon_gate"
         }
+      },
+      {
+        "id": "ember_leak_denial",
+        "text": "Leak the denial order to ward leaders",
+        "cost": {
+          "time": 1,
+          "corruption": 1
+        },
+        "effects": [
+          {
+            "type": "setFlag",
+            "key": "arc_ember_escalated",
+            "value": true
+          },
+          {
+            "type": "advanceArcPhase",
+            "arcId": "arc_ember_crown",
+            "phase": "escalation"
+          },
+          {
+            "type": "adjustRep",
+            "faction": "undercourt",
+            "by": 1
+          },
+          {
+            "type": "adjustRep",
+            "faction": "concord",
+            "by": -1
+          }
+        ],
+        "next": {
+          "type": "scene",
+          "sceneId": "ember_dungeon_gate"
+        }
       }
     ]
   },
@@ -250,8 +339,8 @@
     "title": "The Machine Under Drought",
     "cardId": "card_ashen_gate",
     "body": [
-      "Beneath Hollow Weirs, lock-glyphs reveal a charter engine cycling scarcity by oath.",
-      "Every minute of delay turns ash pressure into riot across Gloam Cliffs and Mirror March."
+      "Under Hollow Weirs, you find the glass engine that has been rationing scarcity by design.",
+      "If you stall now, unrest spreads across both regions before sunrise."
     ],
     "tags": [
       "arc1",
@@ -260,7 +349,7 @@
     "choices": [
       {
         "id": "ember_enter_vault",
-        "text": "Breach now and expose the scarcity engine",
+        "text": "Breach now and expose the engine",
         "requires": [
           {
             "type": "flag",
@@ -286,13 +375,36 @@
       },
       {
         "id": "ember_wait",
-        "text": "Delay the breach and petition for calmer terms",
+        "text": "Delay and ask for negotiated access",
         "cost": {
           "time": 3,
           "corruption": 2
         },
         "next": {
           "type": "atlas"
+        }
+      },
+      {
+        "id": "ember_secure_evidence_then_breach",
+        "text": "Capture evidence, then breach immediately",
+        "cost": {
+          "time": 2,
+          "hp": 1
+        },
+        "effects": [
+          {
+            "type": "advanceArcPhase",
+            "arcId": "arc_ember_crown",
+            "phase": "dungeon"
+          },
+          {
+            "type": "gainXp",
+            "amount": 10
+          }
+        ],
+        "next": {
+          "type": "dungeon",
+          "dungeonId": "dungeon_embervault"
         }
       }
     ]
@@ -302,8 +414,8 @@
     "title": "Charter of Ash",
     "cardId": "card_ember_hollow",
     "body": [
-      "At the engine core, provost doctrine offers three endings: relief, regency, or binding accord.",
-      "Your signature will define ash law for Synod, Commons, and Mirror Court."
+      "At the core, you must choose what replaces emergency rule.",
+      "Your signature will shape food access, law, and trust across the basin."
     ],
     "tags": [
       "arc1",
@@ -312,7 +424,7 @@
     "choices": [
       {
         "id": "ember_choose_dawn",
-        "text": "Publish relief ledgers and open water access",
+        "text": "Release ledgers and open water access",
         "cost": {
           "time": 1,
           "mana": 2
@@ -324,7 +436,7 @@
       },
       {
         "id": "ember_choose_ash",
-        "text": "Invoke emergency regency and central command",
+        "text": "Centralize control under emergency command",
         "cost": {
           "time": 1,
           "corruption": 4
@@ -336,7 +448,7 @@
       },
       {
         "id": "ember_choose_oath",
-        "text": "Bind factions to a provisional floodline charter",
+        "text": "Lock a three-faction compact into law",
         "cost": {
           "time": 1,
           "hp": 3
@@ -353,8 +465,8 @@
     "title": "Dawn Ledger Release",
     "cardId": "card_ember_hollow",
     "body": [
-      "You publish the hidden ledgers, and rain convoys move without private permits.",
-      "People call it a glass-and-ash mercy: relief before rank, witness before office."
+      "The hidden ledgers go public, and relief routes open without private gate favors.",
+      "People call it the first real accord the basin has seen in years."
     ],
     "tags": [
       "arc1",
@@ -363,7 +475,7 @@
     "choices": [
       {
         "id": "ember_end_dawn",
-        "text": "Canonize the Dawn Ledger precedent",
+        "text": "Lock in the Dawn Ledger outcome",
         "effects": [
           {
             "type": "gainXp",
@@ -383,8 +495,8 @@
     "title": "Regency of Ash",
     "cardId": "card_ember_hollow",
     "body": [
-      "You claim emergency authority, and floodgates answer one command chain.",
-      "Order returns quickly, but every district learns obedience through heat and fear."
+      "You keep order through one command chain and emergency authority.",
+      "Violence drops fast, but fear replaces public trust."
     ],
     "tags": [
       "arc1",
@@ -393,7 +505,7 @@
     "choices": [
       {
         "id": "ember_end_ash",
-        "text": "Formalize the Ash Regency order",
+        "text": "Lock in the Ash Regency outcome",
         "effects": [
           {
             "type": "gainXp",
@@ -413,8 +525,8 @@
     "title": "Floodline Compact",
     "cardId": "card_thorn_bastion",
     "body": [
-      "You chain the engine to a three-faction charter with rotating witnesses and audits.",
-      "Stability holds, yet debt politics harden as every accord demands new concessions."
+      "You force every faction into a shared charter with rotating witnesses.",
+      "The city stabilizes, but every clause creates new political debt."
     ],
     "tags": [
       "arc1",
@@ -423,7 +535,7 @@
     "choices": [
       {
         "id": "ember_end_oath",
-        "text": "Ratify the Floodline Compact charter",
+        "text": "Lock in the Floodline Compact outcome",
         "effects": [
           {
             "type": "gainXp",
@@ -443,8 +555,8 @@
     "title": "Rain Without Permission (Prelude)",
     "cardId": "card_ember_hollow",
     "body": [
-      "The first black-rain cycle breaks, but unrest spreads as receipts prove who engineered famine.",
-      "A second fracture front forms in Mirror March, where the next accord must be written."
+      "The first famine loop breaks, but unrest spreads as people read the full receipts.",
+      "A new flashpoint grows in Mirror March, and you are pulled into it next."
     ],
     "tags": [
       "aftermath",
@@ -455,7 +567,7 @@
     "choices": [
       {
         "id": "ember_aftermath_seek_astral",
-        "text": "Follow the receipt trail into Mirror March",
+        "text": "Follow the trail into Mirror March",
         "requires": [
           {
             "type": "flag",
@@ -474,7 +586,7 @@
       },
       {
         "id": "ember_aftermath_depart",
-        "text": "Log the prelude and return to atlas",
+        "text": "Log this chapter and return to atlas",
         "cost": {
           "time": 1
         },
@@ -489,8 +601,8 @@
     "title": "Riot of Receipts",
     "cardId": "card_prism_step",
     "body": [
-      "Published ledgers ignite protests from canal wards to tower courts across the glass basin.",
-      "If no new accord appears fast, faction militias will seize the gates by force."
+      "Ledger leaks trigger protests from canal wards to tower courts.",
+      "If no accord lands soon, militias will try to take the gates by force."
     ],
     "tags": [
       "arc2",
@@ -499,7 +611,7 @@
     "choices": [
       {
         "id": "astral_trace_song",
-        "text": "Trace receipts through the Open Cistern records",
+        "text": "Trace receipts through Open Cistern records",
         "cost": {
           "time": 1
         },
@@ -526,13 +638,40 @@
       },
       {
         "id": "astral_ignore",
-        "text": "Investigate witness omens at Mirror Basin first",
+        "text": "Check Mirror Basin warnings first",
         "cost": {
           "time": 2
         },
         "next": {
           "type": "scene",
           "sceneId": "mirror_reflection"
+        }
+      },
+      {
+        "id": "astral_rally_crews",
+        "text": "Rally crews at Floodline Forge first",
+        "cost": {
+          "time": 1
+        },
+        "effects": [
+          {
+            "type": "gainXp",
+            "amount": 8
+          },
+          {
+            "type": "setFlag",
+            "key": "arc_astral_discovered",
+            "value": true
+          },
+          {
+            "type": "advanceArcPhase",
+            "arcId": "arc_astral_well",
+            "phase": "discovery"
+          }
+        ],
+        "next": {
+          "type": "scene",
+          "sceneId": "forge_tithe"
         }
       }
     ]
@@ -542,8 +681,8 @@
     "title": "Terms of Mercy",
     "cardId": "card_sunken_orrery",
     "body": [
-      "Serin proposes a transparent gate lottery while Maela recruits glass flood crews no one trusts.",
-      "The offer can cool the riot, but each concession reshapes concord and undercourt power."
+      "Serin proposes a transparent gate lottery while Maela recruits crews still angry from past losses.",
+      "The wording of this compact decides who trusts the next enforcement step."
     ],
     "tags": [
       "arc2",
@@ -552,7 +691,7 @@
     "choices": [
       {
         "id": "astral_decode",
-        "text": "Draft lottery terms with disciplined legal math",
+        "text": "Draft terms with strict legal language",
         "cost": {
           "time": 1,
           "mana": 1
@@ -564,7 +703,7 @@
         },
         "outcomes": {
           "success": {
-            "text": "Your terms are clear, and key wards accept the temporary accord.",
+            "text": "The draft is clear enough for key wards to sign.",
             "effects": [
               {
                 "type": "gainXp",
@@ -573,7 +712,7 @@
             ]
           },
           "mixed": {
-            "text": "You secure a workable draft, but rival houses trigger alarms.",
+            "text": "You get signatures, but rival houses start counter-campaigns.",
             "effects": [
               {
                 "type": "incFlag",
@@ -583,7 +722,7 @@
             ]
           },
           "failForward": {
-            "text": "The chamber collapses into panic and forces a harsher shortcut.",
+            "text": "Talks break down and force a rough shortcut.",
             "effects": [
               {
                 "type": "incFlag",
@@ -600,7 +739,7 @@
       },
       {
         "id": "astral_decode_by_touch",
-        "text": "Draft terms by instinct and field testimony",
+        "text": "Draft terms from field testimony",
         "cost": {
           "time": 2,
           "hp": 1
@@ -620,6 +759,34 @@
           "type": "scene",
           "sceneId": "astral_escalation_2"
         }
+      },
+      {
+        "id": "astral_open_vote",
+        "text": "Run an open ward vote on terms",
+        "cost": {
+          "time": 2,
+          "mana": 1
+        },
+        "effects": [
+          {
+            "type": "adjustRep",
+            "faction": "pilgrims",
+            "by": 1
+          },
+          {
+            "type": "adjustRep",
+            "faction": "concord",
+            "by": -1
+          },
+          {
+            "type": "gainXp",
+            "amount": 12
+          }
+        ],
+        "next": {
+          "type": "scene",
+          "sceneId": "astral_escalation_2"
+        }
       }
     ]
   },
@@ -628,8 +795,8 @@
     "title": "Court of Smoke",
     "cardId": "card_eclipse_court",
     "body": [
-      "Mirror Court brokers offer safe passage if you surrender memory collateral and monopoly rights.",
-      "Refusal preserves autonomy, but the Fracture Choir grows louder around the weirs."
+      "Mirror Court offers fast passage if you pay with memory and market control.",
+      "Say yes and move fast, or refuse and risk open conflict near the weirs as the Choir rises."
     ],
     "tags": [
       "arc2",
@@ -638,7 +805,7 @@
     "choices": [
       {
         "id": "astral_bargain",
-        "text": "Trade memory collateral for sanctioned passage",
+        "text": "Pay memory collateral for passage",
         "cost": {
           "time": 1,
           "hp": 2
@@ -667,7 +834,7 @@
       },
       {
         "id": "astral_refuse",
-        "text": "Refuse tribute and cross the smoke lines",
+        "text": "Refuse and cross under pressure",
         "cost": {
           "time": 2,
           "corruption": 2
@@ -688,6 +855,40 @@
           "type": "scene",
           "sceneId": "astral_dungeon_gate"
         }
+      },
+      {
+        "id": "astral_expose_terms",
+        "text": "Leak monopoly terms to public councils",
+        "cost": {
+          "time": 2,
+          "corruption": 1
+        },
+        "effects": [
+          {
+            "type": "setFlag",
+            "key": "arc_astral_escalated",
+            "value": true
+          },
+          {
+            "type": "advanceArcPhase",
+            "arcId": "arc_astral_well",
+            "phase": "escalation"
+          },
+          {
+            "type": "adjustRep",
+            "faction": "undercourt",
+            "by": -2
+          },
+          {
+            "type": "adjustRep",
+            "faction": "pilgrims",
+            "by": 1
+          }
+        ],
+        "next": {
+          "type": "scene",
+          "sceneId": "astral_dungeon_gate"
+        }
       }
     ]
   },
@@ -696,8 +897,8 @@
     "title": "Weirfall",
     "cardId": "card_starwell_rim",
     "body": [
-      "Storm surge and militia fire converge at Hollow Weirs as the coalition fractures.",
-      "This descent decides whether the basin gets water rights or another regent seat."
+      "Storm surge and militia fire collide at Hollow Weirs as your coalition starts to crack.",
+      "This final descent decides whether the basin gets a shared accord or a new regent."
     ],
     "tags": [
       "arc2",
@@ -706,7 +907,7 @@
     "choices": [
       {
         "id": "astral_enter_well",
-        "text": "Descend and confront the charter engine core",
+        "text": "Descend now and face the engine core",
         "requires": [
           {
             "type": "flag",
@@ -732,13 +933,36 @@
       },
       {
         "id": "astral_wait",
-        "text": "Delay for calmer channels and lower risk",
+        "text": "Wait for calmer channels",
         "cost": {
           "time": 3,
           "corruption": 1
         },
         "next": {
           "type": "atlas"
+        }
+      },
+      {
+        "id": "astral_evac_then_descend",
+        "text": "Evacuate civilians, then descend",
+        "cost": {
+          "time": 2,
+          "hp": 1
+        },
+        "effects": [
+          {
+            "type": "advanceArcPhase",
+            "arcId": "arc_astral_well",
+            "phase": "dungeon"
+          },
+          {
+            "type": "gainXp",
+            "amount": 10
+          }
+        ],
+        "next": {
+          "type": "dungeon",
+          "dungeonId": "dungeon_starwell"
         }
       }
     ]
@@ -748,8 +972,8 @@
     "title": "The Regent Seat",
     "cardId": "card_starwell_rim",
     "body": [
-      "Provost Cael offers controlled regency while the engine demands a final witnessed signature.",
-      "You can sign decentralized rights, impose a veil, or force a single chorus compact."
+      "At the regent seat, Cael offers controlled stability if you keep centralized power.",
+      "You can decentralize rights, enforce a veil, or bind everyone into one compact."
     ],
     "tags": [
       "arc2",
@@ -758,7 +982,7 @@
     "choices": [
       {
         "id": "astral_choose_tide",
-        "text": "Sign decentralized water rights for every district",
+        "text": "Sign decentralized water rights",
         "cost": {
           "time": 1,
           "mana": 2
@@ -770,7 +994,7 @@
       },
       {
         "id": "astral_choose_shroud",
-        "text": "Accept controlled regency and suppress dissent",
+        "text": "Keep controlled regency in place",
         "cost": {
           "time": 1,
           "corruption": 4
@@ -782,7 +1006,7 @@
       },
       {
         "id": "astral_choose_union",
-        "text": "Bind factions to one mandatory chorus compact",
+        "text": "Force one basin-wide compact",
         "cost": {
           "time": 1,
           "hp": 3
@@ -799,8 +1023,8 @@
     "title": "Rain Without Permission",
     "cardId": "card_prism_step",
     "body": [
-      "The regent seat is severed, and neighborhoods self-organize gate councils before elites react.",
-      "The Tide Accord becomes lived practice: shared access, public ledgers, and accountable witnesses."
+      "The regent seat is cut from the engine, and neighborhoods form gate councils overnight.",
+      "Shared access and public records become the new default."
     ],
     "tags": [
       "arc2",
@@ -809,7 +1033,7 @@
     "choices": [
       {
         "id": "astral_end_tide",
-        "text": "Seal Rain Without Permission as canon",
+        "text": "Lock in Rain Without Permission",
         "effects": [
           {
             "type": "gainXp",
@@ -829,8 +1053,8 @@
     "title": "Veil Regency",
     "cardId": "card_starwell_rim",
     "body": [
-      "You preserve the seat and govern through emergency dusk law and restricted corridors.",
-      "Violence drops in the short term, but dissent deepens under permanent surveillance."
+      "You preserve emergency control and restrict movement through approved corridors only.",
+      "Street violence drops, but long-term resentment grows."
     ],
     "tags": [
       "arc2",
@@ -839,7 +1063,7 @@
     "choices": [
       {
         "id": "astral_end_shroud",
-        "text": "Seal the Veil Regency order",
+        "text": "Lock in the Veil Regency outcome",
         "effects": [
           {
             "type": "gainXp",
@@ -859,8 +1083,8 @@
     "title": "Charter Chorus Compact",
     "cardId": "card_eclipse_court",
     "body": [
-      "Every faction signs one synchronized charter, ending open war through mandatory coordination.",
-      "Peace holds, yet autonomy narrows as deviation is treated as civic dissonance."
+      "Every faction signs one synchronized charter with common enforcement.",
+      "War pauses, but local autonomy shrinks under one legal rhythm."
     ],
     "tags": [
       "arc2",
@@ -869,7 +1093,7 @@
     "choices": [
       {
         "id": "astral_end_union",
-        "text": "Ratify the Charter Chorus Compact",
+        "text": "Lock in the Charter Chorus outcome",
         "effects": [
           {
             "type": "gainXp",
@@ -889,8 +1113,8 @@
     "title": "Basin Epilogue",
     "cardId": "card_prism_step",
     "body": [
-      "The basin stabilizes under your final accord doctrine, with scars visible in every district ledger.",
-      "Outer envoys arrive carrying unfamiliar oath scripts and older engines begin to wake."
+      "Your final ruling stabilizes the basin, but every district still carries visible damage.",
+      "Outer envoys arrive with new glass oath scripts, hinting this fight is bigger than one city."
     ],
     "tags": [
       "aftermath",
@@ -901,12 +1125,23 @@
     "choices": [
       {
         "id": "astral_aftermath_reflect",
-        "text": "Archive this covenant campaign and return to atlas",
+        "text": "Archive this run and return to atlas",
         "cost": {
           "time": 1
         },
         "next": {
           "type": "atlas"
+        }
+      },
+      {
+        "id": "astral_aftermath_revisit",
+        "text": "Revisit Salt Gate aftermath reports",
+        "cost": {
+          "time": 1
+        },
+        "next": {
+          "type": "scene",
+          "sceneId": "ember_aftermath"
         }
       }
     ]
@@ -1103,8 +1338,8 @@
     "title": "Mirror Lake Diagnostics",
     "cardId": "card_mirror_lake",
     "body": [
-      "The lake shows alternate responses to the same crisis, each with different faction casualties.",
-      "Step through for hard foresight, or leave before the reflection edits your certainty."
+      "The basin reflects possible outcomes of your current policy choices.",
+      "Step in for hard foresight, or walk away and trust your faction judgment under crisis pressure."
     ],
     "tags": [
       "hub",
@@ -1140,8 +1375,8 @@
     "title": "Shard Forge Mobilization",
     "cardId": "card_shard_forge",
     "body": [
-      "Forge crews repair sky compasses needed to route caravans around new Choir pressure fronts.",
-      "Helping now determines which faction controls navigation during the next crisis week."
+      "Crews are repairing tools needed to keep relief routes open this week.",
+      "Helping now affects who controls movement when pressure spikes again."
     ],
     "tags": [
       "hub",
@@ -1284,8 +1519,8 @@
     "title": "Route Ledger Settlement",
     "cardId": "card_cinder_market",
     "body": [
-      "Final signatures decide whether evacuation lanes favor pilgrim caravans or Undercourt buyers.",
-      "This is logistics warfare disguised as commerce."
+      "Final signatures decide whether evac lanes serve civilians first or private buyers first.",
+      "It looks like trade paperwork, but it is a direct power decision."
     ],
     "tags": [
       "hub",
@@ -1356,8 +1591,8 @@
     "title": "Deepstack Retrieval",
     "cardId": "card_root_archive",
     "body": [
-      "Charred vellum pits contain records linking the Regent lineage to the Wellsong custodians.",
-      "Recovering them can legitimize reform or arm propagandists."
+      "Burned stacks hold records tying old regent offices to engine control chains.",
+      "Publishing them can support reform or feed propaganda."
     ],
     "tags": [
       "hub",
@@ -1455,8 +1690,8 @@
     "title": "Living Index Decision",
     "cardId": "card_root_archive",
     "body": [
-      "The index rewrites in real time as factions submit claims to historical legitimacy.",
-      "Where you publish these records changes command trust across both regions."
+      "The index updates live as factions submit claims to legitimacy.",
+      "Who gets these records first will shape trust in the next ruling cycle."
     ],
     "tags": [
       "hub",
@@ -1526,8 +1761,8 @@
     "title": "Midspan Gale",
     "cardId": "card_mire_bridge",
     "body": [
-      "Bridge cables scream as supply crates swing over acid mist and panicked workers lose cadence.",
-      "A clean crossing keeps the containment line provisioned before nightfall."
+      "Bridge cables are failing while workers move relief supply crates through acid fog.",
+      "You can push through, stabilize the route, or pull back and save people first."
     ],
     "tags": [
       "hub",
@@ -1536,7 +1771,7 @@
     "choices": [
       {
         "id": "mire_dash",
-        "text": "Dash the final span before cable snap",
+        "text": "Sprint the span before the cables snap",
         "cost": {
           "time": 1
         },
@@ -1579,6 +1814,85 @@
         "next": {
           "type": "scene",
           "sceneId": "mire_sunken_cache"
+        }
+      },
+      {
+        "id": "mire_stabilize_cables",
+        "text": "Stay and stabilize the bridge cables",
+        "cost": {
+          "time": 1,
+          "mana": 1
+        },
+        "check": {
+          "type": "risk",
+          "stat": "craft",
+          "difficulty": 3
+        },
+        "outcomes": {
+          "success": {
+            "text": "You secure the line and keep aid moving.",
+            "effects": [
+              {
+                "type": "gainXp",
+                "amount": 10
+              },
+              {
+                "type": "adjustRep",
+                "faction": "pilgrims",
+                "by": 1
+              }
+            ]
+          },
+          "mixed": {
+            "text": "The line holds, but you lose supplies in the fog.",
+            "effects": [
+              {
+                "type": "gainXp",
+                "amount": 5
+              },
+              {
+                "type": "incFlag",
+                "key": "wound_marks",
+                "by": 1
+              }
+            ]
+          },
+          "failForward": {
+            "text": "You fail to hold the bridge but evacuate most workers.",
+            "effects": [
+              {
+                "type": "incFlag",
+                "key": "wound_marks",
+                "by": 1
+              },
+              {
+                "type": "adjustRep",
+                "faction": "pilgrims",
+                "by": 1
+              }
+            ]
+          }
+        },
+        "next": {
+          "type": "scene",
+          "sceneId": "mire_sunken_cache"
+        }
+      },
+      {
+        "id": "mire_pull_back",
+        "text": "Pull back with survivors and regroup",
+        "cost": {
+          "time": 1
+        },
+        "effects": [
+          {
+            "type": "adjustRep",
+            "faction": "concord",
+            "by": -1
+          }
+        ],
+        "next": {
+          "type": "atlas"
         }
       }
     ]
@@ -1808,8 +2122,8 @@
     "title": "Quench Line",
     "cardId": "card_shard_forge",
     "body": [
-      "Molten shard batches cool in sequence while foremen shout timings tied to evacuation windows.",
-      "One precise run can restore navigation capacity for an entire district."
+      "The quench line can restore navigation tools if the timing stays exact under crisis pressure.",
+      "You can run precision duty, manage triage, or cut output to protect evacuation crews."
     ],
     "tags": [
       "hub",
@@ -1819,7 +2133,7 @@
     "choices": [
       {
         "id": "forge_precise_hammer",
-        "text": "Take precision hammer duty at the quench",
+        "text": "Run precision hammer duty",
         "cost": {
           "time": 1
         },
@@ -1874,6 +2188,50 @@
         "next": {
           "type": "scene",
           "sceneId": "forge_commission"
+        }
+      },
+      {
+        "id": "forge_shift_triage",
+        "text": "Shift to crew triage and safety control",
+        "cost": {
+          "time": 1
+        },
+        "effects": [
+          {
+            "type": "adjustRep",
+            "faction": "pilgrims",
+            "by": 1
+          },
+          {
+            "type": "gainXp",
+            "amount": 6
+          }
+        ],
+        "next": {
+          "type": "scene",
+          "sceneId": "forge_commission"
+        }
+      },
+      {
+        "id": "forge_reduce_output",
+        "text": "Cut output and keep crews safe",
+        "cost": {
+          "time": 1
+        },
+        "effects": [
+          {
+            "type": "adjustRep",
+            "faction": "concord",
+            "by": -1
+          },
+          {
+            "type": "adjustRep",
+            "faction": "pilgrims",
+            "by": 1
+          }
+        ],
+        "next": {
+          "type": "atlas"
         }
       }
     ]
