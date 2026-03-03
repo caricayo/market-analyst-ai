@@ -5,6 +5,7 @@
     "watchPatterns": [
       "railway.json",
       "src/**",
+      "scripts/**",
       "public/**",
       "index.html",
       "package.json",
