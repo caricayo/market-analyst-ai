@@ -64,7 +64,12 @@
           "sceneId": "market_barter"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Courier Ilya Voss",
+      "Shrine Keeper Maelin"
+    ],
+    "lore": "The Ember knot is one side of the same Fracture Choir destabilizing both regions."
   },
   {
     "id": "ember_escalation_1",
@@ -126,7 +131,12 @@
           "sceneId": "ember_escalation_2"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Marshal Serik Thorn",
+      "Cantor Hale"
+    ],
+    "lore": "Concord claims emergency authority over Crownfire rites when shrine wards fail."
   },
   {
     "id": "ember_escalation_2",
@@ -243,7 +253,12 @@
           "sceneId": "ember_dungeon_gate"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Cantor Hale",
+      "Pilgrim Torchline"
+    ],
+    "lore": "Mirrored braziers buffer Choir pulses long enough to open a controlled breach."
   },
   {
     "id": "ember_dungeon_gate",
@@ -295,7 +310,11 @@
           "type": "atlas"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Breach Captain Dema"
+    ],
+    "lore": "Ashen Gate murals record the first treaty that failed to contain Crownfire."
   },
   {
     "id": "ember_climax",
@@ -346,7 +365,11 @@
           "sceneId": "ember_resolution_oath"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "The Ash Regent"
+    ],
+    "lore": "Who governs Crownfire doctrine determines border law, trade, and military legitimacy."
   },
   {
     "id": "ember_resolution_dawn",
@@ -376,7 +399,11 @@
           "endingId": "dawn"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Pilgrim Councils"
+    ],
+    "lore": "The Dawn doctrine returns heat-rights to civilian governance."
   },
   {
     "id": "ember_resolution_ash",
@@ -406,7 +433,11 @@
           "endingId": "ash"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Regency Wardens"
+    ],
+    "lore": "The Ash doctrine centralizes force under one command hierarchy."
   },
   {
     "id": "ember_resolution_oath",
@@ -436,7 +467,11 @@
           "endingId": "oath"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Concord Tribunal"
+    ],
+    "lore": "The Oath doctrine binds energy access to treaty enforcement."
   },
   {
     "id": "ember_aftermath",
@@ -482,7 +517,11 @@
           "type": "atlas"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Atlas Bearer"
+    ],
+    "lore": "The Ember knot is stabilized, but the Steppe knot now resonates louder."
   },
   {
     "id": "astral_discovery_1",
@@ -535,7 +574,11 @@
           "sceneId": "mirror_reflection"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Glass Scout Renn"
+    ],
+    "lore": "The Wellsong knot echoes every policy chosen at Ember Hollow."
   },
   {
     "id": "astral_escalation_1",
@@ -621,7 +664,11 @@
           "sceneId": "astral_escalation_2"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Archivist Oren Kade"
+    ],
+    "lore": "Orrery routes decide which faction reaches the Starwell first."
   },
   {
     "id": "astral_escalation_2",
@@ -689,7 +736,12 @@
           "sceneId": "astral_dungeon_gate"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Juror Vey",
+      "Undercourt Brokers"
+    ],
+    "lore": "The Eclipse Court exchanges memory debt for strategic mobility."
   },
   {
     "id": "astral_dungeon_gate",
@@ -741,7 +793,11 @@
           "type": "atlas"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Rim Wardens"
+    ],
+    "lore": "The Starwell descent resolves whether the sky-knot is shared, chained, or weaponized."
   },
   {
     "id": "astral_climax",
@@ -792,7 +848,11 @@
           "sceneId": "astral_resolution_union"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Wellsong Seraph"
+    ],
+    "lore": "This verdict sets long-term doctrine across both regions."
   },
   {
     "id": "astral_resolution_tide",
@@ -822,7 +882,11 @@
           "endingId": "tide"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Caravan Masters"
+    ],
+    "lore": "Tide doctrine restores predictable sky lanes and shared transit rights."
   },
   {
     "id": "astral_resolution_shroud",
@@ -852,7 +916,11 @@
           "endingId": "shroud"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Night Marshals"
+    ],
+    "lore": "Veil doctrine secures order through restricted light corridors."
   },
   {
     "id": "astral_resolution_union",
@@ -882,7 +950,11 @@
           "endingId": "union"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Chorus Envoys"
+    ],
+    "lore": "Union doctrine enforces consensus through harmonized oath law."
   },
   {
     "id": "astral_aftermath",
@@ -1010,7 +1082,12 @@
           "type": "atlas"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Broker Sella",
+      "Courier Clades"
+    ],
+    "lore": "Market intelligence here influences who controls next-turn deployments."
   },
   {
     "id": "archive_query",
@@ -1058,7 +1135,11 @@
           "type": "atlas"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Root Curator Elsin"
+    ],
+    "lore": "Archive records can legitimize reform or weaponize selective history."
   },
   {
     "id": "mire_crossing",
@@ -1096,7 +1177,11 @@
           "sceneId": "mire_sunken_cache"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Bridge Foreman Tael"
+    ],
+    "lore": "Supply lanes through Mire Bridge keep relief and ritual teams operational."
   },
   {
     "id": "mirror_reflection",
@@ -1133,7 +1218,11 @@
           "type": "atlas"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Mirror Echo of the Bearer"
+    ],
+    "lore": "The lake models branching outcomes from your campaign doctrines."
   },
   {
     "id": "forge_tithe",
@@ -1172,7 +1261,11 @@
           "sceneId": "forge_commission"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Forge Master Ivre"
+    ],
+    "lore": "Compass output controls which corridors remain navigable under pressure."
   },
   {
     "id": "market_backroom",
@@ -1277,7 +1370,11 @@
           "type": "atlas"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Smuggler-Quartermaster Varo"
+    ],
+    "lore": "Backroom logistics convert rumor into operational leverage."
   },
   {
     "id": "market_ledger",
@@ -1317,6 +1414,19 @@
           {
             "type": "gainXp",
             "amount": 10
+          },
+          {
+            "type": "setFlag",
+            "key": "doctrine_civilian_corridors",
+            "value": true
+          },
+          {
+            "type": "transformCard",
+            "cardId": "card_mire_bridge",
+            "toStatus": "visible",
+            "addTags": [
+              "secured-route"
+            ]
           }
         ],
         "next": {
@@ -1343,13 +1453,30 @@
           {
             "type": "gainXp",
             "amount": 8
+          },
+          {
+            "type": "setFlag",
+            "key": "doctrine_shadow_tolls",
+            "value": true
+          },
+          {
+            "type": "transformCard",
+            "cardId": "card_mire_bridge",
+            "toStatus": "occupied",
+            "addTags": [
+              "tolled-route"
+            ]
           }
         ],
         "next": {
           "type": "atlas"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Ledger Clerk Neris"
+    ],
+    "lore": "Route funding policy determines civilian access versus toll extraction."
   },
   {
     "id": "archive_deepstacks",
@@ -1448,7 +1575,11 @@
           "sceneId": "archive_living_index"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Spore Wardens"
+    ],
+    "lore": "Deepstack annals tie Regent and Wellsong custodians to prior collapses."
   },
   {
     "id": "archive_living_index",
@@ -1487,6 +1618,19 @@
           {
             "type": "gainXp",
             "amount": 9
+          },
+          {
+            "type": "setFlag",
+            "key": "doctrine_open_records",
+            "value": true
+          },
+          {
+            "type": "transformCard",
+            "cardId": "card_root_archive",
+            "toStatus": "visible",
+            "addTags": [
+              "open-ledger"
+            ]
           }
         ],
         "next": {
@@ -1513,13 +1657,30 @@
           {
             "type": "gainXp",
             "amount": 9
+          },
+          {
+            "type": "setFlag",
+            "key": "doctrine_command_secrecy",
+            "value": true
+          },
+          {
+            "type": "transformCard",
+            "cardId": "card_root_archive",
+            "toStatus": "occupied",
+            "addTags": [
+              "sealed-ledger"
+            ]
           }
         ],
         "next": {
           "type": "atlas"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Root Curator Elsin"
+    ],
+    "lore": "Publication strategy shapes trust in every faction command chain."
   },
   {
     "id": "mire_midspan",
@@ -1581,7 +1742,11 @@
           "sceneId": "mire_sunken_cache"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Bridge Crew Redline"
+    ],
+    "lore": "A failed crossing delays containment convoys and increases local pressure."
   },
   {
     "id": "mire_sunken_cache",
@@ -1639,7 +1804,11 @@
           "type": "atlas"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Relief Quartermaster Jun"
+    ],
+    "lore": "Cache allocation directly affects district survival odds."
   },
   {
     "id": "mirror_underface",
@@ -1736,7 +1905,11 @@
           "sceneId": "mirror_wake"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Future Echoes"
+    ],
+    "lore": "Forecasts trade psychological strain for strategic foresight."
   },
   {
     "id": "mirror_wake",
@@ -1801,7 +1974,11 @@
           "type": "atlas"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Concord Recon Pair"
+    ],
+    "lore": "Disclosing prophecy shifts institutional trust and response tempo."
   },
   {
     "id": "forge_quench",
@@ -1876,7 +2053,11 @@
           "sceneId": "forge_commission"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Hammerline Apprentices"
+    ],
+    "lore": "One stable production run can reopen multiple relief routes."
   },
   {
     "id": "forge_commission",
@@ -1907,6 +2088,19 @@
           {
             "type": "gainXp",
             "amount": 9
+          },
+          {
+            "type": "setFlag",
+            "key": "doctrine_public_routes",
+            "value": true
+          },
+          {
+            "type": "transformCard",
+            "cardId": "card_shard_forge",
+            "toStatus": "visible",
+            "addTags": [
+              "civic-forge"
+            ]
           }
         ],
         "next": {
@@ -1933,12 +2127,29 @@
           {
             "type": "gainXp",
             "amount": 9
+          },
+          {
+            "type": "setFlag",
+            "key": "doctrine_private_routes",
+            "value": true
+          },
+          {
+            "type": "transformCard",
+            "cardId": "card_shard_forge",
+            "toStatus": "occupied",
+            "addTags": [
+              "private-forge"
+            ]
           }
         ],
         "next": {
           "type": "atlas"
         }
       }
-    ]
+    ],
+    "npcs": [
+      "Dispatch Officer Mora"
+    ],
+    "lore": "Final recipient determines whether routing becomes public utility or private privilege."
   }
 ]

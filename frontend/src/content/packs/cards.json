@@ -110,7 +110,15 @@
     "entrySceneId": "astral_discovery_1",
     "postArcVariantId": "card_prism_step_resolved",
     "postArcStatus": "cleared",
-    "postArcSceneId": "astral_aftermath"
+    "postArcSceneId": "astral_aftermath",
+    "requires": [
+      {
+        "type": "flag",
+        "key": "arc_astral_access",
+        "op": "==",
+        "value": true
+      }
+    ]
   },
   {
     "id": "card_sunken_orrery",
@@ -123,7 +131,15 @@
     ],
     "danger": 3,
     "rarity": "uncommon",
-    "entrySceneId": "astral_escalation_1"
+    "entrySceneId": "astral_escalation_1",
+    "requires": [
+      {
+        "type": "flag",
+        "key": "arc_astral_access",
+        "op": "==",
+        "value": true
+      }
+    ]
   },
   {
     "id": "card_mirror_lake",
@@ -135,7 +151,15 @@
     ],
     "danger": 2,
     "rarity": "uncommon",
-    "entrySceneId": "mirror_reflection"
+    "entrySceneId": "mirror_reflection",
+    "requires": [
+      {
+        "type": "flag",
+        "key": "arc_astral_access",
+        "op": "==",
+        "value": true
+      }
+    ]
   },
   {
     "id": "card_shard_forge",
@@ -147,7 +171,15 @@
     ],
     "danger": 2,
     "rarity": "common",
-    "entrySceneId": "forge_tithe"
+    "entrySceneId": "forge_tithe",
+    "requires": [
+      {
+        "type": "flag",
+        "key": "arc_astral_access",
+        "op": "==",
+        "value": true
+      }
+    ]
   },
   {
     "id": "card_starwell_rim",

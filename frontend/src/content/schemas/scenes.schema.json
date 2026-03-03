@@ -10,6 +10,8 @@
       "cardId": { "type": "string" },
       "body": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
       "tags": { "type": "array", "items": { "type": "string" } },
+      "npcs": { "type": "array", "items": { "type": "string" } },
+      "lore": { "type": "string" },
       "onEnterEffects": { "type": "array" },
       "choices": {
         "type": "array",

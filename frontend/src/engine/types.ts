@@ -74,6 +74,8 @@ export type Scene = {
   cardId?: string;
   body: string[];
   tags: string[];
+  npcs?: string[];
+  lore?: string;
   onEnterEffects?: Effect[];
   choices: Choice[];
 };

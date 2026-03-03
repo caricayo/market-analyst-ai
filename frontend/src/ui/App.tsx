@@ -8,6 +8,15 @@ import { evaluateRequires } from "../engine/predicates";
 import type { CardDefinition, Choice, GameState, StatKey } from "../engine/types";
 import { CardImage } from "./components/CardImage";
 
+const DOCTRINE_LABELS: Array<{ key: string; label: string }> = [
+  { key: "doctrine_civilian_corridors", label: "Civilian Corridors (Pilgrim-aligned logistics)" },
+  { key: "doctrine_shadow_tolls", label: "Shadow Tolls (Undercourt route leverage)" },
+  { key: "doctrine_open_records", label: "Open Records (public archive disclosure)" },
+  { key: "doctrine_command_secrecy", label: "Command Secrecy (Concord-controlled records)" },
+  { key: "doctrine_public_routes", label: "Public Routes (open navigation rights)" },
+  { key: "doctrine_private_routes", label: "Private Routes (privileged convoy rights)" },
+];
+
 function statusBadge(value: string): string {
   return value.replace("_", " ").toUpperCase();
 }
@@ -51,6 +60,15 @@ export function App() {
   const currentScene = getCurrentScene(state, registry);
   const tags = Array.from(new Set(registry.cards.flatMap((card) => card.tags))).sort();
   const unspentStatPoints = Number(state.flags.stat_points ?? 0);
+  const activeDoctrines = DOCTRINE_LABELS.filter((entry) => state.flags[entry.key] === true).map((entry) => entry.label);
+
+  const campaignObjective = (() => {
+    const ember = state.arcStates.arc_ember_crown ?? "inactive";
+    const astral = state.arcStates.arc_astral_well ?? "inactive";
+    if (!String(ember).startsWith("resolved_")) return "Stabilize Ember Hollow and resolve the Crownfire knot.";
+    if (!String(astral).startsWith("resolved_")) return "Pursue the Starwell harmonic and settle the sky-knot.";
+    return "Campaign complete: explore aftermath cards, reputations, and New Game+ variants.";
+  })();
 
   const cards = registry.cards.filter((card) => {
     if (filterRegion !== "all" && card.regionId !== filterRegion) return false;
@@ -149,12 +167,19 @@ export function App() {
             <p>Level {state.player.level} ({state.player.xp}/{state.player.xpToNext} XP)</p>
             <p>HP {state.player.hp}/{state.player.maxHp} | Mana {state.player.mana}/{state.player.maxMana}</p>
             <p>Corruption: {state.player.corruption}</p>
+            <p><strong>Campaign Objective:</strong> {campaignObjective}</p>
             {state.activeDungeon && <p className="alert-line">Expedition active: finish the current dungeon route.</p>}
             <h3>Arc Status</h3>
             <ul>
               {registry.arcs.map((arc) => (
                 <li key={arc.id}>{arc.title}: <strong>{statusBadge(state.arcStates[arc.id])}</strong></li>
               ))}
+            </ul>
+            <h3>Active Doctrines</h3>
+            <ul>
+              {activeDoctrines.length > 0
+                ? activeDoctrines.map((entry) => <li key={entry}>{entry}</li>)
+                : <li>No doctrine locked yet. Hub decisions will define campaign policy.</li>}
             </ul>
             <h3>Endings</h3>
             <p>{state.endings.length} unlocked</p>
@@ -221,6 +246,12 @@ export function App() {
             <div>
               <h2>{currentScene.title}</h2>
               <p className="muted">{currentScene.tags.join(" | ")}</p>
+              {currentScene.npcs && currentScene.npcs.length > 0 && (
+                <p className="muted"><strong>Who's Here:</strong> {currentScene.npcs.join(", ")}</p>
+              )}
+              {currentScene.lore && (
+                <p className="muted"><strong>Lore:</strong> {currentScene.lore}</p>
+              )}
             </div>
           </div>
 
