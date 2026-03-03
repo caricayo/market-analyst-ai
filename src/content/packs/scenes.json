@@ -439,6 +439,52 @@
     ]
   },
   {
+    "id": "ember_aftermath",
+    "title": "Aftermath of the Hollow",
+    "cardId": "card_ember_hollow",
+    "body": [
+      "The old oathstones are cold now, and pilgrims speak of your verdict in cautious tones.",
+      "The Ember Crown is sealed in memory. The atlas points toward a new fracture in glass."
+    ],
+    "tags": [
+      "aftermath",
+      "arc1"
+    ],
+    "rewardProfile": "once",
+    "diminishingEligible": false,
+    "choices": [
+      {
+        "id": "ember_aftermath_seek_astral",
+        "text": "Follow the next omen toward Prism Steppe",
+        "requires": [
+          {
+            "type": "flag",
+            "key": "arc_astral_discovered",
+            "op": "==",
+            "value": false
+          }
+        ],
+        "cost": {
+          "time": 1
+        },
+        "next": {
+          "type": "scene",
+          "sceneId": "astral_discovery_1"
+        }
+      },
+      {
+        "id": "ember_aftermath_depart",
+        "text": "Leave the shrine and return to the atlas",
+        "cost": {
+          "time": 1
+        },
+        "next": {
+          "type": "atlas"
+        }
+      }
+    ]
+  },
+  {
     "id": "astral_discovery_1",
     "title": "Song Beneath Glass",
     "cardId": "card_prism_step",
@@ -834,6 +880,33 @@
           "type": "endArc",
           "arcId": "arc_astral_well",
           "endingId": "union"
+        }
+      }
+    ]
+  },
+  {
+    "id": "astral_aftermath",
+    "title": "Aftermath of the Steppe",
+    "cardId": "card_prism_step",
+    "body": [
+      "The glass plains hold a steadier note, as if the sky itself is listening for your next move.",
+      "Your major vows are complete. What remains is curation, recovery, and New Game+ ambition."
+    ],
+    "tags": [
+      "aftermath",
+      "arc2"
+    ],
+    "rewardProfile": "once",
+    "diminishingEligible": false,
+    "choices": [
+      {
+        "id": "astral_aftermath_reflect",
+        "text": "Record the ending and return to atlas",
+        "cost": {
+          "time": 1
+        },
+        "next": {
+          "type": "atlas"
         }
       }
     ]

@@ -30,5 +30,17 @@ describe("save/load roundtrip", () => {
     clearSave();
     expect(loadGame(registry)).toBeNull();
   });
+
+  it("migrates v1 saves by adding economy defaults", () => {
+    const base = createInitialState("legacy-seed", registry);
+    const legacyState = { ...base, version: 1 } as any;
+    delete legacyState.economy;
+    localStorage.setItem("mystic-atlas-save", JSON.stringify({ version: 1, state: legacyState }));
+
+    const loaded = loadGame(registry);
+    expect(loaded).not.toBeNull();
+    expect(loaded?.version).toBe(2);
+    expect(loaded?.economy.cardDailyRuns).toEqual({});
+  });
 });
 

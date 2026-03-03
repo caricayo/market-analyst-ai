@@ -169,3 +169,37 @@ export function spendStatPoint(state: GameState, stat: StatKey): GameState {
   };
 }
 
+export function getCardRunCountForDay(state: GameState, cardId: string, day: number = state.time.day): number {
+  const record = state.economy.cardDailyRuns[cardId];
+  if (!record || record.day !== day) {
+    return 0;
+  }
+  return record.runs;
+}
+
+export function getDailyDiminishingMultiplier(runCountForDay: number): number {
+  if (runCountForDay <= 0) return 1;
+  if (runCountForDay === 1) return 0.5;
+  return 0.2;
+}
+
+export function incrementCardRunCount(state: GameState, cardId: string): GameState {
+  const current = state.economy.cardDailyRuns[cardId];
+  const isSameDay = current?.day === state.time.day;
+  const runs = isSameDay ? current.runs + 1 : 1;
+
+  return {
+    ...state,
+    economy: {
+      ...state.economy,
+      cardDailyRuns: {
+        ...state.economy.cardDailyRuns,
+        [cardId]: {
+          day: state.time.day,
+          runs,
+        },
+      },
+    },
+  };
+}
+

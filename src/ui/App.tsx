@@ -3,7 +3,8 @@ import { getRegistry } from "../engine/registry";
 import { createInitialState, loadGame, saveGame } from "../engine/save";
 import { RISK_BASE, RISK_DIFFICULTY_MULTIPLIER, RISK_STAT_MULTIPLIER } from "../engine/checks";
 import { canPayCost, isCardUnlocked, spendStatPoint } from "../engine/state";
-import { enterCard, getCurrentScene, resolveCurrentChoice } from "../engine/story";
+import { getPrimaryObjective } from "../engine/objectives";
+import { enterCard, getCurrentRenderableSceneId, getCurrentScene, resolveCurrentChoice } from "../engine/story";
 import { evaluateRequires } from "../engine/predicates";
 import type { CardDefinition, Choice, GameState, StatKey } from "../engine/types";
 import { CardImage } from "./components/CardImage";
@@ -56,6 +57,16 @@ export function App() {
     if (filterRegion !== "all" && card.regionId !== filterRegion) return false;
     if (filterTag !== "all" && !card.tags.includes(filterTag)) return false;
     return true;
+  });
+  const primaryObjective = getPrimaryObjective(state, registry);
+  const sortedCards = [...cards].sort((a, b) => {
+    const aObjective = primaryObjective?.cardId === a.id ? 1 : 0;
+    const bObjective = primaryObjective?.cardId === b.id ? 1 : 0;
+    if (aObjective !== bObjective) return bObjective - aObjective;
+    const aUnlocked = isCardUnlocked(state, registry, a.id) ? 1 : 0;
+    const bUnlocked = isCardUnlocked(state, registry, b.id) ? 1 : 0;
+    if (aUnlocked !== bUnlocked) return bUnlocked - aUnlocked;
+    return a.title.localeCompare(b.title);
   });
 
   const beginNewRun = () => {
@@ -161,6 +172,23 @@ export function App() {
           </aside>
 
           <section className="panel atlas-panel">
+            {primaryObjective && (
+              <div className="objective-banner" aria-live="polite">
+                <div>
+                  <p className="objective-label">Primary Objective</p>
+                  <h3>{primaryObjective.label}</h3>
+                  <p className="muted">{primaryObjective.reason}</p>
+                </div>
+                <button
+                  className="primary objective-cta"
+                  onClick={() => handleCardSelect(registry.byId.cards[primaryObjective.cardId])}
+                  disabled={!isCardUnlocked(state, registry, primaryObjective.cardId)}
+                >
+                  Go To {registry.byId.cards[primaryObjective.cardId]?.title ?? "Target"}
+                </button>
+              </div>
+            )}
+
             <div className="filters">
               <label>
                 Region
@@ -183,14 +211,15 @@ export function App() {
             </div>
 
             <div className="card-grid">
-              {cards.map((card) => {
+              {sortedCards.map((card) => {
                 const unlocked = isCardUnlocked(state, registry, card.id);
                 const locationState = state.world.locations[card.id];
                 const variantTriggered = card.corruptionVariantAt !== undefined && (state.world.regions[card.regionId]?.corruption ?? 0) >= card.corruptionVariantAt;
+                const isObjective = primaryObjective?.cardId === card.id;
                 return (
                   <button
                     key={card.id}
-                    className={`env-card ${unlocked ? "" : "locked"}`}
+                    className={`env-card ${unlocked ? "" : "locked"} ${isObjective ? "objective" : ""}`}
                     onClick={() => handleCardSelect(card)}
                     disabled={!unlocked}
                     aria-label={`${card.title} ${unlocked ? "available" : "locked"}`}
@@ -199,6 +228,7 @@ export function App() {
                     <div className="env-meta">
                       <h3>{card.title}</h3>
                       <p>{card.flavor}</p>
+                      {isObjective && <p className="objective-badge">Objective</p>}
                       <div className="chip-row">
                         {card.tags.slice(0, 4).map((tag) => <span key={tag} className="chip">{tag}</span>)}
                       </div>
@@ -221,6 +251,7 @@ export function App() {
             <div>
               <h2>{currentScene.title}</h2>
               <p className="muted">{currentScene.tags.join(" | ")}</p>
+              <p className="muted">Scene ID: {getCurrentRenderableSceneId(state) ?? "none"}</p>
             </div>
           </div>
 

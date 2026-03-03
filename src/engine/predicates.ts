@@ -5,10 +5,14 @@ export function evaluatePredicate(state: GameState, predicate: Predicate): boole
     case "minLevel":
       return state.player.level >= predicate.value;
     case "flag": {
-      const current = state.flags[predicate.key] ?? 0;
+      const currentRaw = state.flags[predicate.key];
       if (predicate.op === "==") {
-        return current === predicate.value;
+        if (typeof predicate.value === "boolean") {
+          return Boolean(currentRaw ?? false) === predicate.value;
+        }
+        return Number(currentRaw ?? 0) === predicate.value;
       }
+      const current = Number(currentRaw ?? 0);
       if (typeof current !== "number" || typeof predicate.value !== "number") {
         return false;
       }

@@ -117,6 +117,30 @@ button:disabled {
   margin-bottom: 1rem;
 }
 
+.objective-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(232, 188, 127, 0.6);
+  border-radius: 0.8rem;
+  background: linear-gradient(180deg, rgba(55, 38, 27, 0.85), rgba(33, 23, 17, 0.92));
+}
+
+.objective-label {
+  margin: 0 0 0.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: #e2b67b;
+}
+
+.objective-cta {
+  white-space: nowrap;
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
@@ -135,8 +159,26 @@ button:disabled {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
 }
 
+.env-card.objective {
+  border-color: rgba(232, 188, 127, 0.9);
+  box-shadow: 0 0 0 1px rgba(232, 188, 127, 0.55), 0 12px 20px rgba(0, 0, 0, 0.35);
+}
+
 .env-card.locked {
   filter: grayscale(0.5);
+}
+
+.objective-badge {
+  display: inline-block;
+  margin: 0.25rem 0 0.4rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.35rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(232, 188, 127, 0.16);
+  border: 1px solid rgba(232, 188, 127, 0.65);
+  color: #f0c995;
 }
 
 .card-image {
@@ -250,6 +292,11 @@ button:disabled {
 @media (max-width: 900px) {
   .atlas-layout {
     grid-template-columns: 1fr;
+  }
+
+  .objective-banner {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .mobile-world-toggle {

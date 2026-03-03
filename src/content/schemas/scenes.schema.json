@@ -10,6 +10,8 @@
       "cardId": { "type": "string" },
       "body": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
       "tags": { "type": "array", "items": { "type": "string" } },
+      "rewardProfile": { "enum": ["arcCritical", "repeatable", "once"] },
+      "diminishingEligible": { "type": "boolean" },
       "onEnterEffects": { "type": "array" },
       "choices": {
         "type": "array",

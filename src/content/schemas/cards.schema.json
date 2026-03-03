@@ -15,7 +15,10 @@
       "entrySceneId": { "type": "string" },
       "requires": { "type": "array" },
       "corruptionVariantAt": { "type": "number" },
-      "variantId": { "type": "string" }
+      "variantId": { "type": "string" },
+      "postArcVariantId": { "type": "string" },
+      "postArcStatus": { "enum": ["hidden", "visible", "cleared", "corrupted", "occupied"] },
+      "postArcSceneId": { "type": "string" }
     }
   }
 }

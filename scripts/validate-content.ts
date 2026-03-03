@@ -69,6 +69,9 @@ for (const card of cards) {
   if (!sceneIds.has(card.entrySceneId)) {
     errors.push(`cards.json: card ${card.id} references missing scene ${card.entrySceneId}`);
   }
+  if (card.postArcSceneId && !sceneIds.has(card.postArcSceneId)) {
+    errors.push(`cards.json: card ${card.id} references missing postArcSceneId ${card.postArcSceneId}`);
+  }
   const imagePath = path.join(assetsDir, `${card.id}.png`);
   if (!fs.existsSync(imagePath)) {
     errors.push(`assets: missing card image ${card.id}.png`);
@@ -91,6 +94,12 @@ for (const scene of scenes) {
     }
     if (next.type === "endArc" && !arcIds.has(next.arcId)) {
       errors.push(`scenes.json: ${scene.id}/${choice.id} next arc missing: ${next.arcId}`);
+    }
+    if (next.type === "endArc" && arcIds.has(next.arcId)) {
+      const arc = arcs.find((entry) => entry.id === next.arcId);
+      if (arc && !arc.worldTransforms?.[next.endingId]) {
+        errors.push(`scenes.json: ${scene.id}/${choice.id} references missing endingId ${next.endingId} for ${next.arcId}`);
+      }
     }
 
     for (const requirement of choice.requires ?? []) {

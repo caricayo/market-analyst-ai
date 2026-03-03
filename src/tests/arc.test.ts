@@ -25,5 +25,16 @@ describe("arc completion", () => {
     expect(resolved.endingSummary?.unlockedCards).toContain("card_thorn_bastion");
     expect(resolved.endingSummary?.unlockedCards).not.toContain("card_root_archive");
   });
+
+  it("does not append duplicate ending entries for the same arc ending", () => {
+    const state = createInitialState("arc-seed-dup", registry);
+    const arc = registry.byId.arcs["arc_ember_crown"];
+    const once = resolveArcEnd(state, arc, "dawn");
+    const twice = resolveArcEnd(once, arc, "dawn");
+
+    const matches = twice.endings.filter((entry) => entry.arcId === "arc_ember_crown" && entry.endingId === "dawn");
+    expect(matches).toHaveLength(1);
+    expect(twice.endingSummary?.worldChanges).toContain("Arc already resolved in this run.");
+  });
 });
 

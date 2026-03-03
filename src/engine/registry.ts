@@ -32,6 +32,9 @@ function validateRegistry(registry: ContentRegistry): void {
     if (!registry.byId.scenes[card.entrySceneId]) {
       throw new Error(`Card ${card.id} references missing entry scene ${card.entrySceneId}`);
     }
+    if (card.postArcSceneId && !registry.byId.scenes[card.postArcSceneId]) {
+      throw new Error(`Card ${card.id} references missing post-arc scene ${card.postArcSceneId}`);
+    }
   }
 
   for (const scene of registry.scenes) {
@@ -44,6 +47,12 @@ function validateRegistry(registry: ContentRegistry): void {
       }
       if (choice.next.type === "endArc" && !registry.byId.arcs[choice.next.arcId]) {
         throw new Error(`Scene ${scene.id} choice ${choice.id} points to missing arc ${choice.next.arcId}`);
+      }
+      if (choice.next.type === "endArc") {
+        const arc = registry.byId.arcs[choice.next.arcId];
+        if (arc && !arc.worldTransforms[choice.next.endingId]) {
+          throw new Error(`Scene ${scene.id} choice ${choice.id} uses unknown ending ${choice.next.endingId} for arc ${choice.next.arcId}`);
+        }
       }
     }
   }

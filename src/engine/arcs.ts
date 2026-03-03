@@ -1,4 +1,5 @@
 import type { ArcDefinition, ArcPhase, GameState, WorldTransform } from "./types";
+import { isResolvedArcPhase } from "./objectives";
 
 export function applyWorldTransform(state: GameState, transform: WorldTransform): { state: GameState; changes: string[]; unlockedCards: string[] } {
   let next = state;
@@ -89,6 +90,25 @@ export function setArcPhase(state: GameState, arcId: string, phase: ArcPhase): G
 }
 
 export function resolveArcEnd(state: GameState, arc: ArcDefinition, endingId: string): GameState {
+  const currentPhase = state.arcStates[arc.id] ?? "inactive";
+  if (isResolvedArcPhase(currentPhase)) {
+    return {
+      ...state,
+      currentScreen: "endArc",
+      endingSummary: {
+        arcId: arc.id,
+        endingId: currentPhase.replace("resolved_", ""),
+        worldChanges: ["Arc already resolved in this run."],
+        unlockedCards: [],
+        statDelta: [
+          `Corruption: ${state.player.corruption} -> ${state.player.corruption}`,
+          `HP: ${state.player.hp} -> ${state.player.hp}`,
+          `Mana: ${state.player.mana} -> ${state.player.mana}`,
+        ],
+      },
+    };
+  }
+
   const endingKey = `resolved_${endingId}` as ArcPhase;
   const transform = arc.worldTransforms[endingId] ?? {};
   const withPhase = setArcPhase(state, arc.id, endingKey);
@@ -102,10 +122,15 @@ export function resolveArcEnd(state: GameState, arc: ArcDefinition, endingId: st
     },
   };
 
+  const endingExists = recovered.endings.some((entry) => entry.arcId === arc.id && entry.endingId === endingId);
+  const nextEndings = endingExists
+    ? recovered.endings
+    : [...recovered.endings, { arcId: arc.id, endingId, day: state.time.day, turn: state.time.turn }];
+
   return {
     ...recovered,
     currentScreen: "endArc",
-    endings: [...recovered.endings, { arcId: arc.id, endingId, day: state.time.day, turn: state.time.turn }],
+    endings: nextEndings,
     endingSummary: {
       arcId: arc.id,
       endingId,

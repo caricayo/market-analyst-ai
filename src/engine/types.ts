@@ -74,6 +74,8 @@ export type Scene = {
   cardId?: string;
   body: string[];
   tags: string[];
+  rewardProfile?: "arcCritical" | "repeatable" | "once";
+  diminishingEligible?: boolean;
   onEnterEffects?: Effect[];
   choices: Choice[];
 };
@@ -92,6 +94,9 @@ export type CardDefinition = {
   requires?: Predicate[];
   corruptionVariantAt?: number;
   variantId?: string;
+  postArcVariantId?: string;
+  postArcStatus?: CardStatus;
+  postArcSceneId?: string;
 };
 
 export type RegionDefinition = {
@@ -232,6 +237,10 @@ export type LocationState = {
   lastVisitedTurn?: number;
 };
 
+export type EconomyState = {
+  cardDailyRuns: Record<string, { day: number; runs: number }>;
+};
+
 export type GameState = {
   version: number;
   runId: string;
@@ -258,6 +267,7 @@ export type GameState = {
     regions: Record<string, { corruption: number }>;
     locations: Record<string, LocationState>;
   };
+  economy: EconomyState;
   arcStates: Record<string, ArcPhase>;
   endings: Array<{ arcId: string; endingId: string; day: number; turn: number }>;
   ngPlusTier: number;

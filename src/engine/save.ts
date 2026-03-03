@@ -1,7 +1,7 @@
 import { createSeedFromString } from "./rng";
 import type { ContentRegistry, GameState } from "./types";
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 const SAVE_KEY = "mystic-atlas-save";
 
 export type SaveEnvelope = {
@@ -67,6 +67,9 @@ export function createInitialState(seedText: string, registry: ContentRegistry):
       regions,
       locations,
     },
+    economy: {
+      cardDailyRuns: {},
+    },
     arcStates,
     endings: [],
     ngPlusTier: 0,
@@ -98,12 +101,30 @@ export function loadGame(registry: ContentRegistry): GameState | null {
 
 function migrateState(envelope: SaveEnvelope, registry: ContentRegistry): GameState {
   if (envelope.version === SAVE_VERSION) {
-    return envelope.state;
+    return normalizeState(envelope.state);
   }
+
+  if (envelope.version === 1) {
+    return normalizeState({
+      ...envelope.state,
+      version: SAVE_VERSION,
+    } as GameState);
+  }
+
   // Migration stub for future save versions.
   return {
     ...createInitialState("migrated-seed", registry),
     outcomeLog: ["Save migration fallback applied."],
+  };
+}
+
+function normalizeState(state: GameState): GameState {
+  return {
+    ...state,
+    version: SAVE_VERSION,
+    economy: {
+      cardDailyRuns: state.economy?.cardDailyRuns ?? {},
+    },
   };
 }
 

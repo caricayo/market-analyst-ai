@@ -3,12 +3,14 @@ import { resolveRiskCheck, type RiskTier } from "./checks";
 import { applyEffects } from "./effects";
 import { completeCurrentDungeonNode, generateDungeonGraph, leaveDungeon, moveToNextDungeonNode } from "./dungeon";
 import { rollLoot } from "./loot";
+import { getArcByEntryCardId, isResolvedArcPhase } from "./objectives";
 import { evaluateRequires } from "./predicates";
-import { applyCost, applyLeveling, canPayCost } from "./state";
+import { applyCost, applyLeveling, canPayCost, getCardRunCountForDay, getDailyDiminishingMultiplier, incrementCardRunCount } from "./state";
 import type { Choice, ContentRegistry, GameState, NextTarget, Scene } from "./types";
 
 type RiskResolveOptions = {
   applyNextTarget?: boolean;
+  rewardMultiplier?: number;
 };
 
 function applySceneOnEnter(state: GameState, sceneId: string, registry: ContentRegistry): GameState {
@@ -21,6 +23,48 @@ function applySceneOnEnter(state: GameState, sceneId: string, registry: ContentR
     ...applied.state,
     outcomeLog: [...applied.state.outcomeLog, ...applied.logs],
   };
+}
+
+function scaleRewardNumber(amount: number, multiplier: number): number {
+  if (amount <= 0 || multiplier >= 1) {
+    return amount;
+  }
+  return Math.max(1, Math.round(amount * multiplier));
+}
+
+function scaleRewardEffects(
+  effects: Choice["effects"] | undefined,
+  rewardMultiplier: number,
+): Choice["effects"] | undefined {
+  if (!effects || rewardMultiplier >= 1) {
+    return effects;
+  }
+  return effects.map((effect) => {
+    if (effect.type === "gainXp") {
+      return { ...effect, amount: scaleRewardNumber(effect.amount, rewardMultiplier) };
+    }
+    if (effect.type === "adjustRep" && effect.by > 0) {
+      return { ...effect, by: scaleRewardNumber(effect.by, rewardMultiplier) };
+    }
+    return effect;
+  });
+}
+
+function hasRewardEffects(effects: Choice["effects"] | undefined): boolean {
+  if (!effects || effects.length === 0) {
+    return false;
+  }
+  return effects.some((effect) => effect.type === "gainXp" || effect.type === "adjustRep" || effect.type === "addItem");
+}
+
+function canChoiceGrantRewards(choice: Choice): boolean {
+  if (hasRewardEffects(choice.effects)) {
+    return true;
+  }
+  if (!choice.outcomes) {
+    return false;
+  }
+  return Object.values(choice.outcomes).some((outcome) => hasRewardEffects(outcome?.effects));
 }
 
 function applyNext(state: GameState, next: NextTarget, registry: ContentRegistry): GameState {
@@ -98,12 +142,15 @@ function resolveChoiceByRisk(
   registry: ContentRegistry,
   options?: RiskResolveOptions,
 ): { state: GameState; log: string; tier?: RiskTier } {
+  const rewardMultiplier = options?.rewardMultiplier ?? 1;
   if (!choice.check) {
-    const afterEffects = applyEffects(state, choice.effects, registry);
+    const afterEffects = applyEffects(state, scaleRewardEffects(choice.effects, rewardMultiplier), registry);
     const afterNext = options?.applyNextTarget === false
       ? afterEffects.state
       : applyNext(afterEffects.state, choice.next, registry);
-    return { state: afterNext, log: afterEffects.logs.join(" ") || `You chose ${choice.text}.` };
+    const baseLog = afterEffects.logs.join(" ") || `You chose ${choice.text}.`;
+    const scaledLog = rewardMultiplier < 1 ? `Diminishing returns: ${Math.round(rewardMultiplier * 100)}% rewards applied.` : "";
+    return { state: afterNext, log: [baseLog, scaledLog].filter(Boolean).join(" ") };
   }
 
   const risk = resolveRiskCheck(state, choice.check);
@@ -112,10 +159,10 @@ function resolveChoiceByRisk(
   const tierKey = risk.tier === "fail-forward" ? "failForward" : risk.tier;
   const tierOutcome = choice.outcomes?.[tierKey];
 
-  const initialEffects = applyEffects(next, choice.effects, registry);
+  const initialEffects = applyEffects(next, scaleRewardEffects(choice.effects, rewardMultiplier), registry);
   next = initialEffects.state;
 
-  const tierEffects = applyEffects(next, tierOutcome?.effects, registry);
+  const tierEffects = applyEffects(next, scaleRewardEffects(tierOutcome?.effects, rewardMultiplier), registry);
   next = tierEffects.state;
 
   if (options?.applyNextTarget !== false) {
@@ -124,9 +171,10 @@ function resolveChoiceByRisk(
   }
 
   const label = formatRiskLog(choice, state, risk.roll, risk.target, risk.tier, tierOutcome?.text);
+  const scaledLog = rewardMultiplier < 1 ? `Diminishing returns: ${Math.round(rewardMultiplier * 100)}% rewards applied.` : "";
   return {
     state: next,
-    log: [label, ...initialEffects.logs, ...tierEffects.logs].filter(Boolean).join(" "),
+    log: [label, ...initialEffects.logs, ...tierEffects.logs, scaledLog].filter(Boolean).join(" "),
     tier: risk.tier,
   };
 }
@@ -143,6 +191,39 @@ export function enterCard(state: GameState, registry: ContentRegistry, cardId: s
 
   const card = registry.byId.cards[cardId];
   if (!card) return state;
+  const entryArc = getArcByEntryCardId(registry, cardId);
+
+  if (entryArc) {
+    const phase = state.arcStates[entryArc.id] ?? "inactive";
+    if (isResolvedArcPhase(phase)) {
+      const transformed = applyEffects(state, [{
+        type: "transformCard",
+        cardId: card.id,
+        toStatus: card.postArcStatus ?? "cleared",
+        toVariant: card.postArcVariantId ?? `${card.id}_resolved`,
+        addTags: ["resolved"],
+      }], registry);
+
+      if (!card.postArcSceneId) {
+        return {
+          ...transformed.state,
+          currentScreen: "atlas",
+          activeSceneId: undefined,
+          activeCardId: card.id,
+          outcomeLog: [...transformed.state.outcomeLog, "That arc is already resolved. The location has changed."],
+        };
+      }
+
+      const postArcState: GameState = {
+        ...transformed.state,
+        activeCardId: card.id,
+        activeSceneId: card.postArcSceneId,
+        currentScreen: "scene",
+      };
+      return applySceneOnEnter(postArcState, card.postArcSceneId, registry);
+    }
+  }
+
   const regionCorruption = state.world.regions[card.regionId]?.corruption ?? 0;
   let updated = state;
   if (card.corruptionVariantAt !== undefined && regionCorruption >= card.corruptionVariantAt) {
@@ -267,6 +348,13 @@ export function getCurrentScene(state: GameState, registry: ContentRegistry): Sc
   return registry.byId.scenes[state.activeSceneId] ?? null;
 }
 
+export function getCurrentRenderableSceneId(state: GameState): string | null {
+  if (state.activeDungeon) {
+    return `dungeon:${state.activeDungeon.currentNodeId}`;
+  }
+  return state.activeSceneId ?? null;
+}
+
 export function resolveCurrentChoice(state: GameState, registry: ContentRegistry, choiceId: string): GameState {
   const scene = getCurrentScene(state, registry);
   if (!scene) return state;
@@ -382,7 +470,16 @@ export function resolveCurrentChoice(state: GameState, registry: ContentRegistry
     return applyLeveling(next);
   }
 
-  const resolved = resolveChoiceByRisk(next, choice, registry);
+  const inferredRewardProfile = scene.rewardProfile ?? (scene.tags.some((tag) => tag.startsWith("arc")) ? "arcCritical" : "repeatable");
+  const sceneIsDiminishingEligible = Boolean(scene.cardId)
+    && (scene.diminishingEligible ?? true)
+    && inferredRewardProfile === "repeatable";
+  const rewardEligibleChoice = sceneIsDiminishingEligible && canChoiceGrantRewards(choice);
+  const rewardMultiplier = rewardEligibleChoice && scene.cardId
+    ? getDailyDiminishingMultiplier(getCardRunCountForDay(next, scene.cardId))
+    : 1;
+
+  const resolved = resolveChoiceByRisk(next, choice, registry, { rewardMultiplier });
   next = resolved.state;
 
   if (scene.cardId) {
@@ -399,6 +496,10 @@ export function resolveCurrentChoice(state: GameState, registry: ContentRegistry
         },
       };
     }
+  }
+
+  if (rewardEligibleChoice && scene.cardId) {
+    next = incrementCardRunCount(next, scene.cardId);
   }
 
   if (resolved.log) {
