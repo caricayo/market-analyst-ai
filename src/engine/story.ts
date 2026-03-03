@@ -1,5 +1,5 @@
 import { resolveArcEnd } from "./arcs";
-import { resolveRiskCheck } from "./checks";
+import { resolveRiskCheck, type RiskTier } from "./checks";
 import { applyEffects } from "./effects";
 import { completeCurrentDungeonNode, generateDungeonGraph, leaveDungeon, moveToNextDungeonNode } from "./dungeon";
 import { rollLoot } from "./loot";
@@ -47,7 +47,32 @@ function applyNext(state: GameState, next: NextTarget, registry: ContentRegistry
   }
 }
 
-function resolveChoiceByRisk(state: GameState, choice: Choice, registry: ContentRegistry): { state: GameState; log: string } {
+function transitionDungeonToClimax(state: GameState, registry: ContentRegistry): GameState {
+  const dungeonId = state.activeDungeon?.dungeonId;
+  const fallback = leaveDungeon(state);
+  const recoveredMana = Math.min(fallback.player.maxMana, Math.max(fallback.player.mana, 2));
+  if (!dungeonId) return fallback;
+
+  const dungeonDef = registry.byId.dungeons[dungeonId];
+  if (!dungeonDef) return fallback;
+
+  const arc = registry.byId.arcs[dungeonDef.arcId];
+  if (!arc) return fallback;
+
+  return {
+    ...fallback,
+    player: {
+      ...fallback.player,
+      mana: recoveredMana,
+    },
+    arcStates: { ...fallback.arcStates, [dungeonDef.arcId]: "climax" },
+    activeSceneId: arc.climaxSceneId,
+    currentScreen: "scene",
+    outcomeLog: [...fallback.outcomeLog, "You steady yourself before the final decision."],
+  };
+}
+
+function resolveChoiceByRisk(state: GameState, choice: Choice, registry: ContentRegistry): { state: GameState; log: string; tier?: RiskTier } {
   if (!choice.check) {
     const afterEffects = applyEffects(state, choice.effects, registry);
     const afterNext = applyNext(afterEffects.state, choice.next, registry);
@@ -73,6 +98,7 @@ function resolveChoiceByRisk(state: GameState, choice: Choice, registry: Content
   return {
     state: next,
     log: [label, ...initialEffects.logs, ...tierEffects.logs].filter(Boolean).join(" "),
+    tier: risk.tier,
   };
 }
 
@@ -108,6 +134,23 @@ export function getCurrentScene(state: GameState, registry: ContentRegistry): Sc
     const nextCount = node.next.length;
 
     const choices: Choice[] = [];
+    if (template.type === "exit") {
+      choices.push({
+        id: "leave_dungeon",
+        text: "Return to the atlas",
+        cost: { time: 1 },
+        next: { type: "atlas" },
+      });
+      return {
+        id: `dungeon_${node.id}`,
+        title: template.title,
+        cardId: state.activeCardId,
+        body: [template.body, `Danger tier: ${node.difficulty}.`],
+        tags: ["dungeon", template.type],
+        choices,
+      };
+    }
+
     if (template.type === "rest") {
       choices.push({
         id: "rest_then_move",
@@ -153,15 +196,6 @@ export function getCurrentScene(state: GameState, registry: ContentRegistry): Sc
         id: "advance_branch",
         text: "Take the side passage",
         cost: { time: 2 },
-        next: { type: "atlas" },
-      });
-    }
-
-    if (template.type === "exit") {
-      choices.push({
-        id: "leave_dungeon",
-        text: "Return to the atlas",
-        cost: { time: 1 },
         next: { type: "atlas" },
       });
     }
@@ -233,7 +267,7 @@ export function resolveCurrentChoice(state: GameState, registry: ContentRegistry
         next = { ...next, outcomeLog: [...next.outcomeLog, resolved.log] };
       }
 
-      if (resolved.log.includes("fail")) {
+      if (resolved.tier === "fail-forward") {
         next = {
           ...next,
           player: {
@@ -248,25 +282,13 @@ export function resolveCurrentChoice(state: GameState, registry: ContentRegistry
     next = completeCurrentDungeonNode(next);
 
     if (choice.id === "leave_dungeon") {
-      const dungeonDef = registry.byId.dungeons[next.activeDungeon?.dungeonId ?? ""];
-      const afterLeave = leaveDungeon(next);
-      if (!dungeonDef) {
-        return applyLeveling(afterLeave);
-      }
-      const arc = registry.byId.arcs[dungeonDef.arcId];
-      return applyLeveling({
-        ...afterLeave,
-        arcStates: { ...afterLeave.arcStates, [dungeonDef.arcId]: "climax" },
-        activeSceneId: arc.climaxSceneId,
-        currentScreen: "scene",
-      });
+      return applyLeveling(transitionDungeonToClimax(next, registry));
     }
 
     if (next.activeDungeon) {
       const choices = next.activeDungeon.nodes[next.activeDungeon.currentNodeId].next;
       if (choices.length === 0) {
-        const withLeave = leaveDungeon(next);
-        return applyLeveling(withLeave);
+        return applyLeveling(transitionDungeonToClimax(next, registry));
       }
       const targetNode = choice.id === "advance_branch" && choices.length > 1 ? choices[1] : choices[0];
       next = moveToNextDungeonNode(next, targetNode);
