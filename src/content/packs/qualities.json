@@ -1,21 +1,92 @@
 [
-  {"key":"arc_ember_intro_seen","type":"boolean","description":"Seen Ember intro scene."},
-  {"key":"arc_ember_discovered","type":"boolean","description":"Ember arc discovery complete."},
-  {"key":"arc_ember_escalated","type":"boolean","description":"Ember arc escalation complete."},
-  {"key":"arc_astral_discovered","type":"boolean","description":"Astral arc discovery complete."},
-  {"key":"arc_astral_escalated","type":"boolean","description":"Astral arc escalation complete."},
-  {"key":"ending_ember_dawn","type":"boolean","description":"Ember dawn ending unlocked."},
-  {"key":"ending_ember_ash","type":"boolean","description":"Ember ash ending unlocked."},
-  {"key":"ending_ember_oath","type":"boolean","description":"Ember oath ending unlocked."},
-  {"key":"ending_astral_tide","type":"boolean","description":"Astral tide ending unlocked."},
-  {"key":"ending_astral_shroud","type":"boolean","description":"Astral shroud ending unlocked."},
-  {"key":"ending_astral_union","type":"boolean","description":"Astral union ending unlocked."},
-  {"key":"market_route_secured","type":"boolean","description":"Market courier route intelligence secured."},
-  {"key":"lore_ember_regent","type":"boolean","description":"Recovered archive lore about the Ember Regent."},
-  {"key":"mirror_prophecy","type":"boolean","description":"Accepted and retained mirror-lake prophecy."},
-  {"key":"wound_marks","type":"number","description":"Persistent injury indicator."},
-  {"key":"stat_points","type":"number","description":"Unspent stat points from level ups."},
-  {"key":"reroll_day_used","type":"number","description":"Chronicle Die usage tracker."},
-  {"key":"reroll_day_stamp","type":"number","description":"Current day for reroll reset."}
+  {
+    "key": "arc_ember_intro_seen",
+    "type": "boolean",
+    "description": "Seen Covenant Part I intro scene."
+  },
+  {
+    "key": "arc_ember_discovered",
+    "type": "boolean",
+    "description": "Part I discovery complete."
+  },
+  {
+    "key": "arc_ember_escalated",
+    "type": "boolean",
+    "description": "Part I escalation complete."
+  },
+  {
+    "key": "arc_astral_discovered",
+    "type": "boolean",
+    "description": "Part II discovery complete."
+  },
+  {
+    "key": "arc_astral_escalated",
+    "type": "boolean",
+    "description": "Part II escalation complete."
+  },
+  {
+    "key": "ending_ember_dawn",
+    "type": "boolean",
+    "description": "Dawn Ledger ending unlocked."
+  },
+  {
+    "key": "ending_ember_ash",
+    "type": "boolean",
+    "description": "Ash Regency ending unlocked."
+  },
+  {
+    "key": "ending_ember_oath",
+    "type": "boolean",
+    "description": "Floodline Compact ending unlocked."
+  },
+  {
+    "key": "ending_astral_tide",
+    "type": "boolean",
+    "description": "Rain Without Permission ending unlocked."
+  },
+  {
+    "key": "ending_astral_shroud",
+    "type": "boolean",
+    "description": "Veil Regency ending unlocked."
+  },
+  {
+    "key": "ending_astral_union",
+    "type": "boolean",
+    "description": "Charter Chorus ending unlocked."
+  },
+  {
+    "key": "market_route_secured",
+    "type": "boolean",
+    "description": "Market courier route intelligence secured."
+  },
+  {
+    "key": "lore_ember_regent",
+    "type": "boolean",
+    "description": "Recovered archive lore about the regent seat engine."
+  },
+  {
+    "key": "mirror_prophecy",
+    "type": "boolean",
+    "description": "Accepted and retained mirror-lake prophecy."
+  },
+  {
+    "key": "wound_marks",
+    "type": "number",
+    "description": "Persistent injury indicator."
+  },
+  {
+    "key": "stat_points",
+    "type": "number",
+    "description": "Unspent stat points from level ups."
+  },
+  {
+    "key": "reroll_day_used",
+    "type": "number",
+    "description": "Chronicle Die usage tracker."
+  },
+  {
+    "key": "reroll_day_stamp",
+    "type": "number",
+    "description": "Current day for reroll reset."
+  }
 ]
-

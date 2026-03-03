@@ -1,56 +1,167 @@
 [
   {
     "id": "arc_ember_crown",
-    "title": "The Ember Crown",
+    "title": "The Glass Ash Covenant I",
     "discoveryEntrySceneId": "ember_discovery_1",
     "dungeonId": "dungeon_embervault",
     "climaxSceneId": "ember_climax",
-    "endingSceneIds": ["ember_resolution_dawn", "ember_resolution_ash", "ember_resolution_oath"],
+    "endingSceneIds": [
+      "ember_resolution_dawn",
+      "ember_resolution_ash",
+      "ember_resolution_oath"
+    ],
     "worldTransforms": {
       "dawn": {
-        "setCardStatus": [{"cardId":"card_ashen_gate","status":"cleared"}, {"cardId":"card_thorn_bastion","status":"visible"}],
-        "adjustRegionCorruption": [{"regionId":"gloamreach","by":-8}],
-        "revealCards": ["card_root_archive"],
-        "setFlags": [{"key":"ending_ember_dawn","value":true}]
+        "setCardStatus": [
+          {
+            "cardId": "card_ashen_gate",
+            "status": "cleared"
+          },
+          {
+            "cardId": "card_thorn_bastion",
+            "status": "visible"
+          }
+        ],
+        "adjustRegionCorruption": [
+          {
+            "regionId": "gloamreach",
+            "by": -8
+          }
+        ],
+        "revealCards": [
+          "card_root_archive"
+        ],
+        "setFlags": [
+          {
+            "key": "ending_ember_dawn",
+            "value": true
+          }
+        ]
       },
       "ash": {
-        "setCardStatus": [{"cardId":"card_ashen_gate","status":"corrupted"}],
-        "adjustRegionCorruption": [{"regionId":"gloamreach","by":14}],
-        "setFlags": [{"key":"ending_ember_ash","value":true}]
+        "setCardStatus": [
+          {
+            "cardId": "card_ashen_gate",
+            "status": "corrupted"
+          }
+        ],
+        "adjustRegionCorruption": [
+          {
+            "regionId": "gloamreach",
+            "by": 14
+          }
+        ],
+        "setFlags": [
+          {
+            "key": "ending_ember_ash",
+            "value": true
+          }
+        ]
       },
       "oath": {
-        "setCardStatus": [{"cardId":"card_thorn_bastion","status":"occupied"}],
-        "adjustRegionCorruption": [{"regionId":"gloamreach","by":3}],
-        "revealCards": ["card_cinder_market"],
-        "setFlags": [{"key":"ending_ember_oath","value":true}]
+        "setCardStatus": [
+          {
+            "cardId": "card_thorn_bastion",
+            "status": "occupied"
+          }
+        ],
+        "adjustRegionCorruption": [
+          {
+            "regionId": "gloamreach",
+            "by": 3
+          }
+        ],
+        "revealCards": [
+          "card_cinder_market"
+        ],
+        "setFlags": [
+          {
+            "key": "ending_ember_oath",
+            "value": true
+          }
+        ]
       }
     }
   },
   {
     "id": "arc_astral_well",
-    "title": "The Astral Well",
+    "title": "The Glass Ash Covenant II",
     "discoveryEntrySceneId": "astral_discovery_1",
     "dungeonId": "dungeon_starwell",
     "climaxSceneId": "astral_climax",
-    "endingSceneIds": ["astral_resolution_tide", "astral_resolution_shroud", "astral_resolution_union"],
+    "endingSceneIds": [
+      "astral_resolution_tide",
+      "astral_resolution_shroud",
+      "astral_resolution_union"
+    ],
     "worldTransforms": {
       "tide": {
-        "setCardStatus": [{"cardId":"card_starwell_rim","status":"cleared"}, {"cardId":"card_prism_step","status":"visible"}],
-        "adjustRegionCorruption": [{"regionId":"glasswaste","by":-10}],
-        "setFlags": [{"key":"ending_astral_tide","value":true}]
+        "setCardStatus": [
+          {
+            "cardId": "card_starwell_rim",
+            "status": "cleared"
+          },
+          {
+            "cardId": "card_prism_step",
+            "status": "visible"
+          }
+        ],
+        "adjustRegionCorruption": [
+          {
+            "regionId": "glasswaste",
+            "by": -10
+          }
+        ],
+        "setFlags": [
+          {
+            "key": "ending_astral_tide",
+            "value": true
+          }
+        ]
       },
       "shroud": {
-        "setCardStatus": [{"cardId":"card_starwell_rim","status":"corrupted"}],
-        "adjustRegionCorruption": [{"regionId":"glasswaste","by":15}],
-        "setFlags": [{"key":"ending_astral_shroud","value":true}]
+        "setCardStatus": [
+          {
+            "cardId": "card_starwell_rim",
+            "status": "corrupted"
+          }
+        ],
+        "adjustRegionCorruption": [
+          {
+            "regionId": "glasswaste",
+            "by": 15
+          }
+        ],
+        "setFlags": [
+          {
+            "key": "ending_astral_shroud",
+            "value": true
+          }
+        ]
       },
       "union": {
-        "setCardStatus": [{"cardId":"card_eclipse_court","status":"occupied"}],
-        "adjustRegionCorruption": [{"regionId":"glasswaste","by":2}],
-        "revealCards": ["card_mirror_lake"],
-        "setFlags": [{"key":"ending_astral_union","value":true}]
+        "setCardStatus": [
+          {
+            "cardId": "card_eclipse_court",
+            "status": "occupied"
+          }
+        ],
+        "adjustRegionCorruption": [
+          {
+            "regionId": "glasswaste",
+            "by": 2
+          }
+        ],
+        "revealCards": [
+          "card_mirror_lake"
+        ],
+        "setFlags": [
+          {
+            "key": "ending_astral_union",
+            "value": true
+          }
+        ]
       }
     }
   }
 ]
-

@@ -1,11 +1,11 @@
 [
   {
     "id": "ember_discovery_1",
-    "title": "Ash-Sigil Summons",
+    "title": "The Ink That Doesn't Dry",
     "cardId": "card_ember_hollow",
     "body": [
-      "A courier presses a hot sigil into your palm; it beats in time with the Fracture Choir beneath Ember Hollow.",
-      "If the Crownfire knot is left unattended, shrine wards will fail and Gloamreach will burn from within."
+      "Permit denials pile up while a sealed charter case arrives with your true-name sigil.",
+      "The Fracture Choir under the basin is rising, and delay means more legal famine."
     ],
     "tags": [
       "arc1",
@@ -21,7 +21,7 @@
     "choices": [
       {
         "id": "ember_follow_courier",
-        "text": "Report to Thorn Bastion for command briefing",
+        "text": "Carry the charter to Synod council at Gloam Cliffs",
         "cost": {
           "time": 1
         },
@@ -37,21 +37,6 @@
             "phase": "discovery"
           },
           {
-            "type": "transformCard",
-            "cardId": "card_thorn_bastion",
-            "toStatus": "visible"
-          },
-          {
-            "type": "transformCard",
-            "cardId": "card_root_archive",
-            "toStatus": "visible"
-          },
-          {
-            "type": "transformCard",
-            "cardId": "card_mire_bridge",
-            "toStatus": "visible"
-          },
-          {
             "type": "gainXp",
             "amount": 12
           }
@@ -63,7 +48,7 @@
       },
       {
         "id": "ember_delay",
-        "text": "Work Cinder Market for leverage before reporting",
+        "text": "Work Debt Gate market before reporting to council",
         "cost": {
           "time": 2
         },
@@ -79,20 +64,15 @@
           "sceneId": "market_barter"
         }
       }
-    ],
-    "npcs": [
-      "Courier Ilya Voss",
-      "Shrine Keeper Maelin"
-    ],
-    "lore": "The Ember knot is one side of the same Fracture Choir destabilizing both regions."
+    ]
   },
   {
     "id": "ember_escalation_1",
-    "title": "Council Under Cinders",
+    "title": "Witness Line",
     "cardId": "card_thorn_bastion",
     "body": [
-      "Thorn Bastion commanders argue whether to seal the tunnels or trust an outside atlas-bearer with the descent.",
-      "Your decision sets who controls the Crownfire response: discipline, improvisation, or fear."
+      "Debt collectors spring an ambush on the causeway, and Dame Maela Thorn cuts you free.",
+      "At Synod hall, every witness line you choose decides who can speak for the ash charter."
     ],
     "tags": [
       "arc1",
@@ -101,7 +81,7 @@
     "choices": [
       {
         "id": "ember_take_oath",
-        "text": "Swear Concord custody over the Crownfire response",
+        "text": "Accept Maela's escort and file the route lawfully",
         "cost": {
           "time": 1,
           "mana": 1
@@ -125,7 +105,7 @@
       },
       {
         "id": "ember_break_siege",
-        "text": "Run an unsanctioned smokeline breach with local guides",
+        "text": "Refuse escort and run the route unsanctioned",
         "cost": {
           "time": 1,
           "corruption": 1
@@ -143,23 +123,18 @@
         ],
         "next": {
           "type": "scene",
-          "sceneId": "ember_escalation_rogue"
+          "sceneId": "ember_escalation_2"
         }
       }
-    ],
-    "npcs": [
-      "Marshal Serik Thorn",
-      "Cantor Hale"
-    ],
-    "lore": "Concord claims emergency authority over Crownfire rites when shrine wards fail."
+    ]
   },
   {
     "id": "ember_escalation_2",
-    "title": "Oathbound Procession",
+    "title": "Lawful Harm",
     "cardId": "card_ashen_gate",
     "body": [
-      "Concord wardens and pilgrim chanters march mirrored braziers toward Ashen Gate beneath your sworn command.",
-      "If formation breaks, the Regent below wakes fully and the oath you swore becomes public failure."
+      "The council demands a denial signature that strands a workers' ward outside relief lines.",
+      "If you obey, order holds; if you resist, the fracture spreads through glass districts."
     ],
     "tags": [
       "arc1",
@@ -168,7 +143,7 @@
     "choices": [
       {
         "id": "ember_guard_braziers",
-        "text": "Hold ritual formation and keep braziers lit",
+        "text": "Hold formation and sign only witnessed denials",
         "cost": {
           "time": 2,
           "mana": 1
@@ -180,7 +155,7 @@
         },
         "outcomes": {
           "success": {
-            "text": "You hold formation and the Choir pulse stays stable.",
+            "text": "You keep process intact and buy time without open panic.",
             "effects": [
               {
                 "type": "setFlag",
@@ -199,7 +174,7 @@
             ]
           },
           "mixed": {
-            "text": "You keep the line moving, but the smoke brands your lungs.",
+            "text": "The line holds, but smoke and guilt score your lungs.",
             "effects": [
               {
                 "type": "setFlag",
@@ -214,7 +189,7 @@
             ]
           },
           "failForward": {
-            "text": "The route collapses behind you; only a forward breach remains.",
+            "text": "Records burn behind you; only a direct push to the weirs remains.",
             "effects": [
               {
                 "type": "setFlag",
@@ -228,7 +203,7 @@
               },
               {
                 "type": "log",
-                "message": "Fail-forward: the story surges toward the gate."
+                "message": "Fail-forward: lawful process collapses into forced breach."
               }
             ]
           }
@@ -240,144 +215,7 @@
       },
       {
         "id": "ember_push_smoke",
-        "text": "Invoke Bastion authority and force a fast, costly advance",
-        "cost": {
-          "time": 2,
-          "hp": 2,
-          "mana": 1
-        },
-        "effects": [
-          {
-            "type": "setFlag",
-            "key": "arc_ember_escalated",
-            "value": true
-          },
-          {
-            "type": "setFlag",
-            "key": "ember_oath_advance",
-            "value": true
-          },
-          {
-            "type": "advanceArcPhase",
-            "arcId": "arc_ember_crown",
-            "phase": "escalation"
-          },
-          {
-            "type": "adjustRep",
-            "faction": "concord",
-            "by": 1
-          }
-        ],
-        "next": {
-          "type": "scene",
-          "sceneId": "ember_dungeon_gate"
-        }
-      }
-    ],
-    "npcs": [
-      "Cantor Hale",
-      "Pilgrim Torchline"
-    ],
-    "lore": "Mirrored braziers buffer Choir pulses long enough to open a controlled breach."
-  },
-  {
-    "id": "ember_escalation_rogue",
-    "title": "Smokeline Breach",
-    "cardId": "card_ashen_gate",
-    "body": [
-      "Smuggler-guides thread you through collapsed shrine lanes where Bastion banners never held.",
-      "If you misread the smoke currents, the Regent wakes before any formal breach line can form."
-    ],
-    "tags": [
-      "arc1",
-      "escalation"
-    ],
-    "choices": [
-      {
-        "id": "ember_smuggle_braziers",
-        "text": "Coordinate covert braziers through undercourt alleys",
-        "cost": {
-          "time": 2,
-          "hp": 1
-        },
-        "check": {
-          "type": "risk",
-          "stat": "craft",
-          "difficulty": 3
-        },
-        "outcomes": {
-          "success": {
-            "text": "Your covert route reaches Ashen Gate before Concord scouts can react.",
-            "effects": [
-              {
-                "type": "setFlag",
-                "key": "arc_ember_escalated",
-                "value": true
-              },
-              {
-                "type": "advanceArcPhase",
-                "arcId": "arc_ember_crown",
-                "phase": "escalation"
-              },
-              {
-                "type": "adjustRep",
-                "faction": "pilgrims",
-                "by": 2
-              },
-              {
-                "type": "gainXp",
-                "amount": 20
-              }
-            ]
-          },
-          "mixed": {
-            "text": "You reach the gate, but half the line arrives injured and furious.",
-            "effects": [
-              {
-                "type": "setFlag",
-                "key": "arc_ember_escalated",
-                "value": true
-              },
-              {
-                "type": "incFlag",
-                "key": "wound_marks",
-                "by": 1
-              },
-              {
-                "type": "adjustRep",
-                "faction": "concord",
-                "by": -1
-              }
-            ]
-          },
-          "failForward": {
-            "text": "A tunnel collapse isolates your rear guard, but your vanguard still reaches the gate.",
-            "effects": [
-              {
-                "type": "setFlag",
-                "key": "arc_ember_escalated",
-                "value": true
-              },
-              {
-                "type": "incFlag",
-                "key": "wound_marks",
-                "by": 2
-              },
-              {
-                "type": "log",
-                "message": "Fail-forward: your unsanctioned route burns goodwill, not momentum."
-              }
-            ]
-          }
-        },
-        "next": {
-          "type": "scene",
-          "sceneId": "ember_dungeon_gate"
-        }
-      },
-      {
-        "id": "ember_torch_sprint",
-        "text": "Sprint the last span and accept brutal losses",
+        "text": "Break protocol and force relief through by night",
         "cost": {
           "time": 2,
           "hp": 2,
@@ -395,13 +233,8 @@
             "phase": "escalation"
           },
           {
-            "type": "setFlag",
-            "key": "ember_rogue_breach",
-            "value": true
-          },
-          {
-            "type": "adjustRep",
-            "faction": "undercourt",
+            "type": "incFlag",
+            "key": "wound_marks",
             "by": 1
           }
         ],
@@ -410,36 +243,24 @@
           "sceneId": "ember_dungeon_gate"
         }
       }
-    ],
-    "npcs": [
-      "Guide Vara Flint",
-      "Undercourt Torchline"
-    ],
-    "lore": "Smokeline routes bypass formal command, trading discipline for speed."
+    ]
   },
   {
     "id": "ember_dungeon_gate",
-    "title": "Mouth of the Embervault",
+    "title": "The Machine Under Drought",
     "cardId": "card_ashen_gate",
     "body": [
-      "Ashen Gate opens like a furnace lung while mural saints depict the first oath that failed this region.",
-      "Every delayed minute amplifies Choir pressure through nearby shrines and camps."
+      "Beneath Hollow Weirs, lock-glyphs reveal a charter engine cycling scarcity by oath.",
+      "Every minute of delay turns ash pressure into riot across Gloam Cliffs and Mirror March."
     ],
     "tags": [
       "arc1",
       "dungeon"
     ],
-    "onEnterEffects": [
-      {
-        "type": "transformCard",
-        "cardId": "card_ashen_gate",
-        "toStatus": "visible"
-      }
-    ],
     "choices": [
       {
         "id": "ember_enter_vault",
-        "text": "Breach now and sever the Crownfire knot",
+        "text": "Breach now and expose the scarcity engine",
         "requires": [
           {
             "type": "flag",
@@ -465,118 +286,24 @@
       },
       {
         "id": "ember_wait",
-        "text": "Delay once to evacuate stragglers and brace the outer wards",
-        "requires": [
-          {
-            "type": "flag",
-            "key": "ember_wait_used",
-            "op": "==",
-            "value": 0
-          }
-        ],
+        "text": "Delay the breach and petition for calmer terms",
         "cost": {
           "time": 3,
           "corruption": 2
         },
-        "effects": [
-          {
-            "type": "incFlag",
-            "key": "ember_wait_used",
-            "by": 1
-          },
-          {
-            "type": "log",
-            "message": "Delay buys evacuations but the knot surges harder."
-          }
-        ],
         "next": {
-          "type": "scene",
-          "sceneId": "ember_gate_after_delay"
+          "type": "atlas"
         }
       }
-    ],
-    "npcs": [
-      "Breach Captain Dema"
-    ],
-    "lore": "Ashen Gate murals record the first treaty that failed to contain Crownfire."
-  },
-  {
-    "id": "ember_gate_after_delay",
-    "title": "Crownfire Surge Window",
-    "cardId": "card_ashen_gate",
-    "body": [
-      "Evacuation horns fade as the gate shudders; you bought lives, but pressure spikes through every wardline.",
-      "There is no safe stall left. The next move decides whether this delay becomes mercy or catastrophe."
-    ],
-    "tags": [
-      "arc1",
-      "dungeon"
-    ],
-    "choices": [
-      {
-        "id": "ember_enter_vault_after_delay",
-        "text": "Commit the breach now under surge conditions",
-        "requires": [
-          {
-            "type": "flag",
-            "key": "arc_ember_escalated",
-            "op": "==",
-            "value": true
-          }
-        ],
-        "cost": {
-          "time": 1,
-          "hp": 1
-        },
-        "effects": [
-          {
-            "type": "advanceArcPhase",
-            "arcId": "arc_ember_crown",
-            "phase": "dungeon"
-          },
-          {
-            "type": "gainXp",
-            "amount": 8
-          }
-        ],
-        "next": {
-          "type": "dungeon",
-          "dungeonId": "dungeon_embervault"
-        }
-      },
-      {
-        "id": "ember_seek_market_relief",
-        "text": "Dispatch emergency caravans through Cinder Market first",
-        "cost": {
-          "time": 1,
-          "mana": 1
-        },
-        "effects": [
-          {
-            "type": "adjustRep",
-            "faction": "pilgrims",
-            "by": 1
-          }
-        ],
-        "next": {
-          "type": "scene",
-          "sceneId": "market_barter"
-        }
-      }
-    ],
-    "npcs": [
-      "Breach Captain Dema",
-      "Relief Warden Talis"
-    ],
-    "lore": "Delays convert tactical risk into civic debt; someone always pays for extra time."
+    ]
   },
   {
     "id": "ember_climax",
-    "title": "Verdict of Crownfire",
+    "title": "Charter of Ash",
     "cardId": "card_ember_hollow",
     "body": [
-      "The Ash Regent kneels as the Ember Crown sings in molten harmonics that can heal, dominate, or bind.",
-      "Your final rite will set Gloamreach policy for every faction watching the breach reports."
+      "At the engine core, provost doctrine offers three endings: relief, regency, or binding accord.",
+      "Your signature will define ash law for Synod, Commons, and Mirror Court."
     ],
     "tags": [
       "arc1",
@@ -585,7 +312,7 @@
     "choices": [
       {
         "id": "ember_choose_dawn",
-        "text": "Diffuse Crownfire into rain for civilian relief",
+        "text": "Publish relief ledgers and open water access",
         "cost": {
           "time": 1,
           "mana": 2
@@ -597,7 +324,7 @@
       },
       {
         "id": "ember_choose_ash",
-        "text": "Crown yourself and centralize command by fear",
+        "text": "Invoke emergency regency and central command",
         "cost": {
           "time": 1,
           "corruption": 4
@@ -609,7 +336,7 @@
       },
       {
         "id": "ember_choose_oath",
-        "text": "Chain Crownfire to Bastion treaty law",
+        "text": "Bind factions to a provisional floodline charter",
         "cost": {
           "time": 1,
           "hp": 3
@@ -619,19 +346,15 @@
           "sceneId": "ember_resolution_oath"
         }
       }
-    ],
-    "npcs": [
-      "The Ash Regent"
-    ],
-    "lore": "Who governs Crownfire doctrine determines border law, trade, and military legitimacy."
+    ]
   },
   {
     "id": "ember_resolution_dawn",
-    "title": "Dawn Mercy Accord",
+    "title": "Dawn Ledger Release",
     "cardId": "card_ember_hollow",
     "body": [
-      "Steam turns to rain and shrine bells resume a human tempo across Ember Hollow.",
-      "Pilgrims name this ending a mercy: power returned to the commons, not a throne."
+      "You publish the hidden ledgers, and rain convoys move without private permits.",
+      "People call it a glass-and-ash mercy: relief before rank, witness before office."
     ],
     "tags": [
       "arc1",
@@ -640,7 +363,7 @@
     "choices": [
       {
         "id": "ember_end_dawn",
-        "text": "Canonize the Dawn Mercy precedent",
+        "text": "Canonize the Dawn Ledger precedent",
         "effects": [
           {
             "type": "gainXp",
@@ -653,19 +376,15 @@
           "endingId": "dawn"
         }
       }
-    ],
-    "npcs": [
-      "Pilgrim Councils"
-    ],
-    "lore": "The Dawn doctrine returns heat-rights to civilian governance."
+    ]
   },
   {
     "id": "ember_resolution_ash",
     "title": "Regency of Ash",
     "cardId": "card_ember_hollow",
     "body": [
-      "You wear the Crown and every firepost bows to your cadence before dissent can gather.",
-      "Order arrives quickly, but it is obedience shaped by fear of your heat-song."
+      "You claim emergency authority, and floodgates answer one command chain.",
+      "Order returns quickly, but every district learns obedience through heat and fear."
     ],
     "tags": [
       "arc1",
@@ -687,19 +406,15 @@
           "endingId": "ash"
         }
       }
-    ],
-    "npcs": [
-      "Regency Wardens"
-    ],
-    "lore": "The Ash doctrine centralizes force under one command hierarchy."
+    ]
   },
   {
     "id": "ember_resolution_oath",
-    "title": "Iron Binding Charter",
+    "title": "Floodline Compact",
     "cardId": "card_thorn_bastion",
     "body": [
-      "The Crown is chained beneath Thorn Bastion by sigils that require endless maintenance and tribute.",
-      "Stability holds, but political debt deepens as Concord and pilgrims renegotiate authority."
+      "You chain the engine to a three-faction charter with rotating witnesses and audits.",
+      "Stability holds, yet debt politics harden as every accord demands new concessions."
     ],
     "tags": [
       "arc1",
@@ -708,7 +423,7 @@
     "choices": [
       {
         "id": "ember_end_oath",
-        "text": "Enact the Iron Binding charter",
+        "text": "Ratify the Floodline Compact charter",
         "effects": [
           {
             "type": "gainXp",
@@ -721,19 +436,15 @@
           "endingId": "oath"
         }
       }
-    ],
-    "npcs": [
-      "Concord Tribunal"
-    ],
-    "lore": "The Oath doctrine binds energy access to treaty enforcement."
+    ]
   },
   {
     "id": "ember_aftermath",
-    "title": "Hollow Aftermath",
+    "title": "Rain Without Permission (Prelude)",
     "cardId": "card_ember_hollow",
     "body": [
-      "The oathstones cool, yet your atlas still hums; the Fracture Choir was damped here, not ended.",
-      "New harmonics rise from the glass desert, where the Starwell repeats names from the dead."
+      "The first black-rain cycle breaks, but unrest spreads as receipts prove who engineered famine.",
+      "A second fracture front forms in Mirror March, where the next accord must be written."
     ],
     "tags": [
       "aftermath",
@@ -744,7 +455,7 @@
     "choices": [
       {
         "id": "ember_aftermath_seek_astral",
-        "text": "Follow the new harmonic toward Prism Steppe",
+        "text": "Follow the receipt trail into Mirror March",
         "requires": [
           {
             "type": "flag",
@@ -763,7 +474,7 @@
       },
       {
         "id": "ember_aftermath_depart",
-        "text": "Log the aftermath and return to atlas",
+        "text": "Log the prelude and return to atlas",
         "cost": {
           "time": 1
         },
@@ -771,19 +482,15 @@
           "type": "atlas"
         }
       }
-    ],
-    "npcs": [
-      "Atlas Bearer"
-    ],
-    "lore": "The Ember knot is stabilized, but the Steppe knot now resonates louder."
+    ]
   },
   {
     "id": "astral_discovery_1",
-    "title": "Glasswake Summons",
+    "title": "Riot of Receipts",
     "cardId": "card_prism_step",
     "body": [
-      "Beneath Prism Steppe, a Wellsong pulse answers the Crownfire cadence you already survived in Gloamreach.",
-      "If unchecked, the second knot will rewrite routes, memories, and command signals across both regions."
+      "Published ledgers ignite protests from canal wards to tower courts across the glass basin.",
+      "If no new accord appears fast, faction militias will seize the gates by force."
     ],
     "tags": [
       "arc2",
@@ -792,7 +499,7 @@
     "choices": [
       {
         "id": "astral_trace_song",
-        "text": "Track the Wellsong to Sunken Orrery",
+        "text": "Trace receipts through the Open Cistern records",
         "cost": {
           "time": 1
         },
@@ -819,7 +526,7 @@
       },
       {
         "id": "astral_ignore",
-        "text": "Investigate Mirror Lake before committing",
+        "text": "Investigate witness omens at Mirror Basin first",
         "cost": {
           "time": 2
         },
@@ -828,19 +535,15 @@
           "sceneId": "mirror_reflection"
         }
       }
-    ],
-    "npcs": [
-      "Glass Scout Renn"
-    ],
-    "lore": "The Wellsong knot echoes every policy chosen at Ember Hollow."
+    ]
   },
   {
     "id": "astral_escalation_1",
-    "title": "Orrery Breach",
+    "title": "Terms of Mercy",
     "cardId": "card_sunken_orrery",
     "body": [
-      "Collapsed planets spin backward inside the Orrery, projecting a map that points to the Starwell rim.",
-      "Decode quickly and you control the approach; hesitate and rivals seize the route."
+      "Serin proposes a transparent gate lottery while Maela recruits glass flood crews no one trusts.",
+      "The offer can cool the riot, but each concession reshapes concord and undercourt power."
     ],
     "tags": [
       "arc2",
@@ -849,7 +552,7 @@
     "choices": [
       {
         "id": "astral_decode",
-        "text": "Decode with disciplined harmonic math",
+        "text": "Draft lottery terms with disciplined legal math",
         "cost": {
           "time": 1,
           "mana": 1
@@ -861,7 +564,7 @@
         },
         "outcomes": {
           "success": {
-            "text": "Your calculations align the route with minimal drift.",
+            "text": "Your terms are clear, and key wards accept the temporary accord.",
             "effects": [
               {
                 "type": "gainXp",
@@ -870,7 +573,7 @@
             ]
           },
           "mixed": {
-            "text": "You recover a viable route, but trigger defensive alarms.",
+            "text": "You secure a workable draft, but rival houses trigger alarms.",
             "effects": [
               {
                 "type": "incFlag",
@@ -880,7 +583,7 @@
             ]
           },
           "failForward": {
-            "text": "A collapse blocks retreat and forces a dangerous shortcut.",
+            "text": "The chamber collapses into panic and forces a harsher shortcut.",
             "effects": [
               {
                 "type": "incFlag",
@@ -897,7 +600,7 @@
       },
       {
         "id": "astral_decode_by_touch",
-        "text": "Decode by instinct and tactile memory",
+        "text": "Draft terms by instinct and field testimony",
         "cost": {
           "time": 2,
           "hp": 1
@@ -918,19 +621,15 @@
           "sceneId": "astral_escalation_2"
         }
       }
-    ],
-    "npcs": [
-      "Archivist Oren Kade"
-    ],
-    "lore": "Orrery routes decide which faction reaches the Starwell first."
+    ]
   },
   {
     "id": "astral_escalation_2",
-    "title": "Judgment at Eclipse Court",
+    "title": "Court of Smoke",
     "cardId": "card_eclipse_court",
     "body": [
-      "Obsidian jurors offer expedited passage if you surrender memory to their archive of leverage.",
-      "Refusal preserves self-rule but costs time while the Wellsong grows louder."
+      "Mirror Court brokers offer safe passage if you surrender memory collateral and monopoly rights.",
+      "Refusal preserves autonomy, but the Fracture Choir grows louder around the weirs."
     ],
     "tags": [
       "arc2",
@@ -939,7 +638,7 @@
     "choices": [
       {
         "id": "astral_bargain",
-        "text": "Trade memory for sanctioned passage",
+        "text": "Trade memory collateral for sanctioned passage",
         "cost": {
           "time": 1,
           "hp": 2
@@ -968,7 +667,7 @@
       },
       {
         "id": "astral_refuse",
-        "text": "Refuse tribute and cross the starstorm",
+        "text": "Refuse tribute and cross the smoke lines",
         "cost": {
           "time": 2,
           "corruption": 2
@@ -990,20 +689,15 @@
           "sceneId": "astral_dungeon_gate"
         }
       }
-    ],
-    "npcs": [
-      "Juror Vey",
-      "Undercourt Brokers"
-    ],
-    "lore": "The Eclipse Court exchanges memory debt for strategic mobility."
+    ]
   },
   {
     "id": "astral_dungeon_gate",
-    "title": "Rim of the Starwell",
+    "title": "Weirfall",
     "cardId": "card_starwell_rim",
     "body": [
-      "Constellations spiral into a black throat; each cycle syncs with echoes from Ember Hollow.",
-      "This descent decides whether the Fracture Choir is tuned, caged, or weaponized."
+      "Storm surge and militia fire converge at Hollow Weirs as the coalition fractures.",
+      "This descent decides whether the basin gets water rights or another regent seat."
     ],
     "tags": [
       "arc2",
@@ -1012,7 +706,7 @@
     "choices": [
       {
         "id": "astral_enter_well",
-        "text": "Descend and confront the Wellsong source",
+        "text": "Descend and confront the charter engine core",
         "requires": [
           {
             "type": "flag",
@@ -1038,7 +732,7 @@
       },
       {
         "id": "astral_wait",
-        "text": "Delay for calmer skies and lower risk",
+        "text": "Delay for calmer channels and lower risk",
         "cost": {
           "time": 3,
           "corruption": 1
@@ -1047,19 +741,15 @@
           "type": "atlas"
         }
       }
-    ],
-    "npcs": [
-      "Rim Wardens"
-    ],
-    "lore": "The Starwell descent resolves whether the sky-knot is shared, chained, or weaponized."
+    ]
   },
   {
     "id": "astral_climax",
-    "title": "Seraph Harmonic Verdict",
+    "title": "The Regent Seat",
     "cardId": "card_starwell_rim",
     "body": [
-      "The Wellsong Seraph offers three harmonics that can calm, shroud, or politically bind the sky-song.",
-      "Your ruling will set cross-region doctrine for pilgrims, Concord officers, and the Undercourt."
+      "Provost Cael offers controlled regency while the engine demands a final witnessed signature.",
+      "You can sign decentralized rights, impose a veil, or force a single chorus compact."
     ],
     "tags": [
       "arc2",
@@ -1068,7 +758,7 @@
     "choices": [
       {
         "id": "astral_choose_tide",
-        "text": "Stabilize the sky into a calm tide",
+        "text": "Sign decentralized water rights for every district",
         "cost": {
           "time": 1,
           "mana": 2
@@ -1080,7 +770,7 @@
       },
       {
         "id": "astral_choose_shroud",
-        "text": "Impose controlled night over the regions",
+        "text": "Accept controlled regency and suppress dissent",
         "cost": {
           "time": 1,
           "corruption": 4
@@ -1092,7 +782,7 @@
       },
       {
         "id": "astral_choose_union",
-        "text": "Bind factions to one enforced chorus",
+        "text": "Bind factions to one mandatory chorus compact",
         "cost": {
           "time": 1,
           "hp": 3
@@ -1102,19 +792,15 @@
           "sceneId": "astral_resolution_union"
         }
       }
-    ],
-    "npcs": [
-      "Wellsong Seraph"
-    ],
-    "lore": "This verdict sets long-term doctrine across both regions."
+    ]
   },
   {
     "id": "astral_resolution_tide",
-    "title": "Tide Accord",
+    "title": "Rain Without Permission",
     "cardId": "card_prism_step",
     "body": [
-      "Star paths settle and caravans report predictable skies for the first time since the fracture.",
-      "The accord favors shared stewardship and lowers panic across both regions."
+      "The regent seat is severed, and neighborhoods self-organize gate councils before elites react.",
+      "The Tide Accord becomes lived practice: shared access, public ledgers, and accountable witnesses."
     ],
     "tags": [
       "arc2",
@@ -1123,7 +809,7 @@
     "choices": [
       {
         "id": "astral_end_tide",
-        "text": "Seal the Tide Accord record",
+        "text": "Seal Rain Without Permission as canon",
         "effects": [
           {
             "type": "gainXp",
@@ -1136,19 +822,15 @@
           "endingId": "tide"
         }
       }
-    ],
-    "npcs": [
-      "Caravan Masters"
-    ],
-    "lore": "Tide doctrine restores predictable sky lanes and shared transit rights."
+    ]
   },
   {
     "id": "astral_resolution_shroud",
-    "title": "Veil Directorate",
+    "title": "Veil Regency",
     "cardId": "card_starwell_rim",
     "body": [
-      "You drape the sky in controlled twilight and centralize access to navigable corridors.",
-      "Security improves, but dissent spreads among those locked out of light."
+      "You preserve the seat and govern through emergency dusk law and restricted corridors.",
+      "Violence drops in the short term, but dissent deepens under permanent surveillance."
     ],
     "tags": [
       "arc2",
@@ -1157,7 +839,7 @@
     "choices": [
       {
         "id": "astral_end_shroud",
-        "text": "Seal the Veil Directorate order",
+        "text": "Seal the Veil Regency order",
         "effects": [
           {
             "type": "gainXp",
@@ -1170,19 +852,15 @@
           "endingId": "shroud"
         }
       }
-    ],
-    "npcs": [
-      "Night Marshals"
-    ],
-    "lore": "Veil doctrine secures order through restricted light corridors."
+    ]
   },
   {
     "id": "astral_resolution_union",
-    "title": "Chorus Compact",
+    "title": "Charter Chorus Compact",
     "cardId": "card_eclipse_court",
     "body": [
-      "Every faction hears the same oath at dawn and policy converges under a mandatory shared rhythm.",
-      "War recedes, yet autonomy narrows as dissent is treated as dissonance."
+      "Every faction signs one synchronized charter, ending open war through mandatory coordination.",
+      "Peace holds, yet autonomy narrows as deviation is treated as civic dissonance."
     ],
     "tags": [
       "arc2",
@@ -1191,7 +869,7 @@
     "choices": [
       {
         "id": "astral_end_union",
-        "text": "Ratify the Chorus Compact covenant",
+        "text": "Ratify the Charter Chorus Compact",
         "effects": [
           {
             "type": "gainXp",
@@ -1204,19 +882,15 @@
           "endingId": "union"
         }
       }
-    ],
-    "npcs": [
-      "Chorus Envoys"
-    ],
-    "lore": "Union doctrine enforces consensus through harmonized oath law."
+    ]
   },
   {
     "id": "astral_aftermath",
-    "title": "Steppe Aftermath",
+    "title": "Basin Epilogue",
     "cardId": "card_prism_step",
     "body": [
-      "The glass plains hold steady tempo, and reports confirm both crisis knots now answer your prior rulings.",
-      "Future runs will test alternate doctrines, but this campaign closes with a coherent atlas record."
+      "The basin stabilizes under your final accord doctrine, with scars visible in every district ledger.",
+      "Outer envoys arrive carrying unfamiliar oath scripts and older engines begin to wake."
     ],
     "tags": [
       "aftermath",
@@ -1227,7 +901,7 @@
     "choices": [
       {
         "id": "astral_aftermath_reflect",
-        "text": "Archive this campaign and return to atlas",
+        "text": "Archive this covenant campaign and return to atlas",
         "cost": {
           "time": 1
         },
@@ -1336,12 +1010,7 @@
           "type": "atlas"
         }
       }
-    ],
-    "npcs": [
-      "Broker Sella",
-      "Courier Clades"
-    ],
-    "lore": "Market intelligence here influences who controls next-turn deployments."
+    ]
   },
   {
     "id": "archive_query",
@@ -1389,11 +1058,7 @@
           "type": "atlas"
         }
       }
-    ],
-    "npcs": [
-      "Root Curator Elsin"
-    ],
-    "lore": "Archive records can legitimize reform or weaponize selective history."
+    ]
   },
   {
     "id": "mire_crossing",
@@ -1431,11 +1096,7 @@
           "sceneId": "mire_sunken_cache"
         }
       }
-    ],
-    "npcs": [
-      "Bridge Foreman Tael"
-    ],
-    "lore": "Supply lanes through Mire Bridge keep relief and ritual teams operational."
+    ]
   },
   {
     "id": "mirror_reflection",
@@ -1472,11 +1133,7 @@
           "type": "atlas"
         }
       }
-    ],
-    "npcs": [
-      "Mirror Echo of the Bearer"
-    ],
-    "lore": "The lake models branching outcomes from your campaign doctrines."
+    ]
   },
   {
     "id": "forge_tithe",
@@ -1515,11 +1172,7 @@
           "sceneId": "forge_commission"
         }
       }
-    ],
-    "npcs": [
-      "Forge Master Ivre"
-    ],
-    "lore": "Compass output controls which corridors remain navigable under pressure."
+    ]
   },
   {
     "id": "market_backroom",
@@ -1624,11 +1277,7 @@
           "type": "atlas"
         }
       }
-    ],
-    "npcs": [
-      "Smuggler-Quartermaster Varo"
-    ],
-    "lore": "Backroom logistics convert rumor into operational leverage."
+    ]
   },
   {
     "id": "market_ledger",
@@ -1668,19 +1317,6 @@
           {
             "type": "gainXp",
             "amount": 10
-          },
-          {
-            "type": "setFlag",
-            "key": "doctrine_civilian_corridors",
-            "value": true
-          },
-          {
-            "type": "transformCard",
-            "cardId": "card_mire_bridge",
-            "toStatus": "visible",
-            "addTags": [
-              "secured-route"
-            ]
           }
         ],
         "next": {
@@ -1707,30 +1343,13 @@
           {
             "type": "gainXp",
             "amount": 8
-          },
-          {
-            "type": "setFlag",
-            "key": "doctrine_shadow_tolls",
-            "value": true
-          },
-          {
-            "type": "transformCard",
-            "cardId": "card_mire_bridge",
-            "toStatus": "occupied",
-            "addTags": [
-              "tolled-route"
-            ]
           }
         ],
         "next": {
           "type": "atlas"
         }
       }
-    ],
-    "npcs": [
-      "Ledger Clerk Neris"
-    ],
-    "lore": "Route funding policy determines civilian access versus toll extraction."
+    ]
   },
   {
     "id": "archive_deepstacks",
@@ -1829,11 +1448,7 @@
           "sceneId": "archive_living_index"
         }
       }
-    ],
-    "npcs": [
-      "Spore Wardens"
-    ],
-    "lore": "Deepstack annals tie Regent and Wellsong custodians to prior collapses."
+    ]
   },
   {
     "id": "archive_living_index",
@@ -1872,19 +1487,6 @@
           {
             "type": "gainXp",
             "amount": 9
-          },
-          {
-            "type": "setFlag",
-            "key": "doctrine_open_records",
-            "value": true
-          },
-          {
-            "type": "transformCard",
-            "cardId": "card_root_archive",
-            "toStatus": "visible",
-            "addTags": [
-              "open-ledger"
-            ]
           }
         ],
         "next": {
@@ -1911,30 +1513,13 @@
           {
             "type": "gainXp",
             "amount": 9
-          },
-          {
-            "type": "setFlag",
-            "key": "doctrine_command_secrecy",
-            "value": true
-          },
-          {
-            "type": "transformCard",
-            "cardId": "card_root_archive",
-            "toStatus": "occupied",
-            "addTags": [
-              "sealed-ledger"
-            ]
           }
         ],
         "next": {
           "type": "atlas"
         }
       }
-    ],
-    "npcs": [
-      "Root Curator Elsin"
-    ],
-    "lore": "Publication strategy shapes trust in every faction command chain."
+    ]
   },
   {
     "id": "mire_midspan",
@@ -1996,11 +1581,7 @@
           "sceneId": "mire_sunken_cache"
         }
       }
-    ],
-    "npcs": [
-      "Bridge Crew Redline"
-    ],
-    "lore": "A failed crossing delays containment convoys and increases local pressure."
+    ]
   },
   {
     "id": "mire_sunken_cache",
@@ -2058,11 +1639,7 @@
           "type": "atlas"
         }
       }
-    ],
-    "npcs": [
-      "Relief Quartermaster Jun"
-    ],
-    "lore": "Cache allocation directly affects district survival odds."
+    ]
   },
   {
     "id": "mirror_underface",
@@ -2159,11 +1736,7 @@
           "sceneId": "mirror_wake"
         }
       }
-    ],
-    "npcs": [
-      "Future Echoes"
-    ],
-    "lore": "Forecasts trade psychological strain for strategic foresight."
+    ]
   },
   {
     "id": "mirror_wake",
@@ -2228,11 +1801,7 @@
           "type": "atlas"
         }
       }
-    ],
-    "npcs": [
-      "Concord Recon Pair"
-    ],
-    "lore": "Disclosing prophecy shifts institutional trust and response tempo."
+    ]
   },
   {
     "id": "forge_quench",
@@ -2307,11 +1876,7 @@
           "sceneId": "forge_commission"
         }
       }
-    ],
-    "npcs": [
-      "Hammerline Apprentices"
-    ],
-    "lore": "One stable production run can reopen multiple relief routes."
+    ]
   },
   {
     "id": "forge_commission",
@@ -2342,19 +1907,6 @@
           {
             "type": "gainXp",
             "amount": 9
-          },
-          {
-            "type": "setFlag",
-            "key": "doctrine_public_routes",
-            "value": true
-          },
-          {
-            "type": "transformCard",
-            "cardId": "card_shard_forge",
-            "toStatus": "visible",
-            "addTags": [
-              "civic-forge"
-            ]
           }
         ],
         "next": {
@@ -2381,29 +1933,12 @@
           {
             "type": "gainXp",
             "amount": 9
-          },
-          {
-            "type": "setFlag",
-            "key": "doctrine_private_routes",
-            "value": true
-          },
-          {
-            "type": "transformCard",
-            "cardId": "card_shard_forge",
-            "toStatus": "occupied",
-            "addTags": [
-              "private-forge"
-            ]
           }
         ],
         "next": {
           "type": "atlas"
         }
       }
-    ],
-    "npcs": [
-      "Dispatch Officer Mora"
-    ],
-    "lore": "Final recipient determines whether routing becomes public utility or private privilege."
+    ]
   }
 ]

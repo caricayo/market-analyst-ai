@@ -1,7 +1,7 @@
 [
   {
     "id": "arc_ember_crown",
-    "title": "The Ember Crown",
+    "title": "The Glass Ash Covenant I",
     "discoveryEntrySceneId": "ember_discovery_1",
     "dungeonId": "dungeon_embervault",
     "climaxSceneId": "ember_climax",
@@ -29,19 +29,11 @@
           }
         ],
         "revealCards": [
-          "card_root_archive",
-          "card_prism_step",
-          "card_sunken_orrery",
-          "card_mirror_lake",
-          "card_shard_forge"
+          "card_root_archive"
         ],
         "setFlags": [
           {
             "key": "ending_ember_dawn",
-            "value": true
-          },
-          {
-            "key": "arc_astral_access",
             "value": true
           }
         ]
@@ -63,17 +55,7 @@
           {
             "key": "ending_ember_ash",
             "value": true
-          },
-          {
-            "key": "arc_astral_access",
-            "value": true
           }
-        ],
-        "revealCards": [
-          "card_prism_step",
-          "card_sunken_orrery",
-          "card_mirror_lake",
-          "card_shard_forge"
         ]
       },
       "oath": {
@@ -90,19 +72,11 @@
           }
         ],
         "revealCards": [
-          "card_cinder_market",
-          "card_prism_step",
-          "card_sunken_orrery",
-          "card_mirror_lake",
-          "card_shard_forge"
+          "card_cinder_market"
         ],
         "setFlags": [
           {
             "key": "ending_ember_oath",
-            "value": true
-          },
-          {
-            "key": "arc_astral_access",
             "value": true
           }
         ]
@@ -111,7 +85,7 @@
   },
   {
     "id": "arc_astral_well",
-    "title": "The Astral Well",
+    "title": "The Glass Ash Covenant II",
     "discoveryEntrySceneId": "astral_discovery_1",
     "dungeonId": "dungeon_starwell",
     "climaxSceneId": "astral_climax",

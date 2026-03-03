@@ -19,11 +19,11 @@ export function getCampaignGuidance(state: GameState): CampaignGuidance {
   if (!emberResolved) {
     if (ember === "inactive") {
       return {
-        objective: "Answer the ash-sigil summons and discover the Ember Crown crisis.",
+        objective: "Answer the sealed charter summons and begin the basin crisis.",
         steps: [
-          "Travel to Ember Hollow and accept the summons.",
-          "Report findings to Thorn Bastion.",
-          "Choose a response doctrine before breaching Ashen Gate.",
+          "Travel to Salt Gate Permit Hall and accept the charter case.",
+          "Report to Synod Council Hall with the witness route.",
+          "Choose process or defiance before Hollow Weirs opens.",
         ],
         recommendedCardIds: ["card_ember_hollow", "card_cinder_market"],
       };
@@ -31,11 +31,11 @@ export function getCampaignGuidance(state: GameState): CampaignGuidance {
 
     if (ember === "discovery") {
       return {
-        objective: "Set the Crownfire response leadership before the crisis escalates.",
+        objective: "Set early doctrine for the ash charter escalation.",
         steps: [
-          "Use Cinder Market or Root Archive to gather leverage.",
-          "Commit to a command style at Thorn Bastion.",
-          "Prepare the Ashen Gate approach route.",
+          "Use Debt Gate Market or High Reader Archive for leverage.",
+          "Commit to a witness strategy at Synod Council Hall.",
+          "Prepare your approach to Hollow Weirs Gate.",
         ],
         recommendedCardIds: ["card_thorn_bastion", "card_cinder_market", "card_root_archive"],
       };
@@ -43,11 +43,11 @@ export function getCampaignGuidance(state: GameState): CampaignGuidance {
 
     if (ember === "escalation") {
       return {
-        objective: "Stabilize the approach and breach the Embervault.",
+        objective: "Stabilize the route and breach the scarcity engine.",
         steps: [
-          "Secure your chosen route to Ashen Gate.",
-          "Decide whether to delay for civilians or breach immediately.",
-          "Enter the Embervault dungeon.",
+          "Secure your chosen line into Hollow Weirs.",
+          "Decide whether to delay for safety or push now.",
+          "Enter the Hollow Weirs Infiltration dungeon.",
         ],
         recommendedCardIds: ["card_ashen_gate", "card_mire_bridge", "card_cinder_market"],
       };
@@ -55,21 +55,21 @@ export function getCampaignGuidance(state: GameState): CampaignGuidance {
 
     if (ember === "dungeon") {
       return {
-        objective: "Complete the Embervault expedition and reach the Crownfire verdict.",
+        objective: "Complete the weirs expedition and deliver the Part I verdict.",
         steps: [
-          "Resolve dungeon chambers and survive attrition.",
-          "Exit the dungeon into the climax scene.",
-          "Choose the region-defining Ember resolution.",
+          "Resolve dungeon chambers and preserve party resources.",
+          "Exit into the Charter of Ash climax scene.",
+          "Choose your Dawn, Ash, or Compact resolution.",
         ],
         recommendedCardIds: ["card_ashen_gate"],
       };
     }
 
     return {
-      objective: "Deliver a final Ember Crown ruling.",
+      objective: "Deliver your final Glass Ash Covenant Part I ruling.",
       steps: [
-        "Weigh civilian relief, command control, or treaty restraint.",
-        "Commit to one ending and record the doctrine shift.",
+        "Weigh relief transparency, regency control, or compact governance.",
+        "Commit to one ending and record doctrine shift.",
         "Review post-arc world changes in the atlas.",
       ],
       recommendedCardIds: ["card_ember_hollow"],
@@ -79,11 +79,11 @@ export function getCampaignGuidance(state: GameState): CampaignGuidance {
   if (!astralResolved) {
     if (astral === "inactive") {
       return {
-        objective: "Follow the second harmonic into the Glasswaste and discover the Wellsong knot.",
+        objective: "Follow the receipt uprising into Glasswaste and open Covenant Part II.",
         steps: [
-          "Return to Ember Hollow aftermath and take the Steppe lead.",
-          "Reach Prism Steppe and commit to investigation.",
-          "Move to Sunken Orrery for escalation.",
+          "Use the Part I aftermath lead toward Mirror March.",
+          "Reach Mirror March Front and commit to intervention.",
+          "Advance to Open Cistern Records for escalation.",
         ],
         recommendedCardIds: ["card_ember_hollow", "card_prism_step"],
       };
@@ -91,11 +91,11 @@ export function getCampaignGuidance(state: GameState): CampaignGuidance {
 
     if (astral === "discovery") {
       return {
-        objective: "Secure a route to Starwell before rival factions seize the sky-knot.",
+        objective: "Secure a lawful route to Weirfall before militias fracture the basin.",
         steps: [
-          "Decode the Orrery route logic.",
-          "Use Mirror Lake / Shard Forge to shape doctrine support.",
-          "Advance to Eclipse Court and Starwell approach.",
+          "Decode Open Cistern records.",
+          "Use Witness Basin and Floodline Forge to shape support.",
+          "Advance through Glass Court to the final approach.",
         ],
         recommendedCardIds: ["card_sunken_orrery", "card_mirror_lake", "card_shard_forge"],
       };
@@ -103,11 +103,11 @@ export function getCampaignGuidance(state: GameState): CampaignGuidance {
 
     if (astral === "escalation") {
       return {
-        objective: "Open Starwell Rim and commit to final intervention.",
+        objective: "Open the Charter Engine Core route and commit to final intervention.",
         steps: [
-          "Settle faction terms at Eclipse Court.",
-          "Enter Starwell Rim at peak readiness.",
-          "Prepare for the sky-knot climax.",
+          "Settle terms at Glass Court.",
+          "Enter Charter Engine Core at peak readiness.",
+          "Prepare for the regent seat climax.",
         ],
         recommendedCardIds: ["card_eclipse_court", "card_starwell_rim"],
       };
@@ -115,29 +115,29 @@ export function getCampaignGuidance(state: GameState): CampaignGuidance {
 
     if (astral === "dungeon") {
       return {
-        objective: "Clear the Starwell dungeon and deliver the final cosmic ruling.",
+        objective: "Clear the engine descent and deliver the final basin ruling.",
         steps: [
-          "Resolve all Starwell chambers.",
-          "Exit to the Wellsong climax.",
-          "Select one of the end-state doctrines.",
+          "Resolve all core chambers.",
+          "Exit into The Regent Seat climax.",
+          "Select your ending doctrine.",
         ],
         recommendedCardIds: ["card_starwell_rim"],
       };
     }
 
     return {
-      objective: "Complete the final Astral judgment.",
+      objective: "Complete the final Glass Ash Covenant judgment.",
       steps: [
-        "Choose Tide, Shroud, or Union resolution.",
+        "Choose Rain, Veil, or Chorus resolution.",
         "Confirm ending and world transform.",
-        "Review campaign closure and unlocked endings.",
+        "Review campaign closure and unlocked routes.",
       ],
       recommendedCardIds: ["card_prism_step"],
     };
   }
 
   return {
-    objective: "Campaign complete. Explore aftermath loops or start New Game+ with a new doctrine strategy.",
+    objective: "Campaign complete. Explore aftermath loops or start New Game+ with a new doctrine.",
     steps: [
       "Review both ending summaries and world changes.",
       "Experiment with alternate doctrine paths.",

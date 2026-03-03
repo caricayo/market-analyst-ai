@@ -2,57 +2,57 @@
   {
     "key": "arc_ember_intro_seen",
     "type": "boolean",
-    "description": "Seen Ember intro scene."
+    "description": "Seen Covenant Part I intro scene."
   },
   {
     "key": "arc_ember_discovered",
     "type": "boolean",
-    "description": "Ember arc discovery complete."
+    "description": "Part I discovery complete."
   },
   {
     "key": "arc_ember_escalated",
     "type": "boolean",
-    "description": "Ember arc escalation complete."
+    "description": "Part I escalation complete."
   },
   {
     "key": "arc_astral_discovered",
     "type": "boolean",
-    "description": "Astral arc discovery complete."
+    "description": "Part II discovery complete."
   },
   {
     "key": "arc_astral_escalated",
     "type": "boolean",
-    "description": "Astral arc escalation complete."
+    "description": "Part II escalation complete."
   },
   {
     "key": "ending_ember_dawn",
     "type": "boolean",
-    "description": "Ember dawn ending unlocked."
+    "description": "Dawn Ledger ending unlocked."
   },
   {
     "key": "ending_ember_ash",
     "type": "boolean",
-    "description": "Ember ash ending unlocked."
+    "description": "Ash Regency ending unlocked."
   },
   {
     "key": "ending_ember_oath",
     "type": "boolean",
-    "description": "Ember oath ending unlocked."
+    "description": "Floodline Compact ending unlocked."
   },
   {
     "key": "ending_astral_tide",
     "type": "boolean",
-    "description": "Astral tide ending unlocked."
+    "description": "Rain Without Permission ending unlocked."
   },
   {
     "key": "ending_astral_shroud",
     "type": "boolean",
-    "description": "Astral shroud ending unlocked."
+    "description": "Veil Regency ending unlocked."
   },
   {
     "key": "ending_astral_union",
     "type": "boolean",
-    "description": "Astral union ending unlocked."
+    "description": "Charter Chorus ending unlocked."
   },
   {
     "key": "market_route_secured",
@@ -62,7 +62,7 @@
   {
     "key": "lore_ember_regent",
     "type": "boolean",
-    "description": "Recovered archive lore about the Ember Regent."
+    "description": "Recovered archive lore about the regent seat engine."
   },
   {
     "key": "mirror_prophecy",
@@ -70,24 +70,9 @@
     "description": "Accepted and retained mirror-lake prophecy."
   },
   {
-    "key": "ember_oath_advance",
-    "type": "boolean",
-    "description": "Arc 1 escalation advanced through formal Bastion force."
-  },
-  {
-    "key": "ember_rogue_breach",
-    "type": "boolean",
-    "description": "Arc 1 escalation advanced through unsanctioned smokeline tactics."
-  },
-  {
     "key": "wound_marks",
     "type": "number",
     "description": "Persistent injury indicator."
-  },
-  {
-    "key": "ember_wait_used",
-    "type": "number",
-    "description": "Tracks whether the Ashen Gate delay option has already been consumed."
   },
   {
     "key": "stat_points",
@@ -103,40 +88,5 @@
     "key": "reroll_day_stamp",
     "type": "number",
     "description": "Current day for reroll reset."
-  },
-  {
-    "key": "arc_astral_access",
-    "type": "boolean",
-    "description": "Arc 2 campaign access unlocked after resolving Ember arc."
-  },
-  {
-    "key": "doctrine_civilian_corridors",
-    "type": "boolean",
-    "description": "Route policy favors civilian caravans."
-  },
-  {
-    "key": "doctrine_shadow_tolls",
-    "type": "boolean",
-    "description": "Route policy favors Undercourt toll leverage."
-  },
-  {
-    "key": "doctrine_open_records",
-    "type": "boolean",
-    "description": "Archive policy favors public disclosure."
-  },
-  {
-    "key": "doctrine_command_secrecy",
-    "type": "boolean",
-    "description": "Archive policy favors command secrecy."
-  },
-  {
-    "key": "doctrine_public_routes",
-    "type": "boolean",
-    "description": "Forge dispatch favors public routing rights."
-  },
-  {
-    "key": "doctrine_private_routes",
-    "type": "boolean",
-    "description": "Forge dispatch favors private convoy rights."
   }
 ]

@@ -2,20 +2,31 @@
   {
     "id": "dungeon_embervault",
     "arcId": "arc_ember_crown",
-    "title": "Embervault Labyrinth",
+    "title": "Hollow Weirs Infiltration",
     "entryTemplateId": "tmpl_ember_entry",
     "bossTemplateId": "tmpl_ember_boss",
     "exitTemplateId": "tmpl_exit",
-    "middleTemplateIds": ["tmpl_combat_1", "tmpl_hazard_1", "tmpl_puzzle_1", "tmpl_rest_1", "tmpl_treasure_1"]
+    "middleTemplateIds": [
+      "tmpl_combat_1",
+      "tmpl_hazard_1",
+      "tmpl_puzzle_1",
+      "tmpl_rest_1",
+      "tmpl_treasure_1"
+    ]
   },
   {
     "id": "dungeon_starwell",
     "arcId": "arc_astral_well",
-    "title": "Starwell Descent",
+    "title": "Charter Engine Descent",
     "entryTemplateId": "tmpl_astral_entry",
     "bossTemplateId": "tmpl_astral_boss",
     "exitTemplateId": "tmpl_exit",
-    "middleTemplateIds": ["tmpl_combat_2", "tmpl_hazard_2", "tmpl_puzzle_2", "tmpl_rest_2", "tmpl_treasure_2"]
+    "middleTemplateIds": [
+      "tmpl_combat_2",
+      "tmpl_hazard_2",
+      "tmpl_puzzle_2",
+      "tmpl_rest_2",
+      "tmpl_treasure_2"
+    ]
   }
 ]
-

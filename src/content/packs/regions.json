@@ -1,15 +1,22 @@
 [
   {
     "id": "gloamreach",
-    "title": "Gloamreach Wilds",
-    "flavor": "A fungal forest lit by embers trapped in bark.",
-    "tags": ["surface", "forest", "embers"]
+    "title": "Gloam Cliffs and Emberdelta",
+    "flavor": "Permit towers and ash fields where legal scarcity can starve whole wards.",
+    "tags": [
+      "surface",
+      "civic",
+      "ash"
+    ]
   },
   {
     "id": "glasswaste",
-    "title": "The Glasswaste",
-    "flavor": "Shattered crystal dunes whisper beneath starlight.",
-    "tags": ["desert", "astral", "ruins"]
+    "title": "Mirror March and Hollow Weirs",
+    "flavor": "Floodplain glass channels and engine tunnels where water rights are rewritten.",
+    "tags": [
+      "floodplain",
+      "glass",
+      "weirs"
+    ]
   }
 ]
-
