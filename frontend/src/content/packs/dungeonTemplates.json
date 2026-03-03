@@ -15,6 +15,6 @@
   {"id":"tmpl_treasure_2","type":"treasure","title":"Zenith Cache","body":"A mirrored casket waits beneath drifting dust.","stat":"craft","baseDifficulty":2,"lootTableId":"loot_dungeon_rare"},
   {"id":"tmpl_astral_boss","type":"combat","title":"The Wellsong Seraph","body":"A winged construct chants equations that tear reality.","stat":"knowledge","baseDifficulty":5,"lootTableId":"loot_boss_astral"},
 
-  {"id":"tmpl_exit","type":"rest","title":"Sealed Egress","body":"The path home opens as the chamber stills.","stat":"resolve","baseDifficulty":1}
+  {"id":"tmpl_exit","type":"exit","title":"Sealed Egress","body":"The path home opens as the chamber stills.","stat":"resolve","baseDifficulty":1}
 ]
 
