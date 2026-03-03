@@ -85,13 +85,21 @@ INSTITUTIONAL_LAYER_MODEL = os.getenv("INSTITUTIONAL_LAYER_MODEL", "gpt-5-mini")
 INSTITUTIONAL_LAYER_MAX_TOKENS = int(os.getenv("INSTITUTIONAL_LAYER_MAX_TOKENS", "8000"))
 
 # Stage 2A: Scatter-Gather Research (parallel lanes + merge)
-RESEARCH_MODEL = "gpt-4.1-mini"            # Data gathering, not analysis — faster
-RESEARCH_LANE_MAX_TOKENS = 3_000           # Each lane: ~2000-3000 chars
-RESEARCH_LANE_TIMEOUT = 90                 # Per lane (expected: 20-40s)
-RESEARCH_MERGE_MAX_TOKENS = 12_000         # Unified brief
-RESEARCH_MERGE_TIMEOUT = 60                # No web search
-RESEARCH_PHASE_TIMEOUT = 150               # Outer safety net (2.5 min)
-RESEARCH_SEARCH_CONTEXT_SIZE = "low"       # Minimize context for speed
+# Default to GPT-5 for researcher lanes; keep tunable via env.
+RESEARCH_MODEL = os.getenv("RESEARCH_MODEL", "gpt-5").strip()
+RESEARCH_MODEL_REASONING_EFFORT = os.getenv("RESEARCH_MODEL_REASONING_EFFORT", "low").strip().lower()
+RESEARCH_MODEL_TEXT_VERBOSITY = os.getenv("RESEARCH_MODEL_TEXT_VERBOSITY", "low").strip().lower()
+RESEARCH_LANE_MAX_TOKENS = int(os.getenv("RESEARCH_LANE_MAX_TOKENS", "1600"))
+RESEARCH_LANE_TIMEOUT = int(os.getenv("RESEARCH_LANE_TIMEOUT", "150"))
+RESEARCH_MERGE_MAX_TOKENS = int(os.getenv("RESEARCH_MERGE_MAX_TOKENS", "4500"))
+RESEARCH_MERGE_TIMEOUT = int(os.getenv("RESEARCH_MERGE_TIMEOUT", "120"))
+RESEARCH_PHASE_TIMEOUT = int(os.getenv("RESEARCH_PHASE_TIMEOUT", "240"))
+RESEARCH_HEARTBEAT_SECONDS = int(os.getenv("RESEARCH_HEARTBEAT_SECONDS", "20"))
+RESEARCH_SEARCH_CONTEXT_SIZE = os.getenv("RESEARCH_SEARCH_CONTEXT_SIZE", "low").strip().lower()
+RESEARCH_SINGLE_LANE_ONLY = os.getenv("RESEARCH_SINGLE_LANE_ONLY", "true").strip().lower() == "true"
+RESEARCH_SINGLE_LANE_ID = os.getenv("RESEARCH_SINGLE_LANE_ID", "R1").strip().upper()
+RESEARCH_MAX_PARALLEL_LANES = int(os.getenv("RESEARCH_MAX_PARALLEL_LANES", "6"))
+RESEARCH_GPT5_MAX_PARALLEL_LANES = int(os.getenv("RESEARCH_GPT5_MAX_PARALLEL_LANES", "2"))
 RESEARCH_MIN_LANES_REQUIRED = 3            # Minimum lanes to proceed
 
 RESEARCH_LANES = {

@@ -19,6 +19,7 @@ import logging
 import re
 import sys
 import time
+from contextlib import suppress
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,11 +38,19 @@ from config import (
     DEEP_DIVE_TIMEOUT,
     DEEP_DIVE_WEB_SEARCH,
     RESEARCH_MODEL,
+    RESEARCH_MODEL_REASONING_EFFORT,
+    RESEARCH_MODEL_TEXT_VERBOSITY,
     RESEARCH_LANE_MAX_TOKENS,
     RESEARCH_LANE_TIMEOUT,
     RESEARCH_MERGE_MAX_TOKENS,
     RESEARCH_MERGE_TIMEOUT,
     RESEARCH_PHASE_TIMEOUT,
+    RESEARCH_HEARTBEAT_SECONDS,
+    RESEARCH_SEARCH_CONTEXT_SIZE,
+    RESEARCH_SINGLE_LANE_ONLY,
+    RESEARCH_SINGLE_LANE_ID,
+    RESEARCH_MAX_PARALLEL_LANES,
+    RESEARCH_GPT5_MAX_PARALLEL_LANES,
     RESEARCH_MIN_LANES_REQUIRED,
     RESEARCH_LANES,
     SECTION_WRITE_MODEL,
@@ -162,6 +171,82 @@ def _count_web_search_calls(response) -> int:
         if isinstance(item_type, str) and "web_search" in item_type:
             count += 1
     return count
+
+
+def _extract_response_text(response) -> str:
+    """
+    Extract assistant text from a Responses API payload.
+    Falls back to message content when `output_text` is empty.
+    """
+    direct_text = getattr(response, "output_text", None)
+    if isinstance(direct_text, str) and direct_text.strip():
+        return direct_text
+
+    output_items = getattr(response, "output", None) or []
+    text_parts: list[str] = []
+    for item in output_items:
+        item_dict = _as_dict(item)
+        item_type = item_dict.get("type")
+        if not item_type and hasattr(item, "type"):
+            item_type = getattr(item, "type")
+        if item_type != "message":
+            continue
+
+        content_items = item_dict.get("content")
+        if content_items is None and hasattr(item, "content"):
+            content_items = getattr(item, "content")
+        if not content_items:
+            continue
+
+        for content in content_items:
+            content_dict = _as_dict(content)
+            content_type = content_dict.get("type")
+            if not content_type and hasattr(content, "type"):
+                content_type = getattr(content, "type")
+
+            text_value = content_dict.get("text")
+            if text_value is None and hasattr(content, "text"):
+                text_value = getattr(content, "text")
+
+            if content_type in {"output_text", "text"} and isinstance(text_value, str) and text_value.strip():
+                text_parts.append(text_value.strip())
+
+    return "\n".join(text_parts).strip()
+
+
+def _is_gpt5_model(model_name: str) -> bool:
+    return str(model_name or "").strip().lower().startswith("gpt-5")
+
+
+def _with_gpt5_controls(
+    request_kwargs: dict[str, Any],
+    *,
+    model_name: str,
+    reasoning_effort: str | None = None,
+    text_verbosity: str | None = None,
+) -> dict[str, Any]:
+    """
+    Apply GPT-5 specific controls only when a GPT-5 model is selected.
+    Keeps backward compatibility for GPT-4.1 family models.
+    """
+    if not _is_gpt5_model(model_name):
+        return request_kwargs
+
+    if reasoning_effort in {"minimal", "low", "medium", "high"}:
+        request_kwargs["reasoning"] = {"effort": reasoning_effort}
+    if text_verbosity in {"low", "medium", "high"}:
+        request_kwargs["text"] = {"verbosity": text_verbosity}
+    return request_kwargs
+
+
+def _is_rate_limit_error(error: Exception) -> bool:
+    message = str(error).lower()
+    return ("rate limit" in message) or ("429" in message) or ("too many requests" in message)
+
+
+def _effective_research_parallelism(total_lanes: int) -> int:
+    configured = RESEARCH_GPT5_MAX_PARALLEL_LANES if _is_gpt5_model(RESEARCH_MODEL) else RESEARCH_MAX_PARALLEL_LANES
+    return max(1, min(total_lanes, configured))
 
 
 def _deep_dive_quality_stats(markdown: str) -> dict[str, int | bool]:
@@ -367,34 +452,70 @@ async def run_research_lane(
     _p = lambda s, d="": progress(s, d, _on_progress=on_progress, _start=start_time)
     label = RESEARCH_LANES[lane_id]["label"]
     prompt = RESEARCH_LANE_PROMPTS[lane_id].format(company=company)
+    _p("Stage 2", f"Lane {lane_id} ({label}) started")
 
     for attempt in range(1 + MAX_RETRIES):
         try:
-            response = await asyncio.wait_for(
-                client.responses.create(
-                    model=RESEARCH_MODEL,
-                    instructions=prompt,
-                    input=f"Gather research data for {company}. "
-                          f"Search the web for real, current data.",
-                    max_output_tokens=RESEARCH_LANE_MAX_TOKENS,
-                    tools=[{"type": "web_search_preview"}],
+            search_tool: dict[str, Any] = {"type": "web_search_preview"}
+            if RESEARCH_SEARCH_CONTEXT_SIZE in {"low", "medium", "high"}:
+                search_tool["search_context_size"] = RESEARCH_SEARCH_CONTEXT_SIZE
+            reasoning_effort = RESEARCH_MODEL_REASONING_EFFORT
+            if _is_gpt5_model(RESEARCH_MODEL) and reasoning_effort == "minimal":
+                reasoning_effort = "low"
+                if attempt == 0:
+                    _p("Stage 2", "Adjusted GPT-5 reasoning effort to 'low' for web_search compatibility")
+            request_kwargs: dict[str, Any] = {
+                "model": RESEARCH_MODEL,
+                "instructions": prompt,
+                "input": (
+                    f"Company: {company}\n"
+                    f"Lane: {lane_id} ({label})\n"
+                    "Collect concise, verifiable evidence only.\n"
+                    "Prefer primary filings / IR links first, then tier-2 market data.\n"
+                    "Keep output compact and include direct source URLs."
                 ),
+                "max_output_tokens": RESEARCH_LANE_MAX_TOKENS,
+                "tools": [search_tool],
+            }
+            request_kwargs = _with_gpt5_controls(
+                request_kwargs,
+                model_name=RESEARCH_MODEL,
+                reasoning_effort=reasoning_effort,
+                text_verbosity=RESEARCH_MODEL_TEXT_VERBOSITY,
+            )
+            response = await asyncio.wait_for(
+                client.responses.create(**request_kwargs),
                 timeout=RESEARCH_LANE_TIMEOUT,
             )
             if usage_tracker:
                 usage_tracker.record_response(response)
 
-            text = response.output_text
+            text = _extract_response_text(response)
             if not text:
                 raise ValueError(f"Lane {lane_id} returned empty output")
 
-            _p("Stage 2", f"Research lane {lane_id} ({label}) complete ({len(text):,} chars)")
+            web_search_calls = _count_web_search_calls(response)
+            if web_search_calls == 0:
+                _p("Stage 2", f"Lane {lane_id} ({label}) completed with 0 web search calls; verify model/tool support")
+            _p("Stage 2", f"Research lane {lane_id} ({label}) complete ({web_search_calls} search calls, {len(text):,} chars)")
             return lane_id, text
 
+        except asyncio.TimeoutError:
+            timeout_msg = f"timed out after {RESEARCH_LANE_TIMEOUT}s"
+            if attempt < MAX_RETRIES:
+                backoff = RETRY_DELAY_SECONDS * (2 ** attempt)
+                _p("Stage 2", f"Lane {lane_id} ({label}) attempt {attempt + 1} failed: {timeout_msg}. Retrying in {backoff}s...")
+                await asyncio.sleep(backoff)
+            else:
+                _p("Stage 2", f"WARNING: Lane {lane_id} ({label}) failed: {timeout_msg}")
+                return lane_id, ""
         except Exception as e:
             if attempt < MAX_RETRIES:
-                _p("Stage 2", f"Lane {lane_id} ({label}) attempt {attempt + 1} failed: {e}. Retrying...")
-                await asyncio.sleep(RETRY_DELAY_SECONDS)
+                backoff = RETRY_DELAY_SECONDS * (2 ** attempt)
+                if _is_rate_limit_error(e):
+                    backoff = max(backoff, 10)
+                _p("Stage 2", f"Lane {lane_id} ({label}) attempt {attempt + 1} failed: {e}. Retrying in {backoff}s...")
+                await asyncio.sleep(backoff)
             else:
                 _p("Stage 2", f"WARNING: Lane {lane_id} ({label}) failed: {e}")
                 return lane_id, ""
@@ -429,25 +550,41 @@ async def merge_research_lanes(
     )
 
     try:
-        response = await asyncio.wait_for(
-            client.responses.create(
-                model=RESEARCH_MODEL,
-                instructions=merge_prompt,
-                input=f"Merge the research lane outputs for {company} into a unified brief.",
-                max_output_tokens=RESEARCH_MERGE_MAX_TOKENS,
+        request_kwargs: dict[str, Any] = {
+            "model": RESEARCH_MODEL,
+            "instructions": merge_prompt,
+            "input": (
+                f"Merge lane outputs for {company}.\n"
+                "Keep only de-duplicated, verifiable facts and preserve source links."
             ),
+            "max_output_tokens": RESEARCH_MERGE_MAX_TOKENS,
+        }
+        request_kwargs = _with_gpt5_controls(
+            request_kwargs,
+            model_name=RESEARCH_MODEL,
+            reasoning_effort=RESEARCH_MODEL_REASONING_EFFORT,
+            text_verbosity=RESEARCH_MODEL_TEXT_VERBOSITY,
+        )
+        response = await asyncio.wait_for(
+            client.responses.create(**request_kwargs),
             timeout=RESEARCH_MERGE_TIMEOUT,
         )
         if usage_tracker:
             usage_tracker.record_response(response)
 
-        text = response.output_text
+        text = _extract_response_text(response)
         if not text:
             raise ValueError("Merge returned empty output")
 
         _p("Stage 2", f"Research merge complete ({len(text):,} chars)")
         return text
 
+    except asyncio.TimeoutError:
+        _p(
+            "Stage 2",
+            f"WARNING: Merge failed (timed out after {RESEARCH_MERGE_TIMEOUT}s), using raw concatenation fallback",
+        )
+        return lane_outputs_text
     except Exception as e:
         _p("Stage 2", f"WARNING: Merge failed ({e}), using raw concatenation fallback")
         # Fallback: concatenate lane outputs with headers
@@ -461,27 +598,75 @@ async def run_research_phase(
     start_time=None,
 ) -> str:
     """
-    Phase 2A: Scatter-gather research — launch 6 parallel focused lanes,
-    then merge into a unified brief.  Returns the research brief markdown.
+    Phase 2A: GPT researcher evidence pass.
+    Default behavior is single-lane mode for reliability with GPT-5.
     """
     _p = lambda s, d="": progress(s, d, _on_progress=on_progress, _start=start_time)
-    _p("Stage 2", "Researching (6 parallel lanes)...")
+    lane_ids = list(RESEARCH_LANES.keys())
+    if RESEARCH_SINGLE_LANE_ONLY:
+        requested_lane = RESEARCH_SINGLE_LANE_ID if RESEARCH_SINGLE_LANE_ID in RESEARCH_LANES else lane_ids[0]
+        lane_ids = [requested_lane]
+        _p("Stage 2", f"Researching (single-lane mode: {requested_lane})...")
+    else:
+        _p("Stage 2", f"Researching ({len(lane_ids)} lanes)...")
 
-    # Launch all lanes in parallel with an outer timeout
-    lane_tasks = [
-        run_research_lane(lid, company, usage_tracker, on_progress, start_time)
-        for lid in RESEARCH_LANES
-    ]
+    # Ensure outer timeout allows lane retries to complete.
+    minimum_timeout_for_retries = (
+        (RESEARCH_LANE_TIMEOUT * (MAX_RETRIES + 1))
+        + (RETRY_DELAY_SECONDS * MAX_RETRIES)
+        + 15
+    )
+    effective_phase_timeout = max(RESEARCH_PHASE_TIMEOUT, minimum_timeout_for_retries)
+    if effective_phase_timeout != RESEARCH_PHASE_TIMEOUT:
+        _p(
+            "Stage 2",
+            f"Adjusted research timeout to {effective_phase_timeout}s to cover retry budget",
+        )
+
+    lane_parallelism = _effective_research_parallelism(len(lane_ids))
+    if lane_parallelism < len(lane_ids):
+        _p(
+            "Stage 2",
+            f"Using concurrency cap {lane_parallelism}/{len(lane_ids)} for {RESEARCH_MODEL}",
+        )
+
+    semaphore = asyncio.Semaphore(lane_parallelism)
+
+    async def _run_lane_with_limit(lane_id: str) -> tuple[str, str]:
+        async with semaphore:
+            return await run_research_lane(lane_id, company, usage_tracker, on_progress, start_time)
+
+    # Launch all lanes with bounded parallelism and an outer timeout
+    lane_tasks = [asyncio.create_task(_run_lane_with_limit(lid)) for lid in lane_ids]
+
+    waited_seconds = 0
+    heartbeat_done = asyncio.Event()
+
+    async def _research_heartbeat() -> None:
+        nonlocal waited_seconds
+        while not heartbeat_done.is_set():
+            await asyncio.sleep(RESEARCH_HEARTBEAT_SECONDS)
+            if heartbeat_done.is_set():
+                return
+            waited_seconds += RESEARCH_HEARTBEAT_SECONDS
+            _p("Stage 2", f"Research lane workload still running ({waited_seconds}s elapsed)")
+
+    heartbeat_task = asyncio.create_task(_research_heartbeat())
 
     try:
         results = await asyncio.wait_for(
             asyncio.gather(*lane_tasks, return_exceptions=True),
-            timeout=RESEARCH_PHASE_TIMEOUT,
+            timeout=effective_phase_timeout,
         )
     except asyncio.TimeoutError:
         raise RuntimeError(
-            f"Research phase exceeded {RESEARCH_PHASE_TIMEOUT}s outer timeout"
+            f"Research phase exceeded {effective_phase_timeout}s outer timeout"
         )
+    finally:
+        heartbeat_done.set()
+        heartbeat_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await heartbeat_task
 
     # Collect successful results
     lane_results: dict[str, str] = {}
@@ -494,16 +679,26 @@ async def run_research_phase(
             lane_results[lane_id] = text
 
     succeeded = len(lane_results)
-    total = len(RESEARCH_LANES)
+    total = len(lane_ids)
     _p("Stage 2", f"Research lanes complete: {succeeded}/{total} succeeded")
 
-    if succeeded < RESEARCH_MIN_LANES_REQUIRED:
+    minimum_required = min(max(RESEARCH_MIN_LANES_REQUIRED, 1), total)
+    if succeeded < minimum_required:
         raise RuntimeError(
             f"Only {succeeded}/{total} research lanes succeeded "
-            f"(minimum {RESEARCH_MIN_LANES_REQUIRED} required)"
+            f"(minimum {minimum_required} required)"
         )
 
-    # Merge lane outputs into unified brief
+    # Skip merge when running single-lane mode.
+    if total == 1:
+        only_lane_id = lane_ids[0]
+        brief = lane_results.get(only_lane_id, "")
+        if not brief:
+            raise RuntimeError(f"Single-lane research {only_lane_id} produced no output")
+        _p("Stage 2", f"Single-lane research complete ({len(brief):,} chars)")
+        return brief
+
+    # Merge lane outputs into unified brief when multi-lane mode is enabled.
     brief = await merge_research_lanes(
         company,
         lane_results,
@@ -551,7 +746,7 @@ async def run_section_group(
             if usage_tracker:
                 usage_tracker.record_response(response)
 
-            text = response.output_text
+            text = _extract_response_text(response)
             if not text:
                 raise ValueError(f"Section group {group_id} returned empty output")
 
@@ -604,7 +799,7 @@ async def run_bookend_phase(
             if usage_tracker:
                 usage_tracker.record_response(response)
 
-            text = response.output_text
+            text = _extract_response_text(response)
             if not text:
                 raise ValueError("Bookend phase returned empty output")
 
@@ -664,7 +859,7 @@ async def run_fact_first_diligence_deep_dive(
             usage_tracker=usage_tracker,
             cache_key=fact_first_cache_key,
         )
-        return response.output_text or ""
+        return _extract_response_text(response)
 
     _call_model = model_caller or _default_model_caller
     raw_output = (await _call_model(system_prompt, user_prompt)).strip()
@@ -963,7 +1158,7 @@ async def run_single_persona(
                 cache_key=persona_cache_key,
             )
 
-            text = response.output_text
+            text = _extract_response_text(response)
             if not text:
                 raise ValueError(f"{persona_name} returned empty output")
 
@@ -1093,7 +1288,7 @@ async def run_synthesis(
                 cache_key=synthesis_cache_key,
             )
 
-            text = response.output_text
+            text = _extract_response_text(response)
             if not text:
                 raise ValueError("Synthesis returned empty output")
 
@@ -1174,7 +1369,7 @@ async def run_pipeline(
         )
         if usage_tracker:
             usage_tracker.record_response(response)
-        return response.output_text or ""
+        return _extract_response_text(response)
 
     apply_addendum = "addendum" in DEEP_DIVE_OUTPUT_MODE
     if apply_addendum:

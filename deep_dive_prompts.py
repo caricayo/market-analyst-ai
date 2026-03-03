@@ -278,161 +278,124 @@ so completeness and accuracy are critical.
 # ---------------------------------------------------------------------------
 # Scatter-Gather Research — Lane Prompts (Phase 2A)
 # ---------------------------------------------------------------------------
-# Each lane covers 1-2 categories from the original monolithic prompt.
-# Prompts are focused to trigger only 3-5 web searches per lane.
+# R1 is full-spectrum for single-lane mode; R2-R6 are narrower lanes for optional multi-lane mode.
+# Prompts are compact to reduce tool-call latency.
 
 RESEARCH_LANE_PROMPTS = {
     "R1": SOURCE_DISCIPLINE_BLOCK + """
-You are a senior equity research analyst. Gather **raw data** for {company} \
-on the topics below. Use web search. Focus on data density, not polished prose.
+Research lane for {company}: Full-spectrum evidence brief.
 
-### Company Fundamentals
-- Full company name, ticker, sector, industry, market cap, enterprise value
-- Current price, 52-week range, average daily volume, dividend yield
-- Business model description, revenue streams, pricing model
-- Revenue breakdown by segment and geography
+Deliver compact markdown with two sections:
+## Key Facts
+- Up to 30 bullets. Each bullet must include: metric/fact, value (or [Not found]), timeframe, and source URL.
+- Cover all core categories:
+  - fundamentals and financial trajectory
+  - balance sheet and capital structure
+  - leadership and governance
+  - industry and competition
+  - valuation and ownership/sentiment
+  - near-term catalysts and downside triggers
 
-### Financial Data (most recent 3-5 years)
-- Revenue, gross profit, operating income, net income, EPS
-- Gross margin, operating margin, EBITDA margin, net margin trends
-- Free cash flow, operating cash flow, capex
-- ROIC, ROE, debt/equity, net debt/EBITDA, interest coverage
-- Working capital trends (receivables, inventory, payables)
+## Sources
+- Up to 15 links with short labels.
 
-Use markdown headers, tables for financial data. Include source URLs. \
-Mark unavailable data as `[Not found]`.
+No prose intro. No speculation. Prefer SEC/IR first.
 """,
 
     "R2": SOURCE_DISCIPLINE_BLOCK + """
-You are a senior equity research analyst. Gather **raw data** for {company} \
-on the topics below. Use web search. Focus on data density, not polished prose.
+Research lane for {company}: Balance Sheet and Capital Allocation.
 
-### Balance Sheet & Capital Structure
-- Total debt, cash, net debt
-- Debt maturity schedule, interest rates, covenants if available
-- Share count history, dilution, buyback activity
-- Off-balance-sheet items (leases, pensions, etc.)
+Deliver compact markdown with two sections:
+## Key Facts
+- Up to 12 bullets with value, timeframe, and source URL.
+- Cover debt/cash/liquidity, maturities/covenants, dilution/buybacks/dividends, and major M&A outcomes.
 
-### M&A and Capital Allocation History
-- Major acquisitions (last 5 years), prices paid, outcomes
-- Buyback history and timing relative to stock price
-- Dividend history and payout ratios
-- Major investments, divestitures, restructurings
+## Sources
+- Up to 8 links with short labels.
 
-Use markdown headers, tables for financial data. Include source URLs. \
-Mark unavailable data as `[Not found]`.
+No prose intro. No speculation. Prefer SEC/IR first.
 """,
 
     "R3": SOURCE_DISCIPLINE_BLOCK + """
-You are a senior equity research analyst. Gather **raw data** for {company} \
-on the topics below. Use web search. Focus on data density, not polished prose.
+Research lane for {company}: Leadership and Governance.
 
-### Leadership & Governance
-- CEO, CFO, key executives — backgrounds, tenure, track record
-- Insider ownership levels, recent insider transactions
-- Compensation structure, guidance accuracy history
-- Board composition, independence, governance provisions
-- Related-party transactions, controversies, lawsuits
+Deliver compact markdown with two sections:
+## Key Facts
+- Up to 12 bullets with source URL.
+- Cover CEO/CFO tenure/background, board quality/independence, incentives, insider activity, controversies/litigation.
 
-Use markdown headers, tables where useful. Include source URLs. \
-Mark unavailable data as `[Not found]`.
+## Sources
+- Up to 8 links with short labels.
+
+No prose intro. No speculation. Prefer SEC/IR first.
 """,
 
     "R4": SOURCE_DISCIPLINE_BLOCK + """
-You are a senior equity research analyst. Gather **raw data** for {company} \
-on the topics below. Use web search. Focus on data density, not polished prose.
+Research lane for {company}: Industry and Competition.
 
-### Industry & Competition
-- Key competitors (at least 3), market share data
-- Industry growth rate, cycle position
-- Porter's Five Forces assessment data
-- Regulatory environment, upcoming legislation
-- Technology/AI disruption exposure
+Deliver compact markdown with two sections:
+## Key Facts
+- Up to 12 bullets with source URL.
+- Cover competitor set, share/positioning, industry cycle, regulation, and disruption risk.
 
-Use markdown headers, tables for comparisons. Include source URLs. \
-Mark unavailable data as `[Not found]`.
+## Sources
+- Up to 8 links with short labels.
+
+No prose intro. No speculation. Prefer SEC/IR first.
 """,
 
     "R5": SOURCE_DISCIPLINE_BLOCK + """
-You are a senior equity research analyst. Gather **raw data** for {company} \
-on the topics below. Use web search. Focus on data density, not polished prose.
+Research lane for {company}: Valuation and Ownership.
 
-### Valuation & Market Data
-- Current multiples: P/E, EV/EBITDA, EV/Revenue, P/FCF, PEG
-- Historical multiple ranges
-- Analyst consensus estimates (revenue, EPS for next 2 years)
-- Analyst price targets and ratings distribution
+Deliver compact markdown with two sections:
+## Key Facts
+- Up to 12 bullets with value, timeframe, and source URL.
+- Cover key valuation multiples/ranges, consensus estimates/targets, holder base, short interest, sentiment shifts.
 
-### Ownership & Sentiment
-- Top institutional holders, ownership concentration
-- Short interest (% of float, days to cover, trend)
-- Recent analyst rating changes
-- Options market signals if notable
+## Sources
+- Up to 8 links with short labels.
 
-Use markdown headers, tables for financial data. Include source URLs. \
-Mark unavailable data as `[Not found]`.
+No prose intro. No speculation. Prefer SEC/IR first.
 """,
 
     "R6": SOURCE_DISCIPLINE_BLOCK + """
-You are a senior equity research analyst. Gather **raw data** for {company} \
-on the topics below. Use web search. Focus on data density, not polished prose.
+Research lane for {company}: Catalysts and Bear-Case Triggers.
 
-### Catalysts & Events
-- Upcoming earnings dates, product launches, regulatory decisions
-- Pending M&A, asset sales, spin-offs
-- Debt maturities, refinancing needs
-- Lock-up expirations, insider unlock dates
+Deliver compact markdown with two sections:
+## Key Facts
+- Up to 12 bullets with source URL.
+- Cover near-term events/catalysts and highest-probability downside triggers (operational, legal, balance-sheet, demand).
 
-### Bear Case Data Points
-- Known risks, controversies, litigation
-- Accounting red flags or aggressive practices
-- Customer/supplier concentration risks
-- Historical failure analogs (similar companies that disappointed)
+## Sources
+- Up to 8 links with short labels.
 
-Use markdown headers, tables where useful. Include source URLs. \
-Mark unavailable data as `[Not found]`.
+No prose intro. No speculation. Prefer SEC/IR first.
 """,
 }
 
 
 RESEARCH_MERGE_PROMPT = """\
-You are a senior equity research analyst. You have received research data for \
-{company} from 6 parallel research lanes. Your job is to merge them into one \
-unified, well-structured research brief.
+Merge research lane outputs for {company} into a single compact evidence brief.
 
-## Instructions
+Rules:
+1) Keep facts only. No opinions or recommendations.
+2) De-duplicate overlapping facts. Keep the best-sourced version.
+3) Keep direct source URLs on each factual bullet.
+4) If missing, mark [Not found].
+5) For numeric facts, retain timeframe, unit, source_type, and source_citation.
+6) If source quality is weak, mark Unverified / needs source.
 
-1. Combine all data under these standard category headers:
-   - Company Fundamentals
-   - Financial Data (most recent 3-5 years)
-   - Balance Sheet & Capital Structure
-   - Leadership & Governance
-   - Industry & Competition
-   - Valuation & Market Data
-   - Ownership & Sentiment
-   - Catalysts & Events
-   - M&A and Capital Allocation History
-   - Bear Case Data Points
-
-2. **Deduplicate** — if multiple lanes found the same data point, keep the \
-most detailed/sourced version.
-
-3. **Preserve source URLs** — keep all inline citations and links.
-
-4. **Mark gaps** — if a data point was not found by any lane, mark it as \
-`[Not found]`.
-
-5. Preserve sourcing envelope for numeric metrics:
-   - timeframe
-   - unit
-   - source_type
-   - source_citation
-   If a metric is only from low-quality aggregators or has weak citation, \
-   label it: `Unverified / needs source` and set source_citation to `unverified`.
-
-6. Use markdown tables for financial data. Use bullet points for other data.
-
-7. Do NOT add analysis, opinions, or commentary. This is raw data only.
+Output structure:
+- Company Fundamentals
+- Financial Data
+- Balance Sheet & Capital Structure
+- Leadership & Governance
+- Industry & Competition
+- Valuation & Market Data
+- Ownership & Sentiment
+- Catalysts & Events
+- M&A and Capital Allocation History
+- Bear Case Data Points
 
 ## Lane Outputs
 
