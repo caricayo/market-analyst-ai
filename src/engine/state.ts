@@ -1,4 +1,4 @@
-import type { ContentRegistry, Cost, GameState } from "./types";
+﻿import type { ContentRegistry, Cost, GameState } from "./types";
 import { evaluateRequires } from "./predicates";
 
 export function xpToNext(level: number): number {
@@ -145,3 +145,4 @@ export function isCardUnlocked(state: GameState, registry: ContentRegistry, card
 
   return evaluateRequires(state, card.requires);
 }
+

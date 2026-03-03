@@ -1,4 +1,4 @@
-[
+﻿[
   {"id":"card_ember_hollow","title":"Ember Hollow","flavor":"Ash snow falls into a cratered shrine.","regionId":"gloamreach","tags":["arc1","sanctum"],"danger":2,"rarity":"common","entrySceneId":"ember_discovery_1"},
   {"id":"card_cinder_market","title":"Cinder Market","flavor":"Lantern merchants trade promises in smoke.","regionId":"gloamreach","tags":["trade","social"],"danger":1,"rarity":"common","entrySceneId":"market_barter"},
   {"id":"card_root_archive","title":"Root Archive","flavor":"Trees hold scrolls in living knots.","regionId":"gloamreach","tags":["knowledge"],"danger":2,"rarity":"uncommon","entrySceneId":"archive_query"},
@@ -13,3 +13,4 @@
   {"id":"card_starwell_rim","title":"Starwell Rim","flavor":"A circular abyss swallowing constellations.","regionId":"glasswaste","tags":["arc2","dungeon"],"danger":4,"rarity":"rare","entrySceneId":"astral_dungeon_gate","requires":[{"type":"flag","key":"arc_astral_escalated","op":"==","value":true}],"corruptionVariantAt":45,"variantId":"card_starwell_rim_corrupted"},
   {"id":"card_eclipse_court","title":"Eclipse Court","flavor":"Jurors in obsidian masks pass cosmic sentence.","regionId":"glasswaste","tags":["arc2","faction"],"danger":3,"rarity":"rare","entrySceneId":"astral_escalation_2","requires":[{"type":"flag","key":"arc_astral_discovered","op":"==","value":true}]}
 ]
+

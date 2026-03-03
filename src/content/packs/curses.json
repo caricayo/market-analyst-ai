@@ -1,7 +1,8 @@
-[
+﻿[
   {"id":"curse_hushburn","name":"Hushburn","effectText":"Gain +1 corruption whenever you gain mana."},
   {"id":"curse_iron_sleep","name":"Iron Sleep","effectText":"Rest nodes restore half hp."},
   {"id":"curse_blindmaps","name":"Blind Maps","effectText":"Card flavor hints are hidden."},
   {"id":"curse_levy","name":"Levy of Cinders","effectText":"Every 5 turns lose 1 hp."},
   {"id":"curse_refraction","name":"Refraction Debt","effectText":"Mixed outcomes count as fail-forward in dungeons."}
 ]
+

@@ -1,4 +1,4 @@
-# GOLDEN_PATH
+﻿# GOLDEN_PATH
 
 This file lists deterministic end-to-end completion routes for both arcs using exact IDs.
 
@@ -29,3 +29,4 @@ This file lists deterministic end-to-end completion routes for both arcs using e
 9. Scene `astral_climax` -> choice `astral_choose_tide`
 10. Scene `astral_resolution_tide` -> choice `astral_end_tide`
 11. End arc screen appears with ending `tide`
+

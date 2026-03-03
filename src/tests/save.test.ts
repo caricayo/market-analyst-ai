@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+﻿import { beforeEach, describe, expect, it } from "vitest";
 import { getRegistry } from "../engine/registry";
 import { clearSave, createInitialState, loadGame, saveGame } from "../engine/save";
 
@@ -31,3 +31,4 @@ describe("save/load roundtrip", () => {
     expect(loadGame(registry)).toBeNull();
   });
 });
+

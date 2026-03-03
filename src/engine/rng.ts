@@ -1,4 +1,4 @@
-export type SeededRng = { seed: number; step: number };
+﻿export type SeededRng = { seed: number; step: number };
 
 function mix32(value: number): number {
   let x = value | 0;
@@ -58,3 +58,4 @@ export function pickWeighted<T>(rng: SeededRng, entries: Array<{ weight: number;
   }
   return { value: entries[entries.length - 1].value, rng: next };
 }
+

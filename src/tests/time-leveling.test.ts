@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import { getRegistry } from "../engine/registry";
 import { createInitialState } from "../engine/save";
 import { advanceTime, applyLeveling } from "../engine/state";
@@ -27,3 +27,4 @@ describe("time and leveling", () => {
     expect(leveled.player.maxMana).toBe(state.player.maxMana + 1);
   });
 });
+

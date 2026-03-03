@@ -1,4 +1,4 @@
--- Game schema for Mystic Atlas RPG
+﻿-- Game schema for Mystic Atlas RPG
 
 create table if not exists public.game_profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -62,3 +62,4 @@ drop trigger if exists on_auth_game_user_created on auth.users;
 create trigger on_auth_game_user_created
   after insert on auth.users
   for each row execute function public.handle_new_game_user();
+

@@ -1,4 +1,4 @@
-import { rollD100, type SeededRng } from "./rng";
+﻿import { rollD100, type SeededRng } from "./rng";
 import type { GameState, RiskCheck } from "./types";
 
 export const RISK_BASE = 60;
@@ -30,3 +30,4 @@ export function resolveRiskCheck(state: GameState, check: RiskCheck): RiskResult
 
   return { roll, target, tier: "fail-forward", rng };
 }
+

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import { getRegistry } from "../engine/registry";
 import { createInitialState } from "../engine/save";
 import { rollLoot } from "../engine/loot";
@@ -27,3 +27,4 @@ describe("loot scaling", () => {
     expect(highLoot.state.rng.step).toBeGreaterThan(lowLoot.state.rng.step);
   });
 });
+

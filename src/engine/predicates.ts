@@ -1,4 +1,4 @@
-import type { GameState, Predicate } from "./types";
+﻿import type { GameState, Predicate } from "./types";
 
 export function evaluatePredicate(state: GameState, predicate: Predicate): boolean {
   switch (predicate.type) {
@@ -35,3 +35,4 @@ export function evaluateRequires(state: GameState, predicates?: Predicate[]): bo
   }
   return predicates.every((predicate) => evaluatePredicate(state, predicate));
 }
+

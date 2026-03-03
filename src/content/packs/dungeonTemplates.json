@@ -1,4 +1,4 @@
-[
+﻿[
   {"id":"tmpl_ember_entry","type":"hazard","title":"Molten Vestibule","body":"Heat shimmers across sigils carved in bronze.","stat":"resolve","baseDifficulty":2},
   {"id":"tmpl_astral_entry","type":"puzzle","title":"Prismatic Threshold","body":"The floor arranges itself into impossible geometry.","stat":"knowledge","baseDifficulty":2},
   {"id":"tmpl_combat_1","type":"combat","title":"Cinder Wardens","body":"Ash-clad sentries rise with ember spears.","stat":"might","baseDifficulty":3,"lootTableId":"loot_dungeon_common"},
@@ -17,3 +17,4 @@
 
   {"id":"tmpl_exit","type":"rest","title":"Sealed Egress","body":"The path home opens as the chamber stills.","stat":"resolve","baseDifficulty":1}
 ]
+

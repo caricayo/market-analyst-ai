@@ -1,4 +1,4 @@
-[
+﻿[
   {"id":"enemy_cinder_warden","name":"Cinder Warden","danger":3,"statBias":"might","flavor":"Armored sentinel wreathed in ember mist."},
   {"id":"enemy_tar_serpent","name":"Tar Serpent","danger":2,"statBias":"resolve","flavor":"A mire eel that climbs air like rope."},
   {"id":"enemy_ash_regent","name":"Ash Regent","danger":5,"statBias":"might","flavor":"Exiled monarch animated by crownfire."},
@@ -8,3 +8,4 @@
   {"id":"enemy_dust_monk","name":"Dust Monk","danger":2,"statBias":"resolve","flavor":"Silent wanderer with bell chimes under robes."},
   {"id":"enemy_obsidian_juror","name":"Obsidian Juror","danger":4,"statBias":"knowledge","flavor":"Court executioner with mirrored mask."}
 ]
+

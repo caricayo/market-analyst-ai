@@ -1,4 +1,4 @@
-type Props = {
+﻿type Props = {
   cardId: string;
   alt: string;
   compact?: boolean;
@@ -19,3 +19,4 @@ export function CardImage({ cardId, alt, compact = false }: Props) {
     />
   );
 }
+

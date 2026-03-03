@@ -1,4 +1,4 @@
-[
+﻿[
   {
     "id": "dungeon_embervault",
     "arcId": "arc_ember_crown",
@@ -18,3 +18,4 @@
     "middleTemplateIds": ["tmpl_combat_2", "tmpl_hazard_2", "tmpl_puzzle_2", "tmpl_rest_2", "tmpl_treasure_2"]
   }
 ]
+

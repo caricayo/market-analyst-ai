@@ -1,4 +1,4 @@
-import { resolveArcEnd } from "./arcs";
+﻿import { resolveArcEnd } from "./arcs";
 import { resolveRiskCheck } from "./checks";
 import { applyEffects } from "./effects";
 import { completeCurrentDungeonNode, generateDungeonGraph, leaveDungeon, moveToNextDungeonNode } from "./dungeon";
@@ -303,3 +303,4 @@ export function resolveCurrentChoice(state: GameState, registry: ContentRegistry
 
   return applyLeveling(next);
 }
+

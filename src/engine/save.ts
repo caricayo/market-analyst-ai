@@ -1,4 +1,4 @@
-import { createSeedFromString } from "./rng";
+﻿import { createSeedFromString } from "./rng";
 import type { ContentRegistry, GameState } from "./types";
 
 export const SAVE_VERSION = 1;
@@ -106,3 +106,4 @@ function migrateState(envelope: SaveEnvelope, registry: ContentRegistry): GameSt
     outcomeLog: ["Save migration fallback applied."],
   };
 }
+

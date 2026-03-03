@@ -1,4 +1,4 @@
-import { pickWeighted, rollInt } from "./rng";
+﻿import { pickWeighted, rollInt } from "./rng";
 import type { ContentRegistry, GameState, ItemDefinition, LootTable } from "./types";
 
 function filteredEntries(table: LootTable, level: number) {
@@ -68,3 +68,4 @@ export function rollLoot(state: GameState, registry: ContentRegistry, lootTableI
 
   return { state: nextState, item: baseItem, text: `You found ${baseItem.name}.` };
 }
+

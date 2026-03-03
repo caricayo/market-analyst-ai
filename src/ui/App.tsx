@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { getRegistry } from "../engine/registry";
 import { createInitialState, loadGame, saveGame } from "../engine/save";
 import { canPayCost, isCardUnlocked } from "../engine/state";
@@ -199,7 +199,7 @@ export function App() {
             <CardImage cardId={currentScene.cardId ?? "placeholder"} alt={currentScene.title} compact />
             <div>
               <h2>{currentScene.title}</h2>
-              <p className="muted">{currentScene.tags.join(" � ")}</p>
+              <p className="muted">{currentScene.tags.join(" • ")}</p>
             </div>
           </div>
 
@@ -302,3 +302,4 @@ export function App() {
     </div>
   );
 }
+

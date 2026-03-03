@@ -1,4 +1,4 @@
-# Mystic Atlas RPG
+﻿# Mystic Atlas RPG
 
 Text-first exploration RPG built around Environment Preview Cards. Gameplay is deterministic and content-driven (no runtime LLM choices/story generation).
 
@@ -53,3 +53,4 @@ All gameplay content lives in `src/content/packs/*.json` and is validated by JSO
 
 - Supabase, Railway, and Stripe hooks are preserved as optional integrations.
 - Core single-player loop runs without external services.
+

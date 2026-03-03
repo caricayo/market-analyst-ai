@@ -1,4 +1,4 @@
-[
+﻿[
   {"id":"artifact_void_lens","name":"Void Lens","rarity":"legendary","tags":["artifact","utility"],"lore":"A black crystal that reveals hidden atlas paths.","effects":["Reveal hidden cards that meet non-level gates."],"unique":true},
   {"id":"artifact_bloodquill","name":"Bloodquill Sigil","rarity":"legendary","tags":["artifact","magic"],"lore":"Ink from this quill drinks mana debt and writes in corruption.","effects":["Mana costs can be paid with corruption when mana is insufficient."],"unique":true},
   {"id":"artifact_chronicle_die","name":"Chronicle Die","rarity":"legendary","tags":["artifact","fate"],"lore":"A six-sided relic that remembers one second chance each dawn.","effects":["Gain one risk-check reroll per day."],"unique":true},
@@ -56,3 +56,4 @@
   {"id":"item_rust_signet","name":"Rust Signet","rarity":"common","tags":["filler"],"lore":"A signet from a fallen quartermaster.","effects":["Minor vendor discounts." ]},
   {"id":"item_sky_suture","name":"Sky Suture Kit","rarity":"uncommon","tags":["filler"],"lore":"Needles meant for repairing glider cloth.","effects":["Recover +1 hp on rest nodes." ]}
 ]
+

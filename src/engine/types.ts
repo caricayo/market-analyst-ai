@@ -1,4 +1,4 @@
-export type StatKey = "resolve" | "knowledge" | "might" | "craft";
+﻿export type StatKey = "resolve" | "knowledge" | "might" | "craft";
 
 export type Predicate =
   | { type: "minLevel"; value: number }
@@ -291,3 +291,4 @@ export type ContentRegistry = {
     enemies: Record<string, EnemyDefinition>;
   };
 };
+

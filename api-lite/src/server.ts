@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 import express from "express";
 import Stripe from "stripe";
 
@@ -45,3 +45,4 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), (req,
 app.listen(port, () => {
   console.log(`api-lite listening on ${port}`);
 });
+
