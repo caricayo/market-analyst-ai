@@ -1,4 +1,4 @@
-import type { ContentRegistry, Cost, GameState } from "./types";
+import type { ContentRegistry, Cost, GameState, StatKey } from "./types";
 import { evaluateRequires } from "./predicates";
 
 export function xpToNext(level: number): number {
@@ -144,5 +144,28 @@ export function isCardUnlocked(state: GameState, registry: ContentRegistry, card
   if (location.status === "hidden" && !hasLens) return false;
 
   return evaluateRequires(state, card.requires);
+}
+
+export function spendStatPoint(state: GameState, stat: StatKey): GameState {
+  const available = Number(state.flags.stat_points ?? 0);
+  if (available <= 0) {
+    return state;
+  }
+
+  return {
+    ...state,
+    player: {
+      ...state.player,
+      stats: {
+        ...state.player.stats,
+        [stat]: Math.min(10, state.player.stats[stat] + 1),
+      },
+    },
+    flags: {
+      ...state.flags,
+      stat_points: available - 1,
+    },
+    outcomeLog: [...state.outcomeLog, `You sharpen your ${stat}.`],
+  };
 }
 

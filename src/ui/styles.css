@@ -68,6 +68,13 @@ button {
   cursor: pointer;
 }
 
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid #e8bc7f;
+  outline-offset: 2px;
+}
+
 button.primary {
   background: linear-gradient(180deg, #d39b57, #b87f3f);
   color: #1c140f;
@@ -97,6 +104,10 @@ button:disabled {
   grid-template-columns: minmax(16rem, 20rem) 1fr;
   gap: 1rem;
   padding: 1rem;
+}
+
+.mobile-world-toggle {
+  display: none;
 }
 
 .filters {
@@ -191,6 +202,16 @@ button:disabled {
   color: #c95d47;
 }
 
+.check-line {
+  color: #c5b49a;
+  font-size: 0.82rem;
+}
+
+.alert-line {
+  color: #e2b67b;
+  font-weight: 600;
+}
+
 .log-panel ul {
   margin: 0;
   padding-left: 1rem;
@@ -214,6 +235,13 @@ button:disabled {
   padding: 0.75rem;
 }
 
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
 .title-screen {
   max-width: 40rem;
   margin: 3rem auto;
@@ -222,6 +250,15 @@ button:disabled {
 @media (max-width: 900px) {
   .atlas-layout {
     grid-template-columns: 1fr;
+  }
+
+  .mobile-world-toggle {
+    display: block;
+    margin: 0 1rem;
+  }
+
+  .world-panel.collapsed {
+    display: none;
   }
 
   .scene-header {

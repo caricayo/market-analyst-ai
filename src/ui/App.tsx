@@ -1,14 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { getRegistry } from "../engine/registry";
 import { createInitialState, loadGame, saveGame } from "../engine/save";
-import { canPayCost, isCardUnlocked } from "../engine/state";
+import { RISK_BASE, RISK_DIFFICULTY_MULTIPLIER, RISK_STAT_MULTIPLIER } from "../engine/checks";
+import { canPayCost, isCardUnlocked, spendStatPoint } from "../engine/state";
 import { enterCard, getCurrentScene, resolveCurrentChoice } from "../engine/story";
 import { evaluateRequires } from "../engine/predicates";
-import type { CardDefinition, Choice, GameState } from "../engine/types";
+import type { CardDefinition, Choice, GameState, StatKey } from "../engine/types";
 import { CardImage } from "./components/CardImage";
 
 function statusBadge(value: string): string {
   return value.replace("_", " ").toUpperCase();
+}
+
+function formatRiskPreview(state: GameState, choice: Choice): string | null {
+  if (!choice.check) return null;
+  const statValue = state.player.stats[choice.check.stat];
+  const target = RISK_BASE + statValue * RISK_STAT_MULTIPLIER - choice.check.difficulty * RISK_DIFFICULTY_MULTIPLIER;
+  return `risk: ${choice.check.stat.toUpperCase()} ${statValue}, diff ${choice.check.difficulty}, target ${target}, mixed up to ${target + 15}`;
 }
 
 export function App() {
@@ -20,6 +28,7 @@ export function App() {
   const [fontScale, setFontScale] = useState<number>(() => Number(localStorage.getItem("ui_font_scale") ?? 100));
   const [reducedMotion, setReducedMotion] = useState<boolean>(() => localStorage.getItem("ui_reduced_motion") === "true");
   const [theme, setTheme] = useState<"dark" | "light">((localStorage.getItem("ui_theme") as "dark" | "light") ?? "dark");
+  const [showWorldPanel, setShowWorldPanel] = useState(true);
 
   useEffect(() => {
     if (state.currentScreen !== "title") {
@@ -41,6 +50,7 @@ export function App() {
 
   const currentScene = getCurrentScene(state, registry);
   const tags = Array.from(new Set(registry.cards.flatMap((card) => card.tags))).sort();
+  const unspentStatPoints = Number(state.flags.stat_points ?? 0);
 
   const cards = registry.cards.filter((card) => {
     if (filterRegion !== "all" && card.regionId !== filterRegion) return false;
@@ -69,6 +79,10 @@ export function App() {
 
   const handleChoice = (choice: Choice) => {
     setState((prev) => resolveCurrentChoice(prev, registry, choice.id));
+  };
+
+  const allocateStat = (stat: StatKey) => {
+    setState((prev) => spendStatPoint(prev, stat));
   };
 
   const applyNgPlus = () => {
@@ -100,7 +114,9 @@ export function App() {
       <header className="topbar">
         <h1>Mystic Atlas RPG</h1>
         <nav className="topnav">
-          <button onClick={() => setState((prev) => ({ ...prev, currentScreen: "atlas" }))}>Atlas</button>
+          <button onClick={() => setState((prev) => prev.activeDungeon ? { ...prev, currentScreen: "scene" } : { ...prev, currentScreen: "atlas" })}>
+            Atlas
+          </button>
           <button onClick={() => setState((prev) => ({ ...prev, currentScreen: "character" }))}>Character</button>
           <button onClick={() => setState((prev) => ({ ...prev, currentScreen: "settings" }))}>Settings</button>
         </nav>
@@ -112,7 +128,7 @@ export function App() {
           <p>Choose your seed and begin a deterministic journey through living tarot-cards.</p>
           <label>
             Seed
-            <input value={seedInput} onChange={(event) => setSeedInput(event.target.value)} />
+            <input aria-label="Seed" value={seedInput} onChange={(event) => setSeedInput(event.target.value)} />
           </label>
           <div className="row">
             <button className="primary" onClick={beginNewRun}>New Run</button>
@@ -123,12 +139,17 @@ export function App() {
 
       {state.currentScreen === "atlas" && (
         <main className="atlas-layout">
-          <aside className="panel world-panel">
+          <button className="mobile-world-toggle" onClick={() => setShowWorldPanel((value) => !value)}>
+            {showWorldPanel ? "Hide World Panel" : "Show World Panel"}
+          </button>
+
+          <aside className={`panel world-panel ${showWorldPanel ? "" : "collapsed"}`}>
             <h2>World Panel</h2>
             <p>Day {state.time.day}, Turn {state.time.turn}</p>
             <p>Level {state.player.level} ({state.player.xp}/{state.player.xpToNext} XP)</p>
             <p>HP {state.player.hp}/{state.player.maxHp} | Mana {state.player.mana}/{state.player.maxMana}</p>
             <p>Corruption: {state.player.corruption}</p>
+            {state.activeDungeon && <p className="alert-line">Expedition active: finish the current dungeon route.</p>}
             <h3>Arc Status</h3>
             <ul>
               {registry.arcs.map((arc) => (
@@ -199,7 +220,7 @@ export function App() {
             <CardImage cardId={currentScene.cardId ?? "placeholder"} alt={currentScene.title} compact />
             <div>
               <h2>{currentScene.title}</h2>
-              <p className="muted">{currentScene.tags.join(" • ")}</p>
+              <p className="muted">{currentScene.tags.join(" | ")}</p>
             </div>
           </div>
 
@@ -209,15 +230,20 @@ export function App() {
 
           <section className="choices">
             {currentScene.choices.map((choice) => {
-              const ok = evaluateRequires(state, choice.requires) && canPayCost(state, choice.cost);
+              const meetsRequires = evaluateRequires(state, choice.requires);
+              const canAfford = canPayCost(state, choice.cost);
+              const ok = meetsRequires && canAfford;
               const costText = choice.cost
                 ? `cost: t${choice.cost.time ?? 1} m${choice.cost.mana ?? 0} hp${choice.cost.hp ?? 0} c${choice.cost.corruption ?? 0}`
                 : "cost: t1";
+              const riskPreview = formatRiskPreview(state, choice);
+
               return (
                 <button key={choice.id} disabled={!ok} onClick={() => handleChoice(choice)} className="choice">
                   <strong>{choice.text}</strong>
                   <span>{costText}</span>
-                  {!ok && <span className="hint">requirements/cost unmet</span>}
+                  {riskPreview && <span className="check-line">{riskPreview}</span>}
+                  {!ok && <span className="hint">{!meetsRequires ? "requirements unmet" : "not enough resources"}</span>}
                 </button>
               );
             })}
@@ -226,7 +252,7 @@ export function App() {
           <section className="panel log-panel">
             <h3>Outcome Log</h3>
             <ul>
-              {state.outcomeLog.slice(-8).map((line, idx) => <li key={`${line}-${idx}`}>{line}</li>)}
+              {state.outcomeLog.slice(-10).map((line, idx) => <li key={`${line}-${idx}`}>{line}</li>)}
             </ul>
           </section>
         </main>
@@ -237,6 +263,13 @@ export function App() {
           <h2>Inventory & Character</h2>
           <p>Level {state.player.level} | XP {state.player.xp}/{state.player.xpToNext}</p>
           <p>Stats: RES {state.player.stats.resolve}, KNO {state.player.stats.knowledge}, MGT {state.player.stats.might}, CRF {state.player.stats.craft}</p>
+          <p>Stat points available: {unspentStatPoints}</p>
+          <div className="stat-row">
+            <button disabled={unspentStatPoints <= 0 || state.player.stats.resolve >= 10} onClick={() => allocateStat("resolve")}>+ Resolve</button>
+            <button disabled={unspentStatPoints <= 0 || state.player.stats.knowledge >= 10} onClick={() => allocateStat("knowledge")}>+ Knowledge</button>
+            <button disabled={unspentStatPoints <= 0 || state.player.stats.might >= 10} onClick={() => allocateStat("might")}>+ Might</button>
+            <button disabled={unspentStatPoints <= 0 || state.player.stats.craft >= 10} onClick={() => allocateStat("craft")}>+ Craft</button>
+          </div>
           <p>Corruption {state.player.corruption} | Rep (Pilgrims {state.reputation.pilgrims}, Concord {state.reputation.concord}, Undercourt {state.reputation.undercourt})</p>
           <div className="inventory-grid">
             {state.player.inventory.map((itemId) => {
@@ -271,7 +304,7 @@ export function App() {
           </label>
           <label>
             Theme
-            <select value={theme} onChange={(e) => setTheme(e.target.value as "dark" | "light")}> 
+            <select value={theme} onChange={(e) => setTheme(e.target.value as "dark" | "light")}>
               <option value="dark">Dark parchment</option>
               <option value="light">Light parchment</option>
             </select>
@@ -290,7 +323,11 @@ export function App() {
           <h3>World Changes</h3>
           <ul>{state.endingSummary.worldChanges.map((line) => <li key={line}>{line}</li>)}</ul>
           <h3>Unlocked Cards</h3>
-          <ul>{state.endingSummary.unlockedCards.map((line) => <li key={line}>{line}</li>)}</ul>
+          <ul>
+            {state.endingSummary.unlockedCards.length > 0
+              ? state.endingSummary.unlockedCards.map((line) => <li key={line}>{line}</li>)
+              : <li>No newly revealed cards.</li>}
+          </ul>
           <h3>Stat Delta</h3>
           <ul>{state.endingSummary.statDelta.map((line) => <li key={line}>{line}</li>)}</ul>
           <div className="row">
@@ -302,4 +339,3 @@ export function App() {
     </div>
   );
 }
-

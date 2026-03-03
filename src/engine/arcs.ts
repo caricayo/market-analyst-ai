@@ -9,6 +9,7 @@ export function applyWorldTransform(state: GameState, transform: WorldTransform)
     for (const patch of transform.setCardStatus) {
       const current = next.world.locations[patch.cardId];
       if (!current) continue;
+      const wasHidden = current.status === "hidden";
       next = {
         ...next,
         world: {
@@ -20,7 +21,7 @@ export function applyWorldTransform(state: GameState, transform: WorldTransform)
         },
       };
       changes.push(`${patch.cardId} -> ${patch.status}`);
-      if (patch.status === "visible") {
+      if (patch.status === "visible" && wasHidden) {
         unlockedCards.push(patch.cardId);
       }
     }
@@ -60,8 +61,8 @@ export function applyWorldTransform(state: GameState, transform: WorldTransform)
           },
         };
         unlockedCards.push(cardId);
+        changes.push(`revealed ${cardId}`);
       }
-      changes.push(`revealed ${cardId}`);
     }
   }
 
@@ -92,20 +93,28 @@ export function resolveArcEnd(state: GameState, arc: ArcDefinition, endingId: st
   const transform = arc.worldTransforms[endingId] ?? {};
   const withPhase = setArcPhase(state, arc.id, endingKey);
   const transformed = applyWorldTransform(withPhase, transform);
+  const recovered = {
+    ...transformed.state,
+    player: {
+      ...transformed.state.player,
+      hp: Math.min(transformed.state.player.maxHp, transformed.state.player.hp + 3),
+      mana: Math.min(transformed.state.player.maxMana, transformed.state.player.mana + 2),
+    },
+  };
 
   return {
-    ...transformed.state,
+    ...recovered,
     currentScreen: "endArc",
-    endings: [...transformed.state.endings, { arcId: arc.id, endingId, day: state.time.day, turn: state.time.turn }],
+    endings: [...recovered.endings, { arcId: arc.id, endingId, day: state.time.day, turn: state.time.turn }],
     endingSummary: {
       arcId: arc.id,
       endingId,
       worldChanges: transformed.changes,
       unlockedCards: transformed.unlockedCards,
       statDelta: [
-        `Corruption: ${state.player.corruption} -> ${transformed.state.player.corruption}`,
-        `HP: ${state.player.hp} -> ${transformed.state.player.hp}`,
-        `Mana: ${state.player.mana} -> ${transformed.state.player.mana}`,
+        `Corruption: ${state.player.corruption} -> ${recovered.player.corruption}`,
+        `HP: ${state.player.hp} -> ${recovered.player.hp}`,
+        `Mana: ${state.player.mana} -> ${recovered.player.mana}`,
       ],
     },
   };

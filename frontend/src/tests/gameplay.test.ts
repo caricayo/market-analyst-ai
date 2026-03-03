@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { getRegistry } from "../engine/registry";
 import { createInitialState } from "../engine/save";
 import { rollD100 } from "../engine/rng";
+import { evaluateRequires } from "../engine/predicates";
+import { canPayCost } from "../engine/state";
 import { enterCard, getCurrentScene, resolveCurrentChoice } from "../engine/story";
 import type { ActiveDungeon, DungeonNode, GameState } from "../engine/types";
 
@@ -58,33 +60,9 @@ function traverseDungeon(state: GameState): GameState {
       continue;
     }
 
-    if (scene.choices.some((choice) => choice.id === "attempt")) {
-      next = resolveCurrentChoice(next, registry, "attempt");
-      if (!next.activeDungeon) {
-        continue;
-      }
-      scene = getCurrentScene(next, registry);
-      if (!scene) {
-        throw new Error("Missing dungeon scene after attempt");
-      }
-      if (scene.choices.some((choice) => choice.id === "leave_dungeon")) {
-        next = resolveCurrentChoice(next, registry, "leave_dungeon");
-        continue;
-      }
-    }
-
-    if (scene.choices.some((choice) => choice.id === "advance_main")) {
-      next = resolveCurrentChoice(next, registry, "advance_main");
-      continue;
-    }
-
-    if (scene.choices.some((choice) => choice.id === "advance_branch")) {
-      next = resolveCurrentChoice(next, registry, "advance_branch");
-      continue;
-    }
-
-    if (scene.choices.length > 0) {
-      next = resolveCurrentChoice(next, registry, scene.choices[0].id);
+    const selected = scene.choices.find((choice) => evaluateRequires(next, choice.requires) && canPayCost(next, choice.cost));
+    if (selected) {
+      next = resolveCurrentChoice(next, registry, selected.id);
       continue;
     }
 
@@ -181,5 +159,20 @@ describe("gameplay coverage", () => {
     expect(after.player.hp).toBe(beforeHp - 3);
     expect(after.player.corruption).toBe(beforeCorruption + 2);
     expect(after.activeSceneId).toBe("ember_climax");
+  });
+
+  it("keeps dungeon flow in scene mode after resolving a node action", () => {
+    let next = enterCard({ ...createInitialState("dungeon-flow", registry), currentScreen: "atlas" }, registry, EMBER_PATH.cardId);
+    for (const choiceId of EMBER_PATH.preDungeonChoices) {
+      next = choose(next, choiceId);
+    }
+    expect(next.activeDungeon).toBeDefined();
+
+    const scene = getCurrentScene(next, registry);
+    expect(scene?.choices.some((choice) => choice.id === "attempt")).toBe(true);
+    next = resolveCurrentChoice(next, registry, "attempt");
+
+    expect(next.activeDungeon).toBeDefined();
+    expect(next.currentScreen).toBe("scene");
   });
 });

@@ -106,6 +106,8 @@ export function moveToNextDungeonNode(state: GameState, nextNodeId: string): Gam
   if (!state.activeDungeon) return state;
   return {
     ...state,
+    currentScreen: "scene",
+    activeSceneId: undefined,
     activeDungeon: {
       ...state.activeDungeon,
       currentNodeId: nextNodeId,
@@ -121,6 +123,8 @@ export function completeCurrentDungeonNode(state: GameState): GameState {
   }
   return {
     ...state,
+    currentScreen: "scene",
+    activeSceneId: undefined,
     activeDungeon: {
       ...state.activeDungeon,
       completedNodeIds: [...state.activeDungeon.completedNodeIds, current],
@@ -132,6 +136,7 @@ export function leaveDungeon(state: GameState): GameState {
   return {
     ...state,
     activeDungeon: undefined,
+    activeSceneId: undefined,
     currentScreen: "atlas",
   };
 }

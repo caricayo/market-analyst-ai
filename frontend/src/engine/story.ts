@@ -7,6 +7,10 @@ import { evaluateRequires } from "./predicates";
 import { applyCost, applyLeveling, canPayCost } from "./state";
 import type { Choice, ContentRegistry, GameState, NextTarget, Scene } from "./types";
 
+type RiskResolveOptions = {
+  applyNextTarget?: boolean;
+};
+
 function applySceneOnEnter(state: GameState, sceneId: string, registry: ContentRegistry): GameState {
   const scene = registry.byId.scenes[sceneId];
   if (!scene?.onEnterEffects?.length) {
@@ -72,10 +76,33 @@ function transitionDungeonToClimax(state: GameState, registry: ContentRegistry):
   };
 }
 
-function resolveChoiceByRisk(state: GameState, choice: Choice, registry: ContentRegistry): { state: GameState; log: string; tier?: RiskTier } {
+function formatRiskLog(
+  choice: Choice,
+  state: GameState,
+  roll: number,
+  target: number,
+  tier: RiskTier,
+  tierText?: string,
+): string {
+  const statValue = choice.check ? state.player.stats[choice.check.stat] : 0;
+  const detail = `Risk ${tier.toUpperCase()} (roll ${roll} vs target ${target}; ${choice.check?.stat ?? "unknown"} ${statValue}, diff ${choice.check?.difficulty ?? "?"}).`;
+  if (tierText) {
+    return `${tierText} ${detail}`;
+  }
+  return detail;
+}
+
+function resolveChoiceByRisk(
+  state: GameState,
+  choice: Choice,
+  registry: ContentRegistry,
+  options?: RiskResolveOptions,
+): { state: GameState; log: string; tier?: RiskTier } {
   if (!choice.check) {
     const afterEffects = applyEffects(state, choice.effects, registry);
-    const afterNext = applyNext(afterEffects.state, choice.next, registry);
+    const afterNext = options?.applyNextTarget === false
+      ? afterEffects.state
+      : applyNext(afterEffects.state, choice.next, registry);
     return { state: afterNext, log: afterEffects.logs.join(" ") || `You chose ${choice.text}.` };
   }
 
@@ -91,10 +118,12 @@ function resolveChoiceByRisk(state: GameState, choice: Choice, registry: Content
   const tierEffects = applyEffects(next, tierOutcome?.effects, registry);
   next = tierEffects.state;
 
-  const nextTarget = tierOutcome?.next ?? choice.next;
-  next = applyNext(next, nextTarget, registry);
+  if (options?.applyNextTarget !== false) {
+    const nextTarget = tierOutcome?.next ?? choice.next;
+    next = applyNext(next, nextTarget, registry);
+  }
 
-  const label = tierOutcome?.text ?? `Risk check ${risk.tier}. (roll ${risk.roll} vs ${risk.target})`;
+  const label = formatRiskLog(choice, state, risk.roll, risk.target, risk.tier, tierOutcome?.text);
   return {
     state: next,
     log: [label, ...initialEffects.logs, ...tierEffects.logs].filter(Boolean).join(" "),
@@ -103,6 +132,15 @@ function resolveChoiceByRisk(state: GameState, choice: Choice, registry: Content
 }
 
 export function enterCard(state: GameState, registry: ContentRegistry, cardId: string): GameState {
+  if (state.activeDungeon) {
+    return {
+      ...state,
+      currentScreen: "scene",
+      activeSceneId: undefined,
+      outcomeLog: [...state.outcomeLog, "The expedition is still underway. Resolve the current dungeon route first."],
+    };
+  }
+
   const card = registry.byId.cards[cardId];
   if (!card) return state;
   const regionCorruption = state.world.regions[card.regionId]?.corruption ?? 0;
@@ -132,14 +170,15 @@ export function getCurrentScene(state: GameState, registry: ContentRegistry): Sc
     const node = state.activeDungeon.nodes[state.activeDungeon.currentNodeId];
     const template = registry.byId.dungeonTemplates[node.templateId];
     const nextCount = node.next.length;
+    const nodeResolved = state.activeDungeon.completedNodeIds.includes(node.id);
 
     const choices: Choice[] = [];
     if (template.type === "exit") {
       choices.push({
         id: "leave_dungeon",
-        text: "Return to the atlas",
+        text: "Leave the dungeon",
         cost: { time: 1 },
-        next: { type: "atlas" },
+        next: { type: "scene", sceneId: "dungeon_exit" },
       });
       return {
         id: `dungeon_${node.id}`,
@@ -151,53 +190,65 @@ export function getCurrentScene(state: GameState, registry: ContentRegistry): Sc
       };
     }
 
-    if (template.type === "rest") {
-      choices.push({
-        id: "rest_then_move",
-        text: "Rest by the embers and move onward",
-        cost: { time: 1 },
-        effects: [{ type: "log", message: "You regain your breath." }],
-        next: { type: "atlas" },
-      });
-    } else if (template.type === "treasure") {
-      choices.push({
-        id: "search_cache",
-        text: "Search the cache",
-        cost: { time: 1 },
-        effects: [{ type: "gainXp", amount: 12 }],
-        next: { type: "atlas" },
-      });
+    if (!nodeResolved) {
+      if (template.type === "rest") {
+        choices.push({
+          id: "rest_then_move",
+          text: "Rest by the embers",
+          cost: { time: 1 },
+          effects: [{ type: "log", message: "You regain your breath before pressing on." }],
+          next: { type: "scene", sceneId: "dungeon_node" },
+        });
+      } else if (template.type === "treasure") {
+        choices.push({
+          id: "search_cache",
+          text: "Search the cache",
+          cost: { time: 1 },
+          effects: [{ type: "gainXp", amount: 12 }],
+          next: { type: "scene", sceneId: "dungeon_node" },
+        });
+      } else {
+        choices.push({
+          id: "attempt",
+          text: "Face the chamber",
+          cost: { time: 1, mana: 1 },
+          check: { type: "risk", stat: template.stat, difficulty: Math.min(5, Math.max(1, node.difficulty)) as 1 | 2 | 3 | 4 | 5 },
+          outcomes: {
+            success: { text: "You seize momentum.", effects: [{ type: "gainXp", amount: 20 }] },
+            mixed: { text: "You press through with wounds.", effects: [{ type: "log", message: "You lose composure." }] },
+            failForward: { text: "You falter, but the story pushes on.", effects: [{ type: "log", message: "Failure leaves a scar." }] },
+          },
+          next: { type: "scene", sceneId: "dungeon_node" },
+        });
+        choices.push({
+          id: "brute_force",
+          text: "Force progress on grit",
+          cost: { time: 1, hp: 2, corruption: 1 },
+          effects: [
+            { type: "gainXp", amount: 8 },
+            { type: "log", message: "You grind through without proper focus." },
+          ],
+          next: { type: "scene", sceneId: "dungeon_node" },
+        });
+      }
     } else {
-      choices.push({
-        id: "attempt",
-        text: "Face the chamber",
-        cost: { time: 1, mana: 1 },
-        check: { type: "risk", stat: template.stat, difficulty: Math.min(5, Math.max(1, node.difficulty)) as 1 | 2 | 3 | 4 | 5 },
-        outcomes: {
-          success: { text: "You seize momentum.", effects: [{ type: "gainXp", amount: 20 }] },
-          mixed: { text: "You press through with wounds.", effects: [{ type: "log", message: "You lose composure." }] },
-          failForward: { text: "You falter, but the story pushes on.", effects: [{ type: "log", message: "Failure leaves a scar." }] },
-        },
-        next: { type: "atlas" },
-      });
-    }
+      if (nextCount >= 1) {
+        choices.push({
+          id: "advance_main",
+          text: "Advance deeper",
+          cost: { time: 1 },
+          next: { type: "scene", sceneId: "dungeon_node" },
+        });
+      }
 
-    if (nextCount >= 1) {
-      choices.push({
-        id: "advance_main",
-        text: "Advance deeper",
-        cost: { time: 1 },
-        next: { type: "atlas" },
-      });
-    }
-
-    if (nextCount >= 2) {
-      choices.push({
-        id: "advance_branch",
-        text: "Take the side passage",
-        cost: { time: 2 },
-        next: { type: "atlas" },
-      });
+      if (nextCount >= 2) {
+        choices.push({
+          id: "advance_branch",
+          text: "Take the side passage",
+          cost: { time: 2 },
+          next: { type: "scene", sceneId: "dungeon_node" },
+        });
+      }
     }
 
     return {
@@ -239,7 +290,21 @@ export function resolveCurrentChoice(state: GameState, registry: ContentRegistry
   let next = applyCost(state, choice.cost);
 
   if (state.activeDungeon) {
-    const template = registry.byId.dungeonTemplates[state.activeDungeon.nodes[state.activeDungeon.currentNodeId].templateId];
+    const node = state.activeDungeon.nodes[state.activeDungeon.currentNodeId];
+    const template = registry.byId.dungeonTemplates[node.templateId];
+    const nodeResolved = state.activeDungeon.completedNodeIds.includes(node.id);
+    const isAdvanceChoice = choice.id === "advance_main" || choice.id === "advance_branch";
+    const isNodeActionChoice = choice.id === "attempt"
+      || choice.id === "search_cache"
+      || choice.id === "rest_then_move"
+      || choice.id === "brute_force";
+
+    if (isAdvanceChoice && !nodeResolved) {
+      return {
+        ...state,
+        outcomeLog: [...state.outcomeLog, "You must resolve this chamber before advancing."],
+      };
+    }
 
     if (choice.id === "search_cache" && template.lootTableId) {
       const loot = rollLoot(next, registry, template.lootTableId);
@@ -261,7 +326,7 @@ export function resolveCurrentChoice(state: GameState, registry: ContentRegistry
     }
 
     if (choice.id === "attempt") {
-      const resolved = resolveChoiceByRisk(next, choice, registry);
+      const resolved = resolveChoiceByRisk(next, choice, registry, { applyNextTarget: false });
       next = resolved.state;
       if (resolved.log) {
         next = { ...next, outcomeLog: [...next.outcomeLog, resolved.log] };
@@ -278,19 +343,39 @@ export function resolveCurrentChoice(state: GameState, registry: ContentRegistry
         };
       }
     }
-
-    next = completeCurrentDungeonNode(next);
+    if (choice.id !== "attempt" && choice.effects?.length) {
+      const applied = applyEffects(next, choice.effects, registry);
+      next = applied.state;
+      if (applied.logs.length > 0) {
+        next = {
+          ...next,
+          outcomeLog: [...next.outcomeLog, ...applied.logs],
+        };
+      }
+    }
 
     if (choice.id === "leave_dungeon") {
       return applyLeveling(transitionDungeonToClimax(next, registry));
     }
 
-    if (next.activeDungeon) {
-      const choices = next.activeDungeon.nodes[next.activeDungeon.currentNodeId].next;
-      if (choices.length === 0) {
+    if (isNodeActionChoice) {
+      next = completeCurrentDungeonNode(next);
+      const nextChoices = next.activeDungeon?.nodes[next.activeDungeon.currentNodeId].next ?? [];
+      if (nextChoices.length === 0) {
         return applyLeveling(transitionDungeonToClimax(next, registry));
       }
-      const targetNode = choice.id === "advance_branch" && choices.length > 1 ? choices[1] : choices[0];
+      return applyLeveling({
+        ...next,
+        currentScreen: "scene",
+      });
+    }
+
+    if (isAdvanceChoice && next.activeDungeon) {
+      const nextChoices = next.activeDungeon.nodes[next.activeDungeon.currentNodeId].next;
+      if (nextChoices.length === 0) {
+        return applyLeveling(transitionDungeonToClimax(next, registry));
+      }
+      const targetNode = choice.id === "advance_branch" && nextChoices.length > 1 ? nextChoices[1] : nextChoices[0];
       next = moveToNextDungeonNode(next, targetNode);
     }
 

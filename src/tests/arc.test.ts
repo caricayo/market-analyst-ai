@@ -16,5 +16,14 @@ describe("arc completion", () => {
     expect(resolved.flags["ending_ember_dawn"]).toBe(true);
     expect(resolved.currentScreen).toBe("endArc");
   });
+
+  it("only reports newly unlocked cards in end summary", () => {
+    const state = createInitialState("arc-seed-summary", registry);
+    const arc = registry.byId.arcs["arc_ember_crown"];
+    const resolved = resolveArcEnd(state, arc, "dawn");
+
+    expect(resolved.endingSummary?.unlockedCards).toContain("card_thorn_bastion");
+    expect(resolved.endingSummary?.unlockedCards).not.toContain("card_root_archive");
+  });
 });
 
