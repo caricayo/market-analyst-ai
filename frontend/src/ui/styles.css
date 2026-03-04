@@ -263,6 +263,100 @@ button:disabled {
   margin: 3rem auto;
 }
 
+.tagline {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: #d4c4a8;
+  margin-bottom: 1.5rem;
+}
+
+.title-buttons {
+  margin-bottom: 0.75rem;
+}
+
+.advanced-toggle {
+  margin-top: 1rem;
+}
+
+.advanced-expand {
+  background: none;
+  border: none;
+  color: #c5b49a;
+  font-size: 0.85rem;
+  padding: 0.25rem 0;
+  cursor: pointer;
+}
+
+.advanced-expand:hover {
+  color: #e8bc7f;
+}
+
+.seed-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #c5b49a;
+}
+
+.seed-label input {
+  background: rgba(35, 26, 20, 0.9);
+  border: 1px solid rgba(211, 155, 87, 0.4);
+  border-radius: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  color: inherit;
+  max-width: 20rem;
+}
+
+/* Intro overlay */
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(10, 7, 5, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.intro-modal {
+  max-width: 34rem;
+  width: 100%;
+  padding: 2rem;
+}
+
+.intro-step {
+  font-size: 0.8rem;
+  color: #c5b49a;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.intro-modal h2 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  font-size: 1.3rem;
+  color: #f2d3a6;
+}
+
+.intro-modal p {
+  line-height: 1.65;
+  color: #ddd0bc;
+}
+
+.intro-nav {
+  margin-top: 1.5rem;
+  justify-content: flex-end;
+}
+
+.cost-line {
+  font-size: 0.85rem;
+  color: #c5b49a;
+}
+
 @media (max-width: 900px) {
   .atlas-layout {
     grid-template-columns: 1fr;

@@ -18,6 +18,13 @@ const DOCTRINE_LABELS: Array<{ key: string; label: string }> = [
   { key: "doctrine_private_routes", label: "Private Routes (privileged convoy rights)" },
 ];
 
+const STAT_LABELS: Record<string, string> = {
+  resolve: "Resolve",
+  knowledge: "Knowledge",
+  might: "Might",
+  craft: "Craft",
+};
+
 function statusBadge(value: string): string {
   return value.replace("_", " ").toUpperCase();
 }
@@ -27,9 +34,39 @@ function formatRiskPreview(state: GameState, choice: Choice): string | null {
   const statValue = state.player.stats[choice.check.stat];
   const policy = getDoctrineRiskModifier(state, choice.check);
   const target = getRiskTarget(state, choice.check);
-  const policyText = policy === 0 ? "policy +0" : `policy ${policy > 0 ? "+" : ""}${policy}`;
-  return `risk: ${choice.check.stat.toUpperCase()} ${statValue}, diff ${choice.check.difficulty}, ${policyText}, target ${target}, mixed up to ${target + 15}`;
+  const label = STAT_LABELS[choice.check.stat] ?? choice.check.stat;
+  const policyText = policy !== 0 ? ` (doctrine ${policy > 0 ? "+" : ""}${policy})` : "";
+  return `${label} check — target ${target}${policyText}, you have ${statValue} (mixed: ${target}–${target + 15}, success: ${target + 16}+)`;
 }
+
+function formatCost(choice: Choice): string {
+  const cost = choice.cost;
+  const parts: string[] = [];
+  const time = cost?.time ?? 1;
+  const mana = cost?.mana ?? 0;
+  const hp = cost?.hp ?? 0;
+  const corruption = cost?.corruption ?? 0;
+  if (time !== 0) parts.push(`${time} turn${time !== 1 ? "s" : ""}`);
+  if (mana !== 0) parts.push(`${mana} mana`);
+  if (hp !== 0) parts.push(`−${hp} HP`);
+  if (corruption !== 0) parts.push(`+${corruption} corruption`);
+  return parts.length > 0 ? parts.join(" · ") : "free";
+}
+
+const INTRO_PANELS = [
+  {
+    heading: "A famine. A charter. A world that remembers.",
+    body: "You are a cartographer bound by oath to deliver a sealed charter that could end the Basin's famine — or ignite a civil war. Every location you visit, every choice you make, will leave a permanent mark on this world.",
+  },
+  {
+    heading: "How to play",
+    body: "Explore locations on the Atlas. Each visit costs resources — time, mana, HP. Your stats (Resolve, Knowledge, Might, Craft) determine which paths open to you. Corruption spreads when you make hard choices. Manage it — or be changed by it.",
+  },
+  {
+    heading: "Where to begin",
+    body: "Cards marked "recommended" are quest-relevant to your current arc. Look for the Salt Gate Permit Hall — it's your first objective. Use "Show Suggested Locations" in the filters to focus the Atlas.",
+  },
+];
 
 export function App() {
   const registry = useMemo(() => getRegistry(), []);
@@ -42,6 +79,10 @@ export function App() {
   const [theme, setTheme] = useState<"dark" | "light">((localStorage.getItem("ui_theme") as "dark" | "light") ?? "dark");
   const [showWorldPanel, setShowWorldPanel] = useState(true);
   const [showRecommendedOnly, setShowRecommendedOnly] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [noSaveFound, setNoSaveFound] = useState(false);
+  const [showIntro, setShowIntro] = useState(() => !localStorage.getItem("seen_intro"));
+  const [introPanelIndex, setIntroPanelIndex] = useState(0);
 
   useEffect(() => {
     if (state.currentScreen !== "title") {
@@ -86,6 +127,8 @@ export function App() {
   const beginNewRun = () => {
     const seed = seedInput.trim() || "emberfall";
     const fresh = createInitialState(seed, registry);
+    setShowIntro(true);
+    setIntroPanelIndex(0);
     setState({ ...fresh, currentScreen: "atlas" });
   };
 
@@ -93,7 +136,21 @@ export function App() {
     const loaded = loadGame(registry);
     if (loaded) {
       setState(loaded);
+      setNoSaveFound(false);
+    } else {
+      setNoSaveFound(true);
+      setTimeout(() => setNoSaveFound(false), 3000);
     }
+  };
+
+  const dismissIntro = () => {
+    localStorage.setItem("seen_intro", "true");
+    setShowIntro(false);
+  };
+
+  const resetRun = () => {
+    if (!window.confirm("Reset your run? All progress will be lost and this cannot be undone.")) return;
+    setState({ ...createInitialState(seedInput, registry), currentScreen: "title" });
   };
 
   const handleCardSelect = (card: CardDefinition) => {
@@ -137,7 +194,7 @@ export function App() {
     <div className={rootClass} style={{ fontSize: `${fontScale}%` }}>
       <div className="fog-overlay" aria-hidden="true" />
       <header className="topbar">
-        <h1>Mystic Atlas RPG</h1>
+        <h1>Atlas of Drowned Embers</h1>
         <nav className="topnav">
           <button onClick={() => setState((prev) => prev.activeDungeon ? { ...prev, currentScreen: "scene" } : { ...prev, currentScreen: "atlas" })}>
             Atlas
@@ -150,16 +207,50 @@ export function App() {
       {state.currentScreen === "title" && (
         <main className="panel title-screen">
           <h2>Atlas of Drowned Embers</h2>
-          <p>Choose your seed and begin a deterministic journey through living tarot-cards.</p>
-          <label>
-            Seed
-            <input aria-label="Seed" value={seedInput} onChange={(event) => setSeedInput(event.target.value)} />
-          </label>
-          <div className="row">
-            <button className="primary" onClick={beginNewRun}>New Run</button>
-            <button onClick={continueRun}>Continue</button>
+          <p className="tagline">A cartographer. A famine. A sacred charter that could save a city — or ignite a civil war. Navigate the Basin of Asterfall.</p>
+          <div className="row title-buttons">
+            <button className="primary" onClick={beginNewRun}>Begin Your Journey</button>
+            <button onClick={continueRun} disabled={false}>Resume Run</button>
+          </div>
+          {noSaveFound && <p className="hint">No saved run found. Start a new journey above.</p>}
+          <div className="advanced-toggle">
+            <button
+              type="button"
+              className="advanced-expand"
+              onClick={() => setShowAdvanced((v) => !v)}
+              aria-expanded={showAdvanced}
+            >
+              ⚙ Advanced {showAdvanced ? "▾" : "▸"}
+            </button>
+            {showAdvanced && (
+              <label className="seed-label">
+                Custom seed
+                <input aria-label="Seed" value={seedInput} onChange={(event) => setSeedInput(event.target.value)} />
+              </label>
+            )}
           </div>
         </main>
+      )}
+
+      {state.currentScreen === "atlas" && showIntro && (
+        <div className="intro-overlay" role="dialog" aria-modal="true" aria-label="Introduction">
+          <div className="intro-modal panel">
+            <p className="intro-step">Step {introPanelIndex + 1} of {INTRO_PANELS.length}</p>
+            <h2>{INTRO_PANELS[introPanelIndex].heading}</h2>
+            <p>{INTRO_PANELS[introPanelIndex].body}</p>
+            <div className="intro-nav row">
+              {introPanelIndex > 0 && (
+                <button onClick={() => setIntroPanelIndex((i) => i - 1)}>← Back</button>
+              )}
+              {introPanelIndex < INTRO_PANELS.length - 1 ? (
+                <button className="primary" onClick={() => setIntroPanelIndex((i) => i + 1)}>Next →</button>
+              ) : (
+                <button className="primary" onClick={dismissIntro}>Begin Exploring</button>
+              )}
+              <button onClick={dismissIntro}>Skip</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {state.currentScreen === "atlas" && (
@@ -221,7 +312,7 @@ export function App() {
                 className={showRecommendedOnly ? "primary" : ""}
                 onClick={() => setShowRecommendedOnly((value) => !value)}
               >
-                {showRecommendedOnly ? "Show All Cards" : "Focus Recommended"}
+                {showRecommendedOnly ? "Show All Cards" : "Show Suggested Locations"}
               </button>
             </div>
 
@@ -229,6 +320,8 @@ export function App() {
               {cards.map((card) => {
                 const unlocked = isCardUnlocked(state, registry, card.id);
                 const locationState = state.world.locations[card.id];
+                const rawStatus = locationState?.status ?? "hidden";
+                const displayStatus = rawStatus === "hidden" ? "undiscovered" : rawStatus;
                 const variantTriggered = card.corruptionVariantAt !== undefined && (state.world.regions[card.regionId]?.corruption ?? 0) >= card.corruptionVariantAt;
                 return (
                   <button
@@ -247,7 +340,7 @@ export function App() {
                         {recommendedCardIds.has(card.id) && <span className="chip chip-recommended">recommended</span>}
                       </div>
                       <p className="danger">Danger {card.danger}/5 | {card.rarity}</p>
-                      <p className="status">Status: {locationState?.status ?? "hidden"}{variantTriggered ? " (Variant Shift)" : ""}</p>
+                      <p className="status">Status: {displayStatus}{variantTriggered ? " (Variant Shift)" : ""}</p>
                       {!unlocked && <p className="lock">Locked</p>}
                     </div>
                   </button>
@@ -283,15 +376,13 @@ export function App() {
               const meetsRequires = evaluateRequires(state, choice.requires);
               const canAfford = canPayCost(state, choice.cost);
               const ok = meetsRequires && canAfford;
-              const costText = choice.cost
-                ? `cost: t${choice.cost.time ?? 1} m${choice.cost.mana ?? 0} hp${choice.cost.hp ?? 0} c${choice.cost.corruption ?? 0}`
-                : "cost: t1";
+              const costText = formatCost(choice);
               const riskPreview = formatRiskPreview(state, choice);
 
               return (
                 <button key={choice.id} disabled={!ok} onClick={() => handleChoice(choice)} className="choice">
                   <strong>{choice.text}</strong>
-                  <span>{costText}</span>
+                  <span className="cost-line">{costText}</span>
                   {riskPreview && <span className="check-line">{riskPreview}</span>}
                   {!ok && <span className="hint">{!meetsRequires ? "requirements unmet" : "not enough resources"}</span>}
                 </button>
@@ -361,31 +452,37 @@ export function App() {
           </label>
           <div className="row">
             <button onClick={() => setState((prev) => ({ ...prev, currentScreen: "atlas" }))}>Back</button>
-            <button onClick={() => setState((prev) => ({ ...createInitialState(seedInput, registry), currentScreen: "title" }))}>Reset Run</button>
+            <button onClick={resetRun}>Reset Run</button>
           </div>
         </main>
       )}
 
-      {state.currentScreen === "endArc" && state.endingSummary && (
-        <main className="panel">
-          <h2>Arc Resolved: {state.endingSummary.arcId}</h2>
-          <p>Ending: <strong>{state.endingSummary.endingId}</strong></p>
-          <h3>World Changes</h3>
-          <ul>{state.endingSummary.worldChanges.map((line) => <li key={line}>{line}</li>)}</ul>
-          <h3>Unlocked Cards</h3>
-          <ul>
-            {state.endingSummary.unlockedCards.length > 0
-              ? state.endingSummary.unlockedCards.map((line) => <li key={line}>{line}</li>)
-              : <li>No newly revealed cards.</li>}
-          </ul>
-          <h3>Stat Delta</h3>
-          <ul>{state.endingSummary.statDelta.map((line) => <li key={line}>{line}</li>)}</ul>
-          <div className="row">
-            <button onClick={() => setState((prev) => ({ ...prev, currentScreen: "atlas", endingSummary: undefined }))}>Continue</button>
-            <button className="primary" onClick={applyNgPlus}>New Game+</button>
-          </div>
-        </main>
-      )}
+      {state.currentScreen === "endArc" && state.endingSummary && (() => {
+        const arc = registry.arcs.find((a) => a.id === state.endingSummary!.arcId);
+        const arcTitle = arc?.title ?? state.endingSummary.arcId;
+        const endingSuffix = state.endingSummary.endingId.split("_").pop() ?? state.endingSummary.endingId;
+        const endingLabel = endingSuffix.charAt(0).toUpperCase() + endingSuffix.slice(1);
+        return (
+          <main className="panel">
+            <h2>{arcTitle} — Complete</h2>
+            <p>Ending: <strong>{endingLabel}</strong></p>
+            <h3>World Changes</h3>
+            <ul>{state.endingSummary.worldChanges.map((line) => <li key={line}>{line}</li>)}</ul>
+            <h3>Unlocked Cards</h3>
+            <ul>
+              {state.endingSummary.unlockedCards.length > 0
+                ? state.endingSummary.unlockedCards.map((line) => <li key={line}>{line}</li>)
+                : <li>No newly revealed cards.</li>}
+            </ul>
+            <h3>Stat Delta</h3>
+            <ul>{state.endingSummary.statDelta.map((line) => <li key={line}>{line}</li>)}</ul>
+            <div className="row">
+              <button onClick={() => setState((prev) => ({ ...prev, currentScreen: "atlas", endingSummary: undefined }))}>Continue</button>
+              <button className="primary" onClick={applyNgPlus}>New Game+</button>
+            </div>
+          </main>
+        );
+      })()}
     </div>
   );
 }
