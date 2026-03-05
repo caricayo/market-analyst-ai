@@ -12,7 +12,7 @@ Tables:
 import os
 from datetime import datetime, timezone
 from sqlalchemy import (
-    Column, Integer, Float, String, Boolean, DateTime, Text, create_engine
+    Column, BigInteger, Integer, Float, String, Boolean, DateTime, Text, create_engine
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 import config
@@ -195,6 +195,23 @@ class SimulationResult(Base):
 
     def __repr__(self):
         return f"<SimulationResult {self.run_id} wr={self.win_rate:.1%} ret={self.total_return_pct:.2%}>"
+
+
+# ─── Bot Events (live feed) ───────────────────────────────────────────────────
+
+class BotEvent(Base):
+    __tablename__ = "bot_events"
+
+    id          = Column(BigInteger, primary_key=True, autoincrement=True)
+    event_type  = Column(String(50), nullable=False, index=True)  # 'gatekeeper' | 'coin_score' | 'trade_open' | 'trade_close' | 'system'
+    level       = Column(String(10), nullable=False, default="info")  # 'info' | 'warn' | 'error'
+    symbol      = Column(String(20), nullable=True)
+    message     = Column(Text, nullable=False)
+    data        = Column(Text, nullable=True)   # JSON string (JSONB on Postgres, TEXT on SQLite)
+    created_at  = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<BotEvent {self.event_type} [{self.level}] {self.message[:40]}>"
 
 
 # ─── Engine / Session Factory ─────────────────────────────────────────────────

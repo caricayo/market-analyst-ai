@@ -10,6 +10,7 @@ const links = [
   { href: "/trades", label: "Trades" },
   { href: "/performance", label: "Performance" },
   { href: "/health", label: "Health" },
+  { href: "/live", label: "Live Feed" },
 ];
 
 export default function NavSidebar() {

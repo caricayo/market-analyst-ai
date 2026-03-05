@@ -24,7 +24,7 @@ from src.risk.position_sizer import calculate_position_size, calculate_stops
 from src.exchange.client import ExchangeClient
 from src.exchange.portfolio import PaperPortfolio
 from src.alerts.discord_alerts import alert_trade_opened, alert_gatekeeper
-from src.database.writer import save_daily_stat, record_heartbeat
+from src.database.writer import save_daily_stat, record_heartbeat, log_event
 
 
 def run_morning_routine(
@@ -81,6 +81,22 @@ def run_morning_routine(
         "paper": config.PAPER_TRADING,
     })
 
+    # Log gatekeeper decision to live feed
+    gate_level = "info" if gatekeeper["trade_today"] else "warn"
+    gate_verdict = "TRADE" if gatekeeper["trade_today"] else "SKIP"
+    log_event(
+        event_type="gatekeeper",
+        message=f"Gatekeeper: {gate_verdict} — {gatekeeper['primary_reason']}",
+        level=gate_level,
+        data={
+            "trade_today": gatekeeper["trade_today"],
+            "regime": gatekeeper.get("regime"),
+            "primary_reason": gatekeeper.get("primary_reason"),
+            "fear_greed": gatekeeper.get("fear_greed"),
+            "btc_dominance": gatekeeper.get("btc_dominance"),
+        },
+    )
+
     if config.BYPASS_GATEKEEPER and not gatekeeper["trade_today"]:
         logger.warning("BYPASS_GATEKEEPER=true — overriding gatekeeper SKIP (TEST MODE ONLY)")
         gatekeeper["trade_today"] = True
@@ -98,6 +114,36 @@ def run_morning_routine(
         logger.error(f"Watchlist scoring failed: {e}")
         record_heartbeat("morning_routine", "error", str(e))
         return {"gatekeeper_result": True, "trades_opened": 0, "skipped_reasons": [f"scoring_error: {e}"]}
+
+    # Log all coin scores to live feed (one event per coin)
+    for sig in signals:
+        if "error" in sig:
+            log_event(
+                event_type="coin_score",
+                message=f"{sig['symbol']}: scoring error — {sig['error']}",
+                symbol=sig.get("symbol"),
+                level="error",
+                data=sig,
+            )
+        else:
+            conf = sig.get("confidence", 0)
+            above = sig.get("signal", False)
+            log_event(
+                event_type="coin_score",
+                message=(
+                    f"{sig['symbol']}: conf={conf:.1%}  {'SIGNAL' if above else 'below threshold'}"
+                    + (f"  price=${sig.get('current_price', 0):,.4f}" if sig.get("current_price") else "")
+                ),
+                symbol=sig.get("symbol"),
+                level="info" if above else "info",
+                data={
+                    "confidence": round(conf, 4),
+                    "signal": above,
+                    "current_price": sig.get("current_price"),
+                    "atr": sig.get("atr"),
+                    "predicted_return": sig.get("predicted_return"),
+                },
+            )
 
     # Step 5: Filter — only signals above threshold, with liquidity
     actionable = []
@@ -172,6 +218,22 @@ def run_morning_routine(
                 target=take_profit,
                 confidence=confidence,
                 paper=config.PAPER_TRADING,
+            )
+            log_event(
+                event_type="trade_open",
+                message=f"Opened {symbol} @ ${current_price:,.4f}  conf={confidence:.1%}  size=${pos_size:.2f}",
+                symbol=symbol,
+                level="info",
+                data={
+                    "trade_id": trade_id,
+                    "entry_price": current_price,
+                    "quantity": round(pos_size / current_price, 8),
+                    "position_value": round(pos_size, 2),
+                    "stop_loss": stop_loss,
+                    "take_profit": take_profit,
+                    "confidence": round(confidence, 4),
+                    "paper": config.PAPER_TRADING,
+                },
             )
             logger.info(f"  Opened: {symbol} conf={confidence:.1%} size=${pos_size:.2f}")
         else:

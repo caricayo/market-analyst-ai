@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from loguru import logger
 
-from .models import get_session_factory, init_db, Trade, DailyStat, ModelVersion, Heartbeat, KillSwitchEvent, SimulationResult
+from .models import get_session_factory, init_db, Trade, DailyStat, ModelVersion, Heartbeat, KillSwitchEvent, SimulationResult, BotEvent
 
 
 _engine = None
@@ -92,3 +92,36 @@ def record_kill_switch(level: str, trigger_pct: float, portfolio_value: float,
 def save_simulation_result(result_data: dict):
     with session_scope() as s:
         s.add(SimulationResult(**result_data))
+
+
+def log_event(
+    event_type: str,
+    message: str,
+    symbol: str = None,
+    level: str = "info",
+    data: dict = None,
+):
+    """
+    Write a structured event to bot_events for the live feed dashboard.
+
+    Args:
+        event_type: 'gatekeeper' | 'coin_score' | 'trade_open' | 'trade_close' | 'system'
+        message:    Human-readable description shown in the feed
+        symbol:     Coin symbol if coin-specific (e.g. 'BTC/USD')
+        level:      'info' | 'warn' | 'error'
+        data:       Optional dict of structured payload (scores, prices, etc.)
+    """
+    import json
+    data_str = json.dumps(data) if data is not None else None
+    try:
+        with session_scope() as s:
+            s.add(BotEvent(
+                event_type=event_type,
+                level=level,
+                symbol=symbol,
+                message=message,
+                data=data_str,
+            ))
+    except Exception as e:
+        # Never let event logging crash the trading loop
+        logger.warning(f"log_event failed (non-fatal): {e}")
