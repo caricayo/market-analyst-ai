@@ -36,6 +36,11 @@ PAPER_TRADING: bool = _paper_env != "false"
 # Remove (or set to false) to restore normal production schedule.
 TEST_MODE: bool = os.getenv("TEST_MODE", "false").lower() == "true"
 
+# BYPASS_GATEKEEPER: force trade_today=True regardless of AI/market conditions.
+# Use in TEST_MODE only to verify the trading + position logic works end-to-end.
+# Never set this in production.
+BYPASS_GATEKEEPER: bool = os.getenv("BYPASS_GATEKEEPER", "false").lower() == "true"
+
 # ─── Watchlist ────────────────────────────────────────────────────────────────
 # Symbols in ccxt format (BASE/QUOTE). All must have >$10M daily volume.
 

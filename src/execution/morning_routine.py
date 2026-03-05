@@ -81,6 +81,10 @@ def run_morning_routine(
         "paper": config.PAPER_TRADING,
     })
 
+    if config.BYPASS_GATEKEEPER and not gatekeeper["trade_today"]:
+        logger.warning("BYPASS_GATEKEEPER=true — overriding gatekeeper SKIP (TEST MODE ONLY)")
+        gatekeeper["trade_today"] = True
+
     if not gatekeeper["trade_today"]:
         logger.info("Gatekeeper: skip today")
         record_heartbeat("morning_routine", "ok", "gatekeeper_skip")
