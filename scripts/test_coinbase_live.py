@@ -89,8 +89,9 @@ print()
 
 # ─── Test 3: Place + cancel tiny limit order (order path test) ───────────────
 
-print("3. Order placement test (place limit buy at $1 → immediately cancel):")
-print(f"   BTC current price: ${price:,.2f} | Order price: $1.00 (will never fill)")
+print("3. Order placement test (place limit buy 10% below market -> immediately cancel):")
+test_price_display = round(price * 0.90, 2)
+print(f"   BTC current price: ${price:,.2f} | Order price: ${test_price_display:,.2f} (10% below, will not fill)")
 
 confirm = input("   Proceed? (yes/no): ").strip().lower()
 if confirm != "yes":
@@ -103,11 +104,12 @@ if confirm != "yes":
 
 order_id = None
 try:
-    # $10 at $1 = 10 BTC units (way below market — can never fill)
-    quantity = 10.0 / 1.0
-    order = exchange.create_limit_buy_order("BTC/USD", quantity, 1.0)
+    # 10% below market — within Coinbase's allowed range but won't fill in 2 seconds
+    test_price = round(price * 0.90, 2)
+    quantity   = round(10.0 / test_price, 6)   # ~$10 worth
+    order = exchange.create_limit_buy_order("BTC/USD", quantity, test_price)
     order_id = order["id"]
-    print(f"{PASS} Order placed: id={order_id} | qty={quantity} BTC @ $1.00")
+    print(f"{PASS} Order placed: id={order_id} | qty={quantity} BTC @ ${test_price:,.2f}")
 except Exception as e:
     print(f"{FAIL} create_limit_buy_order failed: {e}")
     print(f"       Your keys may not have 'trade' permission, or the API format is wrong.")
