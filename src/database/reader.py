@@ -168,11 +168,14 @@ def is_daily_kill_switch_active() -> bool:
     """True if a daily (non-resolved) kill switch was triggered today."""
     s = _session()
     try:
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        now = datetime.now(timezone.utc)
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end   = day_start + timedelta(days=1)
         event = s.query(KillSwitchEvent).filter(
             KillSwitchEvent.level == "daily",
             KillSwitchEvent.resolved_at == None,
-            func.strftime("%Y-%m-%d", KillSwitchEvent.triggered_at) == today,
+            KillSwitchEvent.triggered_at >= day_start,
+            KillSwitchEvent.triggered_at < day_end,
         ).first()
         return event is not None
     finally:
