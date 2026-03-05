@@ -15,7 +15,7 @@ newer Python runtimes. coinbase-advanced-py handles JWT auth natively.
 """
 
 import os
-import uuid
+from datetime import datetime, timezone
 from typing import Optional
 from loguru import logger
 import ccxt
@@ -84,6 +84,17 @@ class ExchangeClient:
         """Convert ccxt symbol format (BTC/USD) to Coinbase product_id (BTC-USD)."""
         return symbol.replace("/", "-")
 
+    @staticmethod
+    def _order_id(side: str, symbol: str) -> str:
+        """
+        Deterministic client_order_id: symbol + side + UTC minute.
+        If the same buy/sell is attempted twice within 60 seconds, Coinbase
+        returns the existing order instead of creating a duplicate.
+        """
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
+        clean = symbol.replace("/", "").replace("-", "")
+        return f"{side}_{clean}_{ts}"
+
     # ─── Market data (always public ccxt — no auth required) ─────────────────
 
     def fetch_ticker(self, symbol: str) -> dict:
@@ -125,7 +136,7 @@ class ExchangeClient:
         if self.paper:
             raise RuntimeError("place_limit_buy called in paper mode — use PaperPortfolio instead")
         resp = self._cb.limit_order_gtc_buy(
-            client_order_id=str(uuid.uuid4()),
+            client_order_id=self._order_id("buy", symbol),
             product_id=self._to_product_id(symbol),
             base_size=str(round(quantity, 8)),
             limit_price=str(round(price, 2)),
@@ -141,7 +152,7 @@ class ExchangeClient:
         if self.paper:
             raise RuntimeError("place_limit_sell called in paper mode — use PaperPortfolio instead")
         resp = self._cb.limit_order_gtc_sell(
-            client_order_id=str(uuid.uuid4()),
+            client_order_id=self._order_id("sell", symbol),
             product_id=self._to_product_id(symbol),
             base_size=str(round(quantity, 8)),
             limit_price=str(round(price, 2)),
@@ -157,7 +168,7 @@ class ExchangeClient:
         if self.paper:
             raise RuntimeError("place_market_sell called in paper mode — use PaperPortfolio instead")
         resp = self._cb.market_order_sell(
-            client_order_id=str(uuid.uuid4()),
+            client_order_id=self._order_id("msell", symbol),
             product_id=self._to_product_id(symbol),
             base_size=str(round(quantity, 8)),
         )

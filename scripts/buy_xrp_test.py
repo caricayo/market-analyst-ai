@@ -1,5 +1,5 @@
 """Quick test: buy $5 of XRP using coinbase-advanced-py (not ccxt)."""
-import sys, os, uuid
+import sys, os
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from dotenv import load_dotenv
@@ -18,8 +18,12 @@ price = float(product["price"])
 print(f"XRP/USD: ${price:.4f}")
 print(f"Buying $5.00 worth (~{5/price:.2f} XRP)...")
 
+from datetime import datetime, timezone
+order_id = f"test_buy_XRPUSD_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M')}"
+print(f"client_order_id: {order_id}")
+
 order = client.market_order_buy(
-    client_order_id=str(uuid.uuid4()),
+    client_order_id=order_id,
     product_id="XRP-USD",
     quote_size="5",
 )
