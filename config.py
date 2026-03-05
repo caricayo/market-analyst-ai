@@ -197,7 +197,7 @@ COINGECKO_RETRY_MAX = 4
 COINGECKO_RETRY_BACKOFF_BASE = 2.0  # seconds (doubles each retry)
 
 # Auto-block trading if Fear/Greed index is outside this range
-FEAR_GREED_MIN = 20
+FEAR_GREED_MIN = 10
 FEAR_GREED_MAX = 90
 
 # Auto-block if 24h market cap change exceeds this drop
