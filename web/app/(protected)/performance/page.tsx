@@ -13,12 +13,12 @@ export default async function PerformancePage() {
     .order("date", { ascending: true })
     .limit(365);
 
-  const { data: simResult } = await supabase
+  const { data: simResults } = await supabase
     .from("simulation_results")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
+    .limit(1);
+  const simResult = simResults?.[0] ?? null;
 
   // Compute drawdown series from daily portfolio values
   const equityData = (dailyStats ?? []).filter((d) => d.portfolio_value_end != null);

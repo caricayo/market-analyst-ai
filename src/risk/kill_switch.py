@@ -124,7 +124,7 @@ def evaluate_kill_switch(
             "daily_pnl_pct": float,
         }
     """
-    if starting_value <= 0:
+    if starting_value is None or starting_value <= 0:
         return {"level": None, "halt_trading": False, "reduce_size": False, "daily_pnl_pct": 0}
 
     daily_pnl_pct = (portfolio_value - starting_value) / starting_value

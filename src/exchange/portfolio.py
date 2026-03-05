@@ -127,7 +127,7 @@ class PaperPortfolio:
             logger.warning(f"Buy rejected: insufficient balance (need ${usdt_spent:.2f}, have ${self.usdt_balance:.2f})")
             return None
 
-        self.usdt_balance -= usdt_spent
+        self.usdt_balance -= usdt_spent  # tentative deduction — rolled back if DB write fails
 
         trade_data = {
             "symbol": symbol,
@@ -153,7 +153,11 @@ class PaperPortfolio:
             "simulation_run_id": self.simulation_run_id,
         }
 
-        trade_id = save_trade(trade_data)
+        try:
+            trade_id = save_trade(trade_data)
+        except Exception:
+            self.usdt_balance += usdt_spent   # rollback: DB failed, trade never happened
+            raise
 
         self.open_trades[symbol] = {
             "trade_id": trade_id,

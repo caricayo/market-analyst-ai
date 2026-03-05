@@ -45,7 +45,9 @@ def volatility_scalar(atr: float, price: float) -> float:
     Reduce position size when volatility is high.
     ATR/price < 1% → 1.0x; 2% → 0.75x; 3%+ → 0.5x (floor)
     """
-    atr_pct = atr / price if price > 0 else 0.02
+    if atr is None or math.isnan(atr) or atr <= 0 or price <= 0:
+        return 0.5  # conservative fallback for invalid ATR
+    atr_pct = atr / price
     if atr_pct <= 0.01:
         return 1.0
     elif atr_pct >= 0.03:
@@ -108,6 +110,9 @@ def calculate_stops(entry_price: float, atr: float) -> tuple[float, float]:
     Returns:
         (stop_loss_price, take_profit_price)
     """
+    if atr is None or math.isnan(atr) or atr <= 0:
+        raise ValueError(f"ATR must be positive for stop calculation, got {atr}")
+
     stop_loss   = entry_price - config.STOP_LOSS_ATR_MULT   * atr
     take_profit = entry_price + config.TAKE_PROFIT_ATR_MULT * atr
 

@@ -62,14 +62,17 @@ def run_monitor_cycle(
             result = portfolio.execute_sell(symbol, current_price, exit_reason)
             if result:
                 exits += 1
-                alert_trade_closed(
-                    symbol=symbol,
-                    exit_price=result["exit_price"],
-                    pnl_usdt=result["pnl_usdt"],
-                    pnl_pct=result["pnl_pct"],
-                    exit_reason=exit_reason,
-                    paper=config.PAPER_TRADING,
-                )
+                try:
+                    alert_trade_closed(
+                        symbol=symbol,
+                        exit_price=result["exit_price"],
+                        pnl_usdt=result["pnl_usdt"],
+                        pnl_pct=result["pnl_pct"],
+                        exit_reason=exit_reason,
+                        paper=config.PAPER_TRADING,
+                    )
+                except Exception as alert_err:
+                    logger.error(f"Alert failed for {symbol} (trade was closed): {alert_err}")
 
     # Kill switch evaluation
     current_value = portfolio.portfolio_value()
@@ -83,14 +86,17 @@ def run_monitor_cycle(
         closed = portfolio.close_all_positions(get_price, reason="kill_switch_exit")
         exits += len(closed)
         for t in closed:
-            alert_trade_closed(
-                symbol=t["symbol"],
-                exit_price=t["exit_price"],
-                pnl_usdt=t["pnl_usdt"],
-                pnl_pct=t["pnl_pct"],
-                exit_reason="kill_switch_exit",
-                paper=config.PAPER_TRADING,
-            )
+            try:
+                alert_trade_closed(
+                    symbol=t["symbol"],
+                    exit_price=t["exit_price"],
+                    pnl_usdt=t["pnl_usdt"],
+                    pnl_pct=t["pnl_pct"],
+                    exit_reason="kill_switch_exit",
+                    paper=config.PAPER_TRADING,
+                )
+            except Exception as alert_err:
+                logger.error(f"Alert failed for kill_switch_exit {t['symbol']} (trade was closed): {alert_err}")
 
     record_heartbeat("intraday_monitor", "ok",
                      f"exits={exits} ks={ks['level']} open={len(portfolio.open_trades)}")

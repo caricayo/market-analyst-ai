@@ -74,9 +74,13 @@ def predict_symbol(
     avg_proba  = (xgb_proba + lgb_proba) / 2.0
 
     # ATR for risk sizing
+    import math
     from src.ml.feature_engineering import atr
     atr14 = atr(df["high"], df["low"], df["close"], 14).iloc[-1]
     current_price = float(df["close"].iloc[-1])
+
+    if math.isnan(float(atr14)) or float(atr14) <= 0:
+        raise ValueError(f"Invalid ATR ({atr14}) for {symbol} — insufficient warm-up data or zero volatility")
 
     # Apply coin-specific confidence threshold; both models must individually agree
     min_conf = getattr(config, "COIN_MIN_CONFIDENCE", {}).get(symbol, config.MIN_MODEL_CONFIDENCE)

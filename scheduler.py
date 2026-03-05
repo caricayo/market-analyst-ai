@@ -68,9 +68,9 @@ def _job_eod_exit():
 
 def _job_eod_verify():
     from src.execution.eod_exit import run_eod_verification
-    _, portfolio, _ = _get_state()
+    client, portfolio, _ = _get_state()
     try:
-        run_eod_verification(portfolio)
+        run_eod_verification(portfolio, client)
     except Exception as e:
         logger.error(f"EOD verification crashed: {e}")
 

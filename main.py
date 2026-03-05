@@ -91,10 +91,17 @@ def main():
     # ── Graceful shutdown ──────────────────────────────────────────────────
     def shutdown(sig, frame):
         logger.info("Shutdown signal received...")
-        from scheduler import stop_scheduler
-        stop_scheduler()
+        try:
+            from scheduler import stop_scheduler
+            stop_scheduler()
+        except Exception as e:
+            logger.error(f"Scheduler stop error: {e}")
         if dashboard_proc:
-            dashboard_proc.terminate()
+            try:
+                dashboard_proc.terminate()
+                dashboard_proc.wait(timeout=5)
+            except Exception as e:
+                logger.error(f"Dashboard termination error: {e}")
         logger.info("System shutdown complete")
         sys.exit(0)
 

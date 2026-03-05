@@ -63,7 +63,7 @@ export default function LiveFeed({ initial }: { initial: BotEvent[] }) {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { channel.unsubscribe().then(() => supabase.removeChannel(channel)); };
   }, []);
 
   // Auto-scroll to top (newest events are at top)

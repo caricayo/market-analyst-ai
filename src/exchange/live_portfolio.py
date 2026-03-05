@@ -206,7 +206,19 @@ class LivePortfolio:
             "exchange_order_id": exchange_order_id,
         }
 
-        trade_id = save_trade(trade_data)
+        try:
+            trade_id = save_trade(trade_data)
+        except Exception as db_err:
+            # CRITICAL: real money is at risk — order is open on Coinbase but not in DB.
+            # Keep the position in open_trades so stops are still monitored this session.
+            # On restart _sync_from_db won't find it — manual reconciliation required.
+            logger.critical(
+                f"[LIVE] DB write FAILED after order placed for {symbol}! "
+                f"Exchange order ID: {exchange_order_id} | Value: ${position_value:.2f} | "
+                f"Stop: ${stop_loss_price:.4f} | Target: ${take_profit_price:.4f} | "
+                f"MANUAL RECONCILIATION REQUIRED. DB error: {db_err}"
+            )
+            trade_id = None   # sentinel — position tracked in memory only
 
         self.open_trades[symbol] = {
             "trade_id":          trade_id,

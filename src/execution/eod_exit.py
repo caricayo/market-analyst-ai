@@ -54,10 +54,10 @@ def run_eod_exit(
     return {"closed": len(closed), "total_pnl_usdt": total_pnl}
 
 
-def run_eod_verification(portfolio: PaperPortfolio):
+def run_eod_verification(portfolio: PaperPortfolio, client: ExchangeClient = None):
     """
     Called at 22:10 UTC. Verify all positions are closed.
-    Sends URGENT alert if any are still open.
+    If any are stuck, attempts one retry close before sending URGENT alert.
     """
     open_symbols = list(portfolio.open_trades.keys())
     if not open_symbols:
@@ -65,6 +65,25 @@ def run_eod_verification(portfolio: PaperPortfolio):
         return
 
     logger.error(f"EOD verification: {len(open_symbols)} stuck positions: {open_symbols}")
+
+    # Retry closing if we have an exchange client
+    if client is not None:
+        logger.warning("EOD verification: attempting retry close...")
+        try:
+            closed = portfolio.close_all_positions(
+                lambda sym: client.get_current_price(sym),
+                reason="eod_verification_retry",
+            )
+            if closed:
+                logger.info(f"EOD verification retry closed {len(closed)} position(s)")
+            still_open = list(portfolio.open_trades.keys())
+            if not still_open:
+                return   # all clear after retry
+            open_symbols = still_open
+        except Exception as e:
+            logger.error(f"EOD verification retry failed: {e}")
+
+    logger.critical(f"EOD verification: {len(open_symbols)} positions STILL open after retry: {open_symbols}")
     alert_eod_stuck_positions(open_symbols)
 
 

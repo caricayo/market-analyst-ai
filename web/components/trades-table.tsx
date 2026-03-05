@@ -57,7 +57,7 @@ export default function RecentTrades({ trades, showAll }: Props) {
                   }`}
                 >
                   <td className="px-4 py-2 font-bold text-slate-100">{t.symbol}</td>
-                  <td className="px-4 py-2 text-right text-slate-300">${t.entry_price.toFixed(4)}</td>
+                  <td className="px-4 py-2 text-right text-slate-300">${t.entry_price?.toFixed(4) ?? "—"}</td>
                   <td className="px-4 py-2 text-right text-slate-300">
                     {t.exit_price != null ? `$${t.exit_price.toFixed(4)}` : "—"}
                   </td>
@@ -65,7 +65,7 @@ export default function RecentTrades({ trades, showAll }: Props) {
                     {t.pnl_usdt != null ? `${t.pnl_usdt >= 0 ? "+" : ""}$${t.pnl_usdt.toFixed(2)}` : "—"}
                   </td>
                   <td className={`px-4 py-2 text-right font-mono ${profit ? "text-emerald-400" : loss ? "text-red-400" : "text-slate-400"}`}>
-                    {t.pnl_pct != null ? `${t.pnl_pct >= 0 ? "+" : ""}${t.pnl_pct.toFixed(2)}%` : "—"}
+                    {t.pnl_pct != null && isFinite(t.pnl_pct) ? `${t.pnl_pct >= 0 ? "+" : ""}${t.pnl_pct.toFixed(2)}%` : "—"}
                   </td>
                   <td className="px-4 py-2 text-right text-slate-300">
                     {t.model_confidence != null ? `${(t.model_confidence * 100).toFixed(0)}%` : "—"}

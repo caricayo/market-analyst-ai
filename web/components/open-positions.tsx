@@ -43,7 +43,7 @@ export default function OpenPositions({ initialPositions }: Props) {
         (payload) => setPositions((prev) => updatePositions(prev, payload as any))
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { channel.unsubscribe().then(() => supabase.removeChannel(channel)); };
   }, []);
 
   if (positions.length === 0) {
@@ -73,10 +73,10 @@ export default function OpenPositions({ initialPositions }: Props) {
             {positions.map((t) => (
               <tr key={t.id} className="border-b border-slate-800 hover:bg-slate-800/30">
                 <td className="px-4 py-2 font-bold text-slate-100">{t.symbol}</td>
-                <td className="px-4 py-2 text-right text-slate-300">${t.entry_price.toFixed(4)}</td>
-                <td className="px-4 py-2 text-right text-slate-300">${t.position_value.toFixed(2)}</td>
-                <td className="px-4 py-2 text-right text-red-400">${t.stop_loss_price.toFixed(4)}</td>
-                <td className="px-4 py-2 text-right text-emerald-400">${t.take_profit_price.toFixed(4)}</td>
+                <td className="px-4 py-2 text-right text-slate-300">${t.entry_price?.toFixed(4) ?? "—"}</td>
+                <td className="px-4 py-2 text-right text-slate-300">${t.position_value?.toFixed(2) ?? "—"}</td>
+                <td className="px-4 py-2 text-right text-red-400">${t.stop_loss_price?.toFixed(4) ?? "—"}</td>
+                <td className="px-4 py-2 text-right text-emerald-400">${t.take_profit_price?.toFixed(4) ?? "—"}</td>
                 <td className="px-4 py-2 text-right text-slate-300">
                   {t.model_confidence != null ? `${(t.model_confidence * 100).toFixed(0)}%` : "—"}
                 </td>
