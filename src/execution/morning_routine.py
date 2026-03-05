@@ -48,9 +48,10 @@ def run_morning_routine(
     logger.info(f"=== Morning Routine: {date_str} ===")
 
     # Blocked trading days — skip entirely before any external calls
+    # (bypassed in TEST_MODE so every run can attempt trades)
     day_name = now.strftime("%A")
     blocked_days = getattr(config, "BLOCKED_TRADING_DAYS", [])
-    if day_name in blocked_days:
+    if day_name in blocked_days and not config.TEST_MODE:
         logger.info(f"Today is {day_name} — blocked trading day, skipping morning routine")
         record_heartbeat("morning_routine", "ok", f"blocked_day_{day_name}")
         return {"gatekeeper_result": False, "trades_opened": 0, "skipped_reasons": [f"blocked_day_{day_name}"]}

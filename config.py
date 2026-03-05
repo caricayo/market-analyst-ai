@@ -31,6 +31,11 @@ for _d in [HISTORICAL_DIR, MODELS_DIR, LOGS_DIR]:
 _paper_env = os.getenv("PAPER_TRADING", "true").lower()
 PAPER_TRADING: bool = _paper_env != "false"
 
+# TEST_MODE: run morning routine every 10 min and skip blocked-day checks.
+# Set TEST_MODE=true in Railway env vars to verify the system end-to-end.
+# Remove (or set to false) to restore normal production schedule.
+TEST_MODE: bool = os.getenv("TEST_MODE", "false").lower() == "true"
+
 # ─── Watchlist ────────────────────────────────────────────────────────────────
 # Symbols in ccxt format (BASE/QUOTE). All must have >$10M daily volume.
 

@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from loguru import logger
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 import config
 
 # These are module-level singletons, initialized once
@@ -97,29 +98,59 @@ def start_scheduler(client, portfolio):
     _client    = client
     _portfolio = portfolio
 
+    # In test mode seed _starting_value immediately so the monitor isn't locked
+    global _starting_value
+    if config.TEST_MODE:
+        _starting_value = portfolio.portfolio_value()
+
     scheduler = BackgroundScheduler(timezone="UTC")
 
-    # ── Morning routine: 08:00 UTC ─────────────────────────────────────────
-    scheduler.add_job(
-        _job_morning,
-        CronTrigger(hour=8, minute=0),
-        id="morning_routine",
-        name="Morning Routine (gatekeeper + buys)",
-        max_instances=1,
-        coalesce=True,
-    )
+    if config.TEST_MODE:
+        # ── TEST MODE: morning routine every 10 min, fires immediately ────
+        scheduler.add_job(
+            _job_morning,
+            IntervalTrigger(minutes=10),
+            id="morning_routine",
+            name="Morning Routine — TEST (every 10 min)",
+            next_run_time=datetime.now(timezone.utc),
+            max_instances=1,
+            coalesce=True,
+        )
+        # Monitor still runs every 5 min, no time restriction
+        scheduler.add_job(
+            _job_monitor,
+            IntervalTrigger(minutes=5),
+            id="intraday_monitor",
+            name="Intraday Monitor — TEST (every 5 min)",
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info("*** TEST MODE — morning routine fires every 10 min ***")
+        logger.info("  Every 10 min — Morning Routine (no day restrictions)")
+        logger.info("  Every 5 min  — Intraday Monitor")
+    else:
+        # ── Morning routine: 08:00 UTC ─────────────────────────────────────
+        scheduler.add_job(
+            _job_morning,
+            CronTrigger(hour=8, minute=0),
+            id="morning_routine",
+            name="Morning Routine (gatekeeper + buys)",
+            max_instances=1,
+            coalesce=True,
+        )
+        # ── Intraday monitor: every 5 min, 09:00–21:55 UTC ────────────────
+        scheduler.add_job(
+            _job_monitor,
+            CronTrigger(hour="9-21", minute="*/5"),
+            id="intraday_monitor",
+            name="Intraday Monitor (stops/targets)",
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info("  08:00 UTC — Morning Routine")
+        logger.info("  09:00–21:55 UTC every 5 min — Intraday Monitor")
 
-    # ── Intraday monitor: every 5 min, 09:00–21:55 UTC ────────────────────
-    scheduler.add_job(
-        _job_monitor,
-        CronTrigger(hour="9-21", minute="*/5"),
-        id="intraday_monitor",
-        name="Intraday Monitor (stops/targets)",
-        max_instances=1,
-        coalesce=True,
-    )
-
-    # ── EOD exit: 22:00 UTC ────────────────────────────────────────────────
+    # ── EOD exit: 22:00 UTC (always) ──────────────────────────────────────
     scheduler.add_job(
         _job_eod_exit,
         CronTrigger(hour=22, minute=0),
@@ -129,7 +160,7 @@ def start_scheduler(client, portfolio):
         coalesce=True,
     )
 
-    # ── EOD verification: 22:10 UTC ───────────────────────────────────────
+    # ── EOD verification: 22:10 UTC (always) ──────────────────────────────
     scheduler.add_job(
         _job_eod_verify,
         CronTrigger(hour=22, minute=10),
@@ -139,7 +170,7 @@ def start_scheduler(client, portfolio):
         coalesce=True,
     )
 
-    # ── Weekly retrain: Sunday 01:00 UTC ──────────────────────────────────
+    # ── Weekly retrain: Sunday 01:00 UTC (always) ─────────────────────────
     scheduler.add_job(
         _job_retrain,
         CronTrigger(day_of_week="sun", hour=1, minute=0),
@@ -153,8 +184,6 @@ def start_scheduler(client, portfolio):
     _scheduler = scheduler
 
     logger.info("Scheduler started")
-    logger.info("  08:00 UTC — Morning Routine")
-    logger.info("  09:00–21:55 UTC every 5 min — Intraday Monitor")
     logger.info("  22:00 UTC — EOD Exit")
     logger.info("  22:10 UTC — EOD Verification")
     logger.info("  Sunday 01:00 UTC — Weekly Retrain")
