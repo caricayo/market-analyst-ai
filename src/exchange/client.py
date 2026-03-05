@@ -15,7 +15,7 @@ newer Python runtimes. coinbase-advanced-py handles JWT auth natively.
 """
 
 import os
-from datetime import datetime, timezone
+import uuid
 from typing import Optional
 from loguru import logger
 import ccxt
@@ -85,15 +85,15 @@ class ExchangeClient:
         return symbol.replace("/", "-")
 
     @staticmethod
-    def _order_id(side: str, symbol: str) -> str:
+    def _new_order_id() -> str:
         """
-        Deterministic client_order_id: symbol + side + UTC minute.
-        If the same buy/sell is attempted twice within 60 seconds, Coinbase
-        returns the existing order instead of creating a duplicate.
+        UUID4 per order — the correct pattern per Coinbase docs.
+        Coinbase's 24h idempotency window means retrying with the SAME uuid
+        returns the existing order rather than creating a duplicate.
+        The portfolio layer (has_open_position) is the primary duplicate guard;
+        this UUID ensures each distinct trade intention gets a unique identity.
         """
-        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
-        clean = symbol.replace("/", "").replace("-", "")
-        return f"{side}_{clean}_{ts}"
+        return str(uuid.uuid4())
 
     # ─── Market data (always public ccxt — no auth required) ─────────────────
 
@@ -126,6 +126,27 @@ class ExchangeClient:
 
     # ─── Live order methods — coinbase-advanced-py (live mode only) ───────────
 
+    def place_market_buy(self, symbol: str, quote_size_usd: float) -> dict:
+        """
+        Market buy: spend quote_size_usd dollars of the coin immediately.
+        Used by LivePortfolio — fills at best available price, no slippage sim needed.
+
+        Returns:
+            dict with keys: id (order_id), status ("open" until confirmed filled)
+        """
+        if self.paper:
+            raise RuntimeError("place_market_buy called in paper mode — use PaperPortfolio instead")
+        resp = self._cb.market_order_buy(
+            client_order_id=self._new_order_id(),
+            product_id=self._to_product_id(symbol),
+            quote_size=str(round(quote_size_usd, 2)),
+        )
+        if not resp.success:
+            raise RuntimeError(f"Market buy failed for {symbol}: {resp.error_response}")
+        order_id = resp.success_response.order_id
+        logger.info(f"[LIVE] Market buy placed: {symbol} ~${quote_size_usd:.2f} | id={order_id}")
+        return {"id": order_id, "status": "open"}
+
     def place_limit_buy(self, symbol: str, quantity: float, price: float) -> dict:
         """
         Place a GTC limit buy order.
@@ -136,7 +157,7 @@ class ExchangeClient:
         if self.paper:
             raise RuntimeError("place_limit_buy called in paper mode — use PaperPortfolio instead")
         resp = self._cb.limit_order_gtc_buy(
-            client_order_id=self._order_id("buy", symbol),
+            client_order_id=self._new_order_id(),
             product_id=self._to_product_id(symbol),
             base_size=str(round(quantity, 8)),
             limit_price=str(round(price, 2)),
@@ -152,7 +173,7 @@ class ExchangeClient:
         if self.paper:
             raise RuntimeError("place_limit_sell called in paper mode — use PaperPortfolio instead")
         resp = self._cb.limit_order_gtc_sell(
-            client_order_id=self._order_id("sell", symbol),
+            client_order_id=self._new_order_id(),
             product_id=self._to_product_id(symbol),
             base_size=str(round(quantity, 8)),
             limit_price=str(round(price, 2)),
@@ -168,7 +189,7 @@ class ExchangeClient:
         if self.paper:
             raise RuntimeError("place_market_sell called in paper mode — use PaperPortfolio instead")
         resp = self._cb.market_order_sell(
-            client_order_id=self._order_id("msell", symbol),
+            client_order_id=self._new_order_id(),
             product_id=self._to_product_id(symbol),
             base_size=str(round(quantity, 8)),
         )

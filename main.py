@@ -63,9 +63,14 @@ def main():
     client = ExchangeClient()
 
     # ── Initialize portfolio ───────────────────────────────────────────────
-    from src.exchange.portfolio import PaperPortfolio
-    portfolio = PaperPortfolio(starting_usdt=args.balance)
-    logger.info(f"Portfolio initialized: ${args.balance:,.2f} USDT")
+    if config.PAPER_TRADING:
+        from src.exchange.portfolio import PaperPortfolio
+        portfolio = PaperPortfolio(starting_usdt=args.balance)
+        logger.info(f"Portfolio initialized: ${args.balance:,.2f} USDT")
+    else:
+        from src.exchange.live_portfolio import LivePortfolio
+        portfolio = LivePortfolio(client=client)
+        logger.info("Portfolio initialized: LIVE — real Coinbase balance")
 
     # ── Start scheduler ────────────────────────────────────────────────────
     from scheduler import start_scheduler
