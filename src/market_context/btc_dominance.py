@@ -48,7 +48,7 @@ def fetch_global_data() -> dict:
     """
     data = _coingecko_get("/global")["data"]
     return {
-        "btc_dominance_pct":       round(data["btc_dominance"], 2),
+        "btc_dominance_pct":       round(data["market_cap_percentage"]["btc"], 2),
         "total_market_cap_usd":    data["total_market_cap"]["usd"],
         "market_cap_change_24h_pct": round(data["market_cap_change_percentage_24h_usd"] / 100, 4),
     }
