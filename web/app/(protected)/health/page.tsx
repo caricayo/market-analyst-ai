@@ -9,16 +9,21 @@ const JOBS = ["morning_routine", "intraday_monitor", "eod_exit", "weekly_retrain
 export default async function HealthPage() {
   const supabase = createClient();
 
-  // Latest heartbeat per job
+  // Latest heartbeat per job — all 4 in parallel
+  const heartbeatResults = await Promise.all(
+    JOBS.map((job) =>
+      supabase
+        .from("heartbeats")
+        .select("timestamp, status, message")
+        .eq("job_name", job)
+        .order("timestamp", { ascending: false })
+        .limit(1)
+        .single()
+        .then(({ data }) => ({ job, data }))
+    )
+  );
   const heartbeatMap: Record<string, { timestamp: string; status: string; message: string | null }> = {};
-  for (const job of JOBS) {
-    const { data } = await supabase
-      .from("heartbeats")
-      .select("timestamp, status, message")
-      .eq("job_name", job)
-      .order("timestamp", { ascending: false })
-      .limit(1)
-      .single();
+  for (const { job, data } of heartbeatResults) {
     if (data) heartbeatMap[job] = data;
   }
 

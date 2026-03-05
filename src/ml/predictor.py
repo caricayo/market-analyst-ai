@@ -102,8 +102,12 @@ def score_watchlist(update_data: bool = False) -> list[dict]:
     Args:
         update_data: If True, fetches latest candles before scoring.
     """
-    # Load BTC once for the btc_prev_day_return feature
-    btc_df = load_ohlcv("BTC/USD")
+    # Load BTC once for the btc_prev_day_return feature (None is safe — feature defaults to 0)
+    try:
+        btc_df = load_ohlcv("BTC/USD")
+    except Exception as e:
+        logger.warning(f"Could not load BTC/USD for btc_prev_day_return feature: {e}")
+        btc_df = None
 
     results = []
     for symbol in config.WATCHLIST:

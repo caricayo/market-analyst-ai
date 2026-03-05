@@ -121,7 +121,7 @@ def _build_prompt(ctx: dict) -> str:
 MARKET CONTEXT:
 - Fear & Greed Index: {fg} ({fg_label}) [0=extreme fear, 100=extreme greed]
 - BTC Dominance: {dom}%
-- 24h Market Cap Change: {mc_chg:.1%} if {mc_chg is not None} else N/A
+- 24h Market Cap Change: {f"{mc_chg:.1%}" if mc_chg is not None else "N/A"}
 - Data fetch errors: {errors if errors else 'none'}
 
 TOP HEADLINES:
