@@ -3,7 +3,7 @@ python-dotenv>=1.0.0
 loguru>=0.7.2
 
 # Exchange / market data
-ccxt>=4.3.0
+ccxt>=4.3.0,<4.4.0
 coinbase-advanced-py>=1.4.0
 yfinance>=0.2.37
 
