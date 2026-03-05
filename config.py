@@ -86,10 +86,10 @@ MIN_LIQUIDITY_USD = 10_000_000
 MAX_POSITION_PCT = 0.07          # 7% per coin — Optuna-optimised (300 trials, 2024-07-01→2026-03)
 
 # Maximum number of simultaneously open positions
-MAX_SIMULTANEOUS_TRADES = 3
+MAX_SIMULTANEOUS_TRADES = int(os.getenv("MAX_SIMULTANEOUS_TRADES", "10"))
 
 # Maximum total portfolio exposure (rest stays in USDT)
-MAX_PORTFOLIO_EXPOSURE = 0.30    # 30%
+MAX_PORTFOLIO_EXPOSURE = float(os.getenv("MAX_PORTFOLIO_EXPOSURE", "0.95"))
 
 # ATR multipliers for stop-loss and take-profit
 STOP_LOSS_ATR_MULT = 1.5         # Entry − (1.5 × ATR14)
