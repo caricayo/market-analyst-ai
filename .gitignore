@@ -1,14 +1,47 @@
-node_modules
-dist
-coverage
-.DS_Store
-*.tsbuildinfo
+# Secrets — NEVER commit
 .env
-.env.local
+
+# Data files (large, regenerable)
+data/historical/
+data/models/
+data/trading.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.so
+.venv/
+venv/
+env/
+
+# Logs
+logs/
 *.log
-.playwright-mcp/
-.pwsmoke/
-.tools/
+
+# Streamlit
+.streamlit/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / tools
+.vscode/
+.idea/
 .cursor/
 .claude/
-api-lite/node_modules
+.playwright-mcp/
+.tools/
+*.swp
+
+# Next.js
+web/node_modules/
+web/.next/
+web/out/
+
+# Archive (local only)
+_archive/

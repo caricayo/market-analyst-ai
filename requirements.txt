@@ -1,0 +1,47 @@
+# Core
+python-dotenv>=1.0.0
+loguru>=0.7.2
+
+# Exchange / market data
+ccxt>=4.3.0
+coinbase-advanced-py>=1.4.0
+yfinance>=0.2.37
+
+# ML
+xgboost>=2.0.3
+lightgbm>=4.0.0
+scikit-learn>=1.4.0
+pandas>=2.2.0
+numpy>=1.26.0
+joblib>=1.3.2
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
+
+# Scheduling
+APScheduler>=3.10.4
+
+# Dashboard
+streamlit>=1.32.0
+plotly>=5.20.0
+
+# AI orchestrator
+openai>=1.23.0
+
+# Market context / news
+requests>=2.31.0
+feedparser>=6.0.11
+
+# Alerts
+# (discord webhooks use requests — no extra lib needed)
+
+# Email fallback
+# (smtplib is stdlib — no extra lib needed)
+
+# Optimisation
+optuna>=4.0.0
+vectorbt>=0.28.0
+
+# Dev/testing
+pytest>=8.0.0
