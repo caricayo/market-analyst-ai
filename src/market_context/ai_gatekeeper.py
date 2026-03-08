@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from loguru import logger
 
 import config
-from src.market_context.fear_greed import fetch_fear_greed, is_market_extreme
+from src.market_context.fear_greed import fetch_fear_greed
 from src.market_context.btc_dominance import fetch_global_data, is_market_cap_crashing
 from src.market_context.news_scraper import fetch_headlines, check_block_keywords
 
@@ -78,11 +78,7 @@ def _check_hard_blocks(ctx: dict) -> tuple[bool, list[str]]:
     """
     reasons = []
 
-    # Fear/Greed extreme
-    if ctx["fear_greed"] is not None:
-        blocked, reason = is_market_extreme(ctx["fear_greed"])
-        if blocked:
-            reasons.append(reason)
+    # Fear/Greed is informational only (not a hard auto-block).
 
     # Market cap crash
     if ctx["market_cap_change_24h_pct"] is not None:
