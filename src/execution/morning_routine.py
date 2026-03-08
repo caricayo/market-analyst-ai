@@ -67,6 +67,14 @@ def run_morning_routine(
 
     # Step 3: AI gatekeeper
     gatekeeper = run_gatekeeper()
+    advisory_trade_today = bool(gatekeeper.get("trade_today", False))
+    advisory_reason = gatekeeper.get("primary_reason", "No advisory reason provided")
+
+    # Gatekeeper is advisory-only: always proceed with trading flow.
+    if not advisory_trade_today:
+        logger.warning("Gatekeeper advisory veto ignored — auto-trade mode enabled")
+    gatekeeper["trade_today"] = True
+    gatekeeper["primary_reason"] = f"Auto-trade mode enabled. Advisory: {advisory_reason}"
     alert_gatekeeper(
         gatekeeper["trade_today"],
         gatekeeper["primary_reason"],
@@ -94,17 +102,10 @@ def run_morning_routine(
             "primary_reason": gatekeeper.get("primary_reason"),
             "fear_greed": gatekeeper.get("fear_greed"),
             "btc_dominance": gatekeeper.get("btc_dominance"),
+            "advisory_trade_today": advisory_trade_today,
+            "advisory_primary_reason": advisory_reason,
         },
     )
-
-    if config.BYPASS_GATEKEEPER and not gatekeeper["trade_today"]:
-        logger.warning("BYPASS_GATEKEEPER=true — overriding gatekeeper SKIP (TEST MODE ONLY)")
-        gatekeeper["trade_today"] = True
-
-    if not gatekeeper["trade_today"]:
-        logger.info("Gatekeeper: skip today")
-        record_heartbeat("morning_routine", "ok", "gatekeeper_skip")
-        return {"gatekeeper_result": False, "trades_opened": 0, "skipped_reasons": ["gatekeeper"]}
 
     # Step 4: Update data + score watchlist
     logger.info("Updating market data and scoring watchlist...")
