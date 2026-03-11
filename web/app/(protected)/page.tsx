@@ -1,117 +1,89 @@
-import { createClient } from "@/lib/supabase/server";
-import PortfolioCard from "@/components/portfolio-card";
-import OpenPositions from "@/components/open-positions";
-import RecentTrades from "@/components/trades-table";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { parseStory, renderInline } from "@/lib/lumenweld";
 
-export const revalidate = 60;
+export const revalidate = false;
 
 export default async function OverviewPage() {
-  const supabase = createClient();
-
-  // Latest daily stat
-  const { data: latestStat } = await supabase
-    .from("daily_stats")
-    .select("*")
-    .order("date", { ascending: false })
-    .limit(1)
-    .single();
-
-  // 7-day return
-  const { data: last7Days } = await supabase
-    .from("daily_stats")
-    .select("daily_pnl_pct")
-    .order("date", { ascending: false })
-    .limit(7);
-
-  const sevenDayReturn = (last7Days ?? []).reduce(
-    (sum, r) => sum + (r.daily_pnl_pct ?? 0),
-    0
-  );
-
-  // 14-day win rate
-  const since14 = new Date();
-  since14.setDate(since14.getDate() - 14);
-  const { data: trades14 } = await supabase
-    .from("trades")
-    .select("prediction_correct")
-    .not("closed_at", "is", null)
-    .gte("opened_at", since14.toISOString());
-
-  const total14 = trades14?.length ?? 0;
-  const wins14 = trades14?.filter((t) => t.prediction_correct).length ?? 0;
-  const winRate14 = total14 > 0 ? (wins14 / total14) * 100 : null;
-
-  // Open positions
-  const { data: openTrades } = await supabase
-    .from("trades")
-    .select("*")
-    .is("closed_at", null)
-    .eq("paper", true)
-    .order("opened_at", { ascending: false });
-
-  // Recent closed trades
-  const { data: recentTrades } = await supabase
-    .from("trades")
-    .select("*")
-    .not("closed_at", "is", null)
-    .order("closed_at", { ascending: false })
-    .limit(10);
+  const sourcePath = path.join(process.cwd(), "content", "lumenweld-novel-expanded.md");
+  const raw = await fs.readFile(sourcePath, "utf8");
+  const story = parseStory(raw);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-lg font-bold text-slate-100">Overview</h1>
+    <main className="story-page">
+      <div className="story-shell">
+        <section className="story-hero">
+          <div className="story-hero-grid">
+            <div>
+              <p className="story-kicker">Lumenweld Chronicle</p>
+              <h1 className="story-title">{story.title}</h1>
+              <p className="story-subtitle">{story.subtitle}</p>
+              <p className="story-dek">
+                The current site has been replaced with the full Lumenweld story,
+                restyled around the visual language of the source HTML: gold-lit
+                typography, aurora gradients, and a long-form reading layout.
+              </p>
+              <nav className="story-nav" aria-label="Story sections">
+                {story.sections.map((section) => (
+                  <a key={section.slug} href={`#${section.slug}`}>
+                    {section.kicker ?? section.title}
+                  </a>
+                ))}
+              </nav>
+            </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <PortfolioCard
-          label="Portfolio Value"
-          value={
-            latestStat?.portfolio_value_end != null
-              ? `$${latestStat.portfolio_value_end.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-              : "—"
-          }
-        />
-        <PortfolioCard
-          label="Today's P&L"
-          value={
-            latestStat?.daily_pnl_usdt != null
-              ? `$${latestStat.daily_pnl_usdt.toFixed(2)}`
-              : "—"
-          }
-          positive={latestStat?.daily_pnl_usdt != null ? latestStat.daily_pnl_usdt >= 0 : undefined}
-          sub={
-            latestStat?.daily_pnl_pct != null
-              ? `${latestStat.daily_pnl_pct >= 0 ? "+" : ""}${latestStat.daily_pnl_pct.toFixed(2)}%`
-              : undefined
-          }
-        />
-        <PortfolioCard
-          label="7-Day Return"
-          value={`${sevenDayReturn >= 0 ? "+" : ""}${sevenDayReturn.toFixed(2)}%`}
-          positive={sevenDayReturn >= 0}
-        />
-        <PortfolioCard
-          label="Win Rate (14d)"
-          value={winRate14 != null ? `${winRate14.toFixed(1)}%` : "—"}
-          sub={total14 > 0 ? `${wins14}/${total14} trades` : undefined}
-        />
+            <aside className="story-panel">
+              <p className="story-panel-label">Reading Ledger</p>
+              <div className="story-panel-stat">
+                <span>Sections</span>
+                <strong>{story.sections.length}</strong>
+              </div>
+              <div className="story-panel-stat">
+                <span>Word Count</span>
+                <strong>{story.wordCount.toLocaleString("en-US")}</strong>
+              </div>
+              <div className="story-panel-stat">
+                <span>Source</span>
+                <strong>Expanded manuscript</strong>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <div className="story-sections">
+          {story.sections.map((section) => (
+            <section className="story-section" id={section.slug} key={section.slug}>
+              <header className="chapter-marker">
+                {section.kicker ? (
+                  <span className="chapter-kicker">{section.kicker}</span>
+                ) : null}
+                <h2 className="chapter-title">{section.title}</h2>
+                <div className="chapter-rule" aria-hidden="true">
+                  <span />
+                  <i>{"\u2726"}</i>
+                  <span />
+                </div>
+              </header>
+
+              <div className="story-copy">
+                {section.paragraphs.map((paragraph, index) => (
+                  <p className="story-paragraph" key={`${section.slug}-${index}`}>
+                    {renderInline(paragraph)}
+                  </p>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+
+        <footer className="story-footer">
+          <p>arfor.app now serves the Lumenweld story experience.</p>
+          <p>
+            The previous trading dashboard state is preserved in git archive tag{" "}
+            <code>archive/pre-lumenweld-story-20260311</code>.
+          </p>
+        </footer>
       </div>
-
-      {/* Open positions */}
-      <section>
-        <h2 className="text-sm font-semibold text-slate-400 mb-3 uppercase tracking-wide">
-          Open Positions
-        </h2>
-        <OpenPositions initialPositions={openTrades ?? []} />
-      </section>
-
-      {/* Recent trades */}
-      <section>
-        <h2 className="text-sm font-semibold text-slate-400 mb-3 uppercase tracking-wide">
-          Recent Trades
-        </h2>
-        <RecentTrades trades={recentTrades ?? []} />
-      </section>
-    </div>
+    </main>
   );
 }

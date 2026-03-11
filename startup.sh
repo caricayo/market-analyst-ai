@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
+if [ "${ENABLE_TRADING_BOT:-false}" != "true" ]; then
+    echo "=== Trading bot disabled; service is idling ==="
+    exec tail -f /dev/null
+fi
+
 XGB="data/models/xgb_model_current.pkl"
 LGB="data/models/lgb_model_current.pkl"
 

@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Last Lumenweaver — A Lumenweld Story</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400;1,600&family=EB+Garamond:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+
+:root{
+  --gold:#f0c060;--pale:#fde9a2;--rose:#e87fa0;--teal:#5fd4c8;
+  --violet:#1a0828;--cream:#fdf6e8;--aurora:#78e8b0;
+  --ink:#0d0518;--mist:rgba(253,246,232,0.07);
+}
+
+body{
+  background:var(--ink);
+  color:var(--cream);
+  font-family:'Cormorant Garamond',serif;
+  overflow-x:hidden;
+  cursor:none;
+}
+
+/* CURSOR */
+#cur{position:fixed;width:10px;height:10px;background:var(--gold);border-radius:50%;
+  pointer-events:none;z-index:9999;transform:translate(-50%,-50%);mix-blend-mode:screen;
+  transition:width .15s,height .15s,opacity .3s;}
+#cur2{position:fixed;width:32px;height:32px;border:1px solid rgba(240,192,96,.3);border-radius:50%;
+  pointer-events:none;z-index:9998;transform:translate(-50%,-50%);
+  transition:left .09s ease,top .09s ease;}
+
+/* FIXED SCENE CANVAS */
+#sceneCanvas{
+  position:fixed;inset:0;width:100%;height:100%;
+  z-index:0;transition:opacity 1.2s ease;
+}
+#partCanvas{
+  position:fixed;inset:0;width:100%;height:100%;
+  z-index:1;pointer-events:none;
+}
+
+/* VIGNETTE */
+.vignette{
+  position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:radial-gradient(ellipse at center, transparent 40%, rgba(13,5,24,.85) 100%);
+}
+
+/* READING PANEL */
+.reading-panel{
+  position:fixed;
+  bottom:0;left:0;right:0;
+  z-index:20;
+  height:52vh;
+  background:linear-gradient(to bottom, transparent, rgba(13,5,24,.96) 18%, rgba(13,5,24,.99) 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  padding:0 0 2.5rem;
+  pointer-events:none;
+}
+
+/* STORY CARDS */
+.story-cards{
+  position:relative;z-index:30;
+  padding-top:48vh;
+}
+
+.chapter-marker{
+  display:flex;align-items:center;justify-content:center;
+  padding:10vh 2rem 2rem;
+  flex-direction:column;
+  opacity:0;transform:translateY(30px);
+  transition:opacity 1s ease,transform 1s ease;
+  text-align:center;
+}
+.chapter-marker.vis{opacity:1;transform:translateY(0);}
+
+.ch-num{
+  font-family:'EB Garamond',serif;font-style:italic;
+  font-size:.72rem;letter-spacing:.55em;text-transform:uppercase;
+  color:var(--gold);margin-bottom:.8rem;opacity:.75;
+}
+.ch-title{
+  font-family:'Cinzel Decorative',serif;
+  font-size:clamp(1.6rem,5vw,3.4rem);font-weight:700;
+  line-height:1.1;letter-spacing:.01em;
+  background:linear-gradient(135deg,var(--pale) 0%,var(--gold) 50%,var(--rose) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 40px rgba(240,192,96,.35));
+}
+.ch-rule{display:flex;align-items:center;gap:.6rem;margin-top:1.5rem;}
+.ch-rule span{height:1px;width:50px;background:linear-gradient(to right,transparent,var(--gold));}
+.ch-rule span:last-child{transform:scaleX(-1);}
+.ch-rule i{font-style:normal;color:var(--gold);font-size:.9rem;}
+
+/* STORY BLOCK */
+.story-block{
+  max-width:680px;margin:0 auto;
+  padding:3rem 2rem 5rem;
+  opacity:0;transform:translateY(24px);
+  transition:opacity 1.1s ease,transform 1.1s ease;
+}
+.story-block.vis{opacity:1;transform:translateY(0);}
+
+.story-text{
+  font-size:clamp(1.05rem,1.9vw,1.22rem);
+  line-height:2;font-weight:300;
+  color:rgba(253,246,232,.85);
+}
+.story-text em{font-style:italic;color:var(--pale);}
+.story-text strong{font-weight:400;color:var(--gold);}
+
+/* SCENE LABEL (bottom of screen) */
+.scene-label{
+  position:fixed;bottom:1.4rem;right:2rem;
+  z-index:50;
+  font-family:'EB Garamond',serif;font-style:italic;
+  font-size:.68rem;letter-spacing:.35em;text-transform:uppercase;
+  color:rgba(253,246,232,.22);
+  transition:opacity .8s ease;pointer-events:none;
+}
+
+/* CHOICE MOMENT */
+.choice-block{
+  max-width:600px;margin:0 auto;
+  padding:2rem 2rem 6rem;
+  opacity:0;transform:translateY(24px);
+  transition:opacity 1s ease,transform 1s ease;
+  text-align:center;
+}
+.choice-block.vis{opacity:1;transform:translateY(0);}
+.choice-prompt{
+  font-style:italic;font-size:1rem;
+  color:rgba(253,246,232,.5);margin-bottom:2rem;
+  letter-spacing:.05em;
+}
+.choices{display:flex;flex-direction:column;gap:1rem;align-items:center;}
+.choice-btn{
+  background:transparent;
+  border:1px solid rgba(240,192,96,.3);
+  color:var(--cream);
+  font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-style:italic;
+  padding:1rem 2.5rem;cursor:pointer;
+  width:100%;max-width:400px;
+  transition:border-color .3s,background .3s,color .3s;
+  position:relative;overflow:hidden;
+}
+.choice-btn::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(240,192,96,.08),rgba(232,127,160,.08));
+  opacity:0;transition:opacity .3s;
+}
+.choice-btn:hover{border-color:var(--gold);cursor:none;}
+.choice-btn:hover::before{opacity:1;}
+.choice-btn:hover{color:var(--pale);}
+.choice-btn.selected{border-color:var(--gold);background:rgba(240,192,96,.1);color:var(--pale);}
+.choice-btn:disabled{opacity:.4;cursor:none;}
+
+/* AI CONTINUATION */
+.ai-block{
+  max-width:680px;margin:0 auto;
+  padding:1rem 2rem 6rem;
+  opacity:0;transform:translateY(20px);
+  transition:opacity 1s ease,transform 1s ease;
+}
+.ai-block.vis{opacity:1;transform:translateY(0);}
+.ai-label{
+  font-family:'EB Garamond',serif;font-style:italic;
+  font-size:.68rem;letter-spacing:.45em;text-transform:uppercase;
+  color:var(--teal);margin-bottom:1.2rem;opacity:.7;
+}
+.ai-text{
+  font-size:clamp(1.05rem,1.9vw,1.22rem);
+  line-height:2;font-weight:300;
+  color:rgba(253,246,232,.82);font-style:italic;
+  min-height:60px;
+}
+.ai-cursor{display:inline-block;width:2px;height:1em;background:var(--gold);
+  vertical-align:text-bottom;animation:blink .7s step-end infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* PULL QUOTE */
+.pull-quote{
+  max-width:700px;margin:0 auto;
+  padding:4rem 2rem;text-align:center;
+  opacity:0;transform:translateY(24px);
+  transition:opacity 1.1s ease,transform 1.1s ease;
+}
+.pull-quote.vis{opacity:1;transform:translateY(0);}
+.pull-quote blockquote{
+  font-style:italic;font-size:clamp(1.25rem,2.8vw,1.8rem);
+  line-height:1.75;font-weight:300;color:var(--cream);
+  position:relative;
+}
+.pull-quote blockquote::before{
+  content:'\201C';position:absolute;top:-2rem;left:-.5rem;
+  font-size:7rem;color:rgba(240,192,96,.06);
+  font-style:normal;line-height:1;pointer-events:none;
+}
+.pull-quote cite{
+  display:block;margin-top:1.2rem;
+  font-size:.7rem;letter-spacing:.38em;text-transform:uppercase;
+  color:var(--gold);font-style:normal;
+  font-family:'EB Garamond',serif;
+}
+
+/* EPILOGUE */
+.epilogue{
+  max-width:680px;margin:0 auto;
+  padding:6rem 2rem 14rem;text-align:center;
+  opacity:0;transform:translateY(30px);
+  transition:opacity 1.3s ease,transform 1.3s ease;
+}
+.epilogue.vis{opacity:1;transform:translateY(0);}
+.epilogue-title{
+  font-family:'Cinzel Decorative',serif;
+  font-size:clamp(1.2rem,3vw,2rem);
+  color:var(--gold);margin-bottom:2rem;
+}
+.epilogue-text{
+  font-size:1.05rem;line-height:2;
+  color:rgba(253,246,232,.65);font-style:italic;font-weight:300;
+}
+.end-sigil{
+  margin-top:4rem;font-size:2rem;
+  color:rgba(240,192,96,.4);letter-spacing:.5em;
+}
+.restart-btn{
+  margin-top:3rem;background:transparent;
+  border:1px solid rgba(240,192,96,.25);
+  color:rgba(253,246,232,.5);
+  font-family:'Cormorant Garamond',serif;font-size:.9rem;
+  font-style:italic;letter-spacing:.15em;
+  padding:.8rem 2rem;cursor:pointer;
+  transition:all .3s ease;
+}
+.restart-btn:hover{border-color:var(--gold);color:var(--pale);cursor:none;}
+
+/* LOADING SHIMMER */
+.shimmer-line{
+  height:14px;border-radius:7px;margin:.5rem 0;
+  background:linear-gradient(90deg,rgba(255,255,255,.03) 0%,rgba(255,255,255,.1) 50%,rgba(255,255,255,.03) 100%);
+  background-size:200% 100%;
+  animation:shim 1.5s ease-in-out infinite;
+}
+@keyframes shim{0%{background-position:-200% 0}100%{background-position:200% 0}}
+
+/* SCROLL GATE — blocks content until choice is made + AI finishes */
+.scroll-gate{
+  overflow:hidden;
+  max-height:0;
+  opacity:0;
+  transition:max-height 1.2s cubic-bezier(0.4,0,0.2,1), opacity 1s ease;
+  pointer-events:none;
+}
+.scroll-gate.open{
+  max-height:9999px;
+  opacity:1;
+  pointer-events:auto;
+}
+
+/* CONTINUE BUTTON */
+.continue-wrap{
+  display:flex;justify-content:center;
+  padding:2.5rem 0 1rem;
+  opacity:0;transform:translateY(16px);
+  transition:opacity .8s ease, transform .8s ease;
+}
+.continue-wrap.show{opacity:1;transform:translateY(0);}
+.continue-btn{
+  background:transparent;
+  border:1px solid rgba(240,192,96,.4);
+  color:var(--gold);
+  font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:1rem;letter-spacing:.12em;
+  padding:.85rem 2.8rem;cursor:pointer;
+  position:relative;overflow:hidden;
+  transition:border-color .3s,color .3s,box-shadow .3s;
+}
+.continue-btn::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(240,192,96,.07),rgba(232,127,160,.07));
+  opacity:0;transition:opacity .3s;
+}
+.continue-btn:hover{border-color:var(--gold);box-shadow:0 0 30px rgba(240,192,96,.15);cursor:none;}
+.continue-btn:hover::before{opacity:1;}
+.continue-btn:hover .continue-arrow{transform:translateX(5px);}
+.continue-arrow{display:inline-block;margin-left:.7rem;transition:transform .3s;}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+</style>
+</head>
+<body>
+
+<div id="cur"></div>
+<div id="cur2"></div>
+<canvas id="sceneCanvas"></canvas>
+<canvas id="partCanvas"></canvas>
+<div class="vignette"></div>
+<div class="scene-label" id="sceneLabel"></div>
+
+<div class="story-cards" id="storyCards">
+
+  <!-- TITLE -->
+  <div class="chapter-marker" id="titleCard" style="padding-top:6vh;min-height:100vh;justify-content:center;">
+    <p class="ch-num">A Lumenweld Story</p>
+    <h1 class="ch-title" style="font-size:clamp(2rem,7vw,5rem);">The Last<br>Lumenweaver</h1>
+    <div class="ch-rule"><span></span><i>✦</i><span></span></div>
+    <p style="font-style:italic;color:rgba(253,246,232,.45);margin-top:1.5rem;font-size:.9rem;letter-spacing:.1em;">scroll to begin</p>
+  </div>
+
+  <!-- CHAPTER I -->
+  <div class="chapter-marker" id="ch1mark">
+    <p class="ch-num">Chapter One</p>
+    <h2 class="ch-title">The Girl Who Saw Too Much</h2>
+    <div class="ch-rule"><span></span><i>✦</i><span></span></div>
+  </div>
+
+  <div class="story-block" id="sb1">
+    <p class="story-text">
+      <strong>Sael</strong> had always seen more than others.<br><br>
+      Not visions, not prophecy — simply <em>color</em>. Where others saw the morning sky as blue, Sael saw seventeen distinct layers of it, each one a different temperature of light, each one carrying its own low harmonic she could almost hear. It made her a poor conversationalist and an extraordinary Lumenweaver's apprentice.<br><br>
+      She was seventeen when Master Orvyn died, and the moment his Lumenweave unraveled — that delicate lattice of captured light he had spent forty years building across the rooftops of the Gilded Canopy — Sael felt it the way you feel a song stop mid-note.<br><br>
+      The forest dimmed. Not dramatically. Just slightly. The way a room dims when someone you love leaves it.
+    </p>
+  </div>
+
+  <div class="pull-quote" id="pq1">
+    <blockquote>She pressed her palm to the cold bark of the oldest tree in the Canopy and felt, faintly, the vibration of every light that had ever touched its leaves.</blockquote>
+    <cite>— The Last Lumenweaver</cite>
+  </div>
+
+  <div class="story-block" id="sb2">
+    <p class="story-text">
+      The Canopy Elders called it <em>natural succession</em>. The forest would dim, they said, and a new Lumenweaver would emerge within a generation, as had always happened.<br><br>
+      Sael spent three days in the deep forest alone, watching the bioluminescent edges of the leaves fade from gold to a dull amber. Each night the Canopy Spirits sang a little softer. Each morning there was a little less to navigate by.<br><br>
+      On the fourth day, she found it — coiled in the roots of the oldest tree at the forest's heart: a single thread of Master Orvyn's original weave. Still glowing. Barely. Like the last ember deciding whether to go out.
+    </p>
+  </div>
+
+  <!-- CHOICE 1 -->
+  <div class="choice-block" id="choice1">
+    <p class="choice-prompt">— A moment of decision —</p>
+    <div class="choices">
+      <button class="choice-btn" data-choice="take" onclick="makeChoice(1,'take',this)">
+        She takes the thread — wraps it around her wrist like a promise
+      </button>
+      <button class="choice-btn" data-choice="leave" onclick="makeChoice(1,'leave',this)">
+        She leaves it — some things are meant to end
+      </button>
+    </div>
+  </div>
+
+  <div class="ai-block" id="ai1">
+    <p class="ai-label">✦ The road to the Mirrorfen…</p>
+    <div id="ai1shimmer"><div class="shimmer-line" style="width:90%"></div><div class="shimmer-line" style="width:75%"></div><div class="shimmer-line" style="width:82%"></div></div>
+    <p class="ai-text" id="ai1text" style="display:none;"></p>
+    <div class="continue-wrap" id="continue1">
+      <button class="continue-btn" onclick="openGate(1)">Arrive at the Shallows <span class="continue-arrow">→</span></button>
+    </div>
+  </div>
+
+  <!-- GATE 1: everything from Ch2 onward is locked until choice 1 resolves -->
+  <div class="scroll-gate" id="gate1">
+
+  <!-- CHAPTER II -->
+  <div class="chapter-marker" id="ch2mark">
+    <p class="ch-num">Chapter Two</p>
+    <h2 class="ch-title">The Road to Roséveil</h2>
+    <div class="ch-rule"><span></span><i>✦</i><span></span></div>
+  </div>
+
+  <div class="story-block" id="sb3">
+    <p class="story-text">
+      The Mirrorfen Shallows lay between the Canopy and Roséveil — three days of walking through wetlands where the sky and its reflection were indistinguishable.<br><br>
+      Sael had traveled them once as a child, holding Master Orvyn's hand so she wouldn't step into what she thought was a gap in the ground but was actually sky. Now she walked them alone, and the disorientation was almost pleasant — a world where up and down had reached an agreement.<br><br>
+      She found the Tidebound settlement on the second evening: a cluster of homes built precisely at the waterline, half above and half below the mirror-surface. An elder woman sat on her doorstep — her lower half reflected perfectly, her upper half dissolving into the amber dusk above.
+    </p>
+  </div>
+
+  <div class="story-block" id="sb4">
+    <p class="story-text">
+      <em>"You carry light that doesn't belong to you,"</em> the woman said, without looking up.<br><br>
+      Sael stopped. Around her wrist — or tucked away, or coursing through her — the thread pulsed once in response.<br><br>
+      <em>"It belonged to my master."</em><br><br>
+      <em>"Masters don't leave threads behind by accident."</em> The woman finally looked at her, and her eyes were the color of still water at noon — no discernible pupil, just depth. <em>"The question is whether you intend to finish what he started, or simply carry it until it burns you."</em><br><br>
+      Sael did not answer. She sat down on the bank and watched her own reflection sit down beneath her, patient and certain in a way she was not.
+    </p>
+  </div>
+
+  <!-- CHOICE 2 -->
+  <div class="choice-block" id="choice2">
+    <p class="choice-prompt">— Another crossroads —</p>
+    <div class="choices">
+      <button class="choice-btn" onclick="makeChoice(2,'ask',this)">
+        Ask the elder woman what Master Orvyn started
+      </button>
+      <button class="choice-btn" onclick="makeChoice(2,'continue',this)">
+        Press on to Roséveil — some answers only the city can give
+      </button>
+    </div>
+  </div>
+
+  <div class="ai-block" id="ai2">
+    <p class="ai-label">✦ The road to Roséveil…</p>
+    <div id="ai2shimmer"><div class="shimmer-line" style="width:85%"></div><div class="shimmer-line" style="width:70%"></div><div class="shimmer-line" style="width:80%"></div></div>
+    <p class="ai-text" id="ai2text" style="display:none;"></p>
+    <div class="continue-wrap" id="continue2">
+      <button class="continue-btn" onclick="openGate(2)">Enter the city <span class="continue-arrow">→</span></button>
+    </div>
+  </div>
+
+  </div><!-- /gate1 -->
+
+  <!-- GATE 2: Ch3 onward locked until choice 2 resolves -->
+  <div class="scroll-gate" id="gate2">
+
+  <!-- CHAPTER III -->
+  <div class="chapter-marker" id="ch3mark">
+    <p class="ch-num">Chapter Three</p>
+    <h2 class="ch-title">Roséveil at Dusk</h2>
+    <div class="ch-rule"><span></span><i>✦</i><span></span></div>
+  </div>
+
+  <div class="story-block" id="sb5">
+    <p class="story-text">
+      She arrived at the gates of <strong>Roséveil</strong> at the exact moment of true dusk.<br><br>
+      She had not planned it. But the thread on her wrist had grown warm the last hour of walking, and she had followed its warmth the way you follow a held lamp — not thinking, just going.<br><br>
+      The city was doing the Evengiving.<br><br>
+      Every window open. Every voice rising. Light blooming from ten thousand acts of release simultaneously — gold and rose and teal and amber — and for four minutes, Roséveil became brighter than noon, an accidental aurora generated entirely by the decision to give something beautiful away.<br><br>
+      Sael stood at the gate and wept. She didn't know why. The thread on her wrist pulsed in perfect rhythm with the city's light.
+    </p>
+  </div>
+
+  <div class="pull-quote" id="pq2">
+    <blockquote>Beauty, she understood now, was not decoration. It was the structural language the world used to tell you: <em>you are in the right place.</em></blockquote>
+    <cite>— The Last Lumenweaver</cite>
+  </div>
+
+  <div class="story-block" id="sb6">
+    <p class="story-text">
+      In the Quartz Quarter, the oldest part of the city, she found what she had been sent to find.<br><br>
+      A room — no, not a room. A <em>wound</em> in the city. A space between three ancient quartz formations where the Lumenweave was fraying at its edges, pulling apart at the seams. The light here did not glow. It flickered uncertainly, the way candlelight does in a room where someone is about to say something difficult.<br><br>
+      Master Orvyn had known. That was why he left the thread. Not as a gift — as an instruction.<br><br>
+      She was not here to grieve him. She was here to finish his work.
+    </p>
+  </div>
+
+  <!-- FINAL CHOICE -->
+  <div class="choice-block" id="choice3">
+    <p class="choice-prompt">— The moment everything has led to —</p>
+    <div class="choices">
+      <button class="choice-btn" onclick="makeChoice(3,'weave',this)">
+        She pours everything into the weave — even herself
+      </button>
+      <button class="choice-btn" onclick="makeChoice(3,'teach',this)">
+        She begins the weave — then stops, and starts teaching the children watching her
+      </button>
+    </div>
+  </div>
+
+  <div class="ai-block" id="ai3">
+    <p class="ai-label">✦ The story continues…</p>
+    <div id="ai3shimmer"><div class="shimmer-line" style="width:88%"></div><div class="shimmer-line" style="width:72%"></div><div class="shimmer-line" style="width:78%"></div></div>
+    <p class="ai-text" id="ai3text" style="display:none;"></p>
+    <div class="continue-wrap" id="continue3">
+      <button class="continue-btn" onclick="openGate(3)">Read the epilogue <span class="continue-arrow">→</span></button>
+    </div>
+  </div>
+
+  </div><!-- /gate2 -->
+
+  <!-- GATE 3: epilogue locked until final choice resolves -->
+  <div class="scroll-gate" id="gate3">
+
+  <!-- EPILOGUE -->
+  <div class="epilogue" id="epilogue">
+    <p class="epilogue-title">✦ Epilogue</p>
+    <p class="epilogue-text" id="epilogueText">
+      Years later, travelers would ask the children of Roséveil about the night the Quartz Quarter blazed brighter than the rest of the city combined.<br><br>
+      The children would smile with a particular knowing quality — the smile of people who have seen something that cannot be fully described — and they would say:<br><br>
+      <em>"A girl came from the Gilded Canopy carrying a thread of light. She knew what to do with it."</em><br><br>
+      And that was always enough.
+    </p>
+    <div class="end-sigil">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <button class="restart-btn" onclick="restartStory()">Begin Again</button>
+  </div>
+
+  </div><!-- /gate3 -->
+
+</div><!-- /story-cards -->
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+const choices = {};
+let currentScene = 0;
+let animFrame;
+
+// ── CURSOR ──────────────────────────────────────────────────────────────────
+const cur=document.getElementById('cur'), cur2=document.getElementById('cur2');
+document.addEventListener('mousemove',e=>{
+  cur.style.left=e.clientX+'px'; cur.style.top=e.clientY+'px';
+  setTimeout(()=>{cur2.style.left=e.clientX+'px';cur2.style.top=e.clientY+'px';},90);
+});
+
+// ── SCENE DEFINITIONS ───────────────────────────────────────────────────────
+const scenes = [
+  { // 0 title
+    name:'Lumenweld — The World Between Breaths',
+    draw(ctx,W,H,t){
+      // Deep cosmic void
+      const g=ctx.createLinearGradient(0,0,W,H);
+      g.addColorStop(0,'#0d0318'); g.addColorStop(1,'#1a0828');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      // Aurora ribbons
+      for(let i=0;i<4;i++){
+        const y=H*(0.3+i*.1)+Math.sin(t*.0004+i)*40;
+        const gr=ctx.createLinearGradient(0,y-30,0,y+30);
+        const cols=['rgba(95,212,200','rgba(232,127,160','rgba(240,192,96','rgba(120,232,176'];
+        gr.addColorStop(0,'transparent');
+        gr.addColorStop(.5,`${cols[i%4]},0.06)`);
+        gr.addColorStop(1,'transparent');
+        ctx.fillStyle=gr; ctx.fillRect(0,y-30,W,60);
+      }
+      drawStars(ctx,W,H,t,.7);
+    }
+  },
+  { // 1 gilded canopy
+    name:'The Gilded Canopy — Deep Forest',
+    draw(ctx,W,H,t){
+      // Dark forest floor
+      ctx.fillStyle='#060e02'; ctx.fillRect(0,0,W,H);
+      // Canopy glow from above
+      const cg=ctx.createRadialGradient(W/2,-50,0,W/2,-50,H*.9);
+      cg.addColorStop(0,'rgba(240,192,60,0.25)');
+      cg.addColorStop(.4,'rgba(200,140,20,0.1)');
+      cg.addColorStop(1,'transparent');
+      ctx.fillStyle=cg; ctx.fillRect(0,0,W,H);
+      // Tree silhouettes
+      drawTrees(ctx,W,H,t);
+      // Floating gold spores
+      drawSpores(ctx,W,H,t);
+    }
+  },
+  { // 2 mirrorfen
+    name:'The Mirrorfen Shallows',
+    draw(ctx,W,H,t){
+      // Sky
+      const sg=ctx.createLinearGradient(0,0,0,H/2);
+      sg.addColorStop(0,'#1a0510'); sg.addColorStop(1,'#4a1530');
+      ctx.fillStyle=sg; ctx.fillRect(0,0,W,H/2);
+      // Reflection (mirrored)
+      const rg=ctx.createLinearGradient(0,H/2,0,H);
+      rg.addColorStop(0,'#4a1530'); rg.addColorStop(1,'#1a0510');
+      ctx.fillStyle=rg; ctx.fillRect(0,H/2,W,H/2);
+      // Horizon line shimmer
+      const hr=ctx.createLinearGradient(0,H/2-2,0,H/2+2);
+      hr.addColorStop(0,'transparent');
+      hr.addColorStop(.5,`rgba(232,127,160,${.3+.1*Math.sin(t*.001)})`);
+      hr.addColorStop(1,'transparent');
+      ctx.fillStyle=hr; ctx.fillRect(0,H/2-2,W,4);
+      // Stars above and reflected below
+      drawStars(ctx,W,H/2,t,.5);
+      ctx.save();ctx.translate(0,H);ctx.scale(1,-1);
+      drawStars(ctx,W,H/2,t,.3);ctx.restore();
+      // Mist
+      drawMist(ctx,W,H,t);
+    }
+  },
+  { // 3 roseveil approach / road
+    name:'The Road to Roséveil',
+    draw(ctx,W,H,t){
+      const g=ctx.createLinearGradient(0,0,0,H);
+      g.addColorStop(0,'#200818'); g.addColorStop(.6,'#380d28'); g.addColorStop(1,'#0d0518');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      // Distant city glow on horizon
+      const hg=ctx.createRadialGradient(W/2,H*.55,0,W/2,H*.55,W*.4);
+      hg.addColorStop(0,`rgba(232,127,160,${.15+.05*Math.sin(t*.0008)})`);
+      hg.addColorStop(.5,'rgba(180,60,100,0.06)');
+      hg.addColorStop(1,'transparent');
+      ctx.fillStyle=hg; ctx.fillRect(0,0,W,H);
+      drawStars(ctx,W,H,t,.6);
+      // Rose petals drifting
+      drawPetals(ctx,W,H,t);
+    }
+  },
+  { // 4 roseveil evengiving
+    name:'Roséveil — The Evengiving',
+    draw(ctx,W,H,t){
+      const g=ctx.createLinearGradient(0,0,0,H);
+      g.addColorStop(0,'#0d0205'); g.addColorStop(.5,'#2a0515'); g.addColorStop(1,'#0d0205');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      // City silhouette
+      drawCitySilhouette(ctx,W,H,t);
+      // Evengiving light burst
+      const pulse=.5+.5*Math.sin(t*.0015);
+      const eg=ctx.createRadialGradient(W/2,H*.4,0,W/2,H*.4,W*.7);
+      eg.addColorStop(0,`rgba(240,192,96,${.2*pulse})`);
+      eg.addColorStop(.3,`rgba(232,127,160,${.12*pulse})`);
+      eg.addColorStop(.6,`rgba(95,212,200,${.06*pulse})`);
+      eg.addColorStop(1,'transparent');
+      ctx.fillStyle=eg; ctx.fillRect(0,0,W,H);
+      drawStars(ctx,W,H,t,.4);
+      drawPetals(ctx,W,H,t);
+    }
+  },
+  { // 5 quartz quarter climax
+    name:'The Quartz Quarter — Heart of the City',
+    draw(ctx,W,H,t){
+      const g=ctx.createLinearGradient(0,0,W*.5,H);
+      g.addColorStop(0,'#18040e'); g.addColorStop(1,'#2a0820');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      // Crystal formations
+      drawCrystals(ctx,W,H,t);
+      // Weave light threads
+      drawWeaveThreads(ctx,W,H,t);
+    }
+  }
+];
+
+// ── DRAW HELPERS ───────────────────────────────────────────────────────────
+function drawStars(ctx,W,H,t,opacity=1){
+  const seed=42;
+  for(let i=0;i<120;i++){
+    const x=((i*7919)%1000)/1000*W;
+    const y=((i*6271)%1000)/1000*H;
+    const a=(.3+.7*Math.abs(Math.sin(t*.001+i*.3)))*opacity;
+    const r=.5+((i*3)%3)*.5;
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(253,246,232,${a})`;ctx.fill();
+  }
+}
+
+const treeData=Array.from({length:18},(_,i)=>({
+  x:Math.sin(i*2.3)*0.5+0.5, baseW:20+Math.sin(i*1.7)*15,
+  h:0.35+Math.abs(Math.sin(i*1.1))*0.25, sway:Math.sin(i*.9)
+}));
+function drawTrees(ctx,W,H,t){
+  treeData.forEach(tr=>{
+    const x=tr.x*W, bw=tr.baseW, h=tr.h*H;
+    const sway=tr.sway*Math.sin(t*.0003)*8;
+    ctx.beginPath();
+    ctx.moveTo(x-bw,H);ctx.lineTo(x+sway,H-h);ctx.lineTo(x+bw,H);
+    ctx.fillStyle='rgba(2,14,2,0.95)';ctx.fill();
+    // Glowing leaf edge
+    const lg=ctx.createLinearGradient(x-bw,H-h,x+bw,H-h+20);
+    lg.addColorStop(0,'transparent');
+    lg.addColorStop(.5,`rgba(240,192,60,${.04+.02*Math.sin(t*.0008+tr.sway)})`);
+    lg.addColorStop(1,'transparent');
+    ctx.fillStyle=lg;ctx.fill();
+  });
+}
+
+const sporeData=Array.from({length:60},(_,i)=>({
+  x:Math.random(),y:Math.random(),speed:.0001+Math.random()*.0003,
+  size:.8+Math.random()*2,phase:Math.random()*Math.PI*2
+}));
+function drawSpores(ctx,W,H,t){
+  sporeData.forEach(s=>{
+    const x=(s.x+t*s.speed)%1*W;
+    const y=s.y*H-(t*s.speed*150)%H;
+    const a=.4+.4*Math.sin(t*.001+s.phase);
+    ctx.beginPath();ctx.arc(x<0?x+W:x,y<0?y+H:y,s.size,0,Math.PI*2);
+    ctx.fillStyle=`rgba(240,192,60,${a})`;ctx.fill();
+  });
+}
+
+function drawMist(ctx,W,H,t){
+  for(let i=0;i<3;i++){
+    const y=H*.45+i*20+Math.sin(t*.0004+i)*15;
+    const mg=ctx.createLinearGradient(0,y,0,y+60);
+    mg.addColorStop(0,'transparent');
+    mg.addColorStop(.5,`rgba(253,246,232,${.04+.02*Math.sin(t*.0006+i)})`);
+    mg.addColorStop(1,'transparent');
+    ctx.fillStyle=mg;ctx.fillRect(0,y,W,60);
+  }
+}
+
+const petalData=Array.from({length:30},(_,i)=>({
+  x:Math.random(),y:Math.random(),
+  vx:(Math.random()-.5)*.0001,vy:-.00008+Math.random()*-.0001,
+  phase:Math.random()*Math.PI*2,size:1.5+Math.random()*3
+}));
+function drawPetals(ctx,W,H,t){
+  petalData.forEach(p=>{
+    const x=((p.x+t*p.vx+t*.00003*Math.sin(t*.0003+p.phase))%1+1)%1*W;
+    const y=((p.y+t*p.vy)%1+1)%1*H;
+    const a=.25+.2*Math.sin(t*.001+p.phase);
+    ctx.save();ctx.translate(x,y);ctx.rotate(t*.001+p.phase);
+    ctx.beginPath();ctx.ellipse(0,0,p.size,p.size*.5,0,0,Math.PI*2);
+    ctx.fillStyle=`rgba(232,127,160,${a})`;ctx.fill();ctx.restore();
+  });
+}
+
+function drawCitySilhouette(ctx,W,H,t){
+  const spires=[
+    {x:.15,h:.38,w:18},{x:.25,h:.52,w:12},{x:.35,h:.44,w:16},
+    {x:.45,h:.65,w:10},{x:.5,h:.72,w:14},{x:.55,h:.6,w:10},
+    {x:.65,h:.48,w:16},{x:.75,h:.55,w:12},{x:.85,h:.4,w:18},
+  ];
+  spires.forEach(s=>{
+    const x=s.x*W, h=s.h*H, w=s.w;
+    // Glow
+    const sg=ctx.createRadialGradient(x,H-h,0,x,H-h,w*4);
+    sg.addColorStop(0,`rgba(232,127,160,${.12+.04*Math.sin(t*.001+s.x)})`);
+    sg.addColorStop(1,'transparent');
+    ctx.fillStyle=sg;ctx.fillRect(x-w*4,H-h-w*4,w*8,w*8);
+    // Spire body
+    ctx.beginPath();ctx.rect(x-w/2,H-h,w,h);
+    ctx.fillStyle='rgba(15,3,12,0.9)';ctx.fill();
+    // Top glow
+    ctx.beginPath();ctx.arc(x,H-h,w*.7,0,Math.PI*2);
+    ctx.fillStyle=`rgba(232,127,160,${.18+.1*Math.sin(t*.0012+s.x*5)})`;ctx.fill();
+  });
+}
+
+const crystalData=Array.from({length:12},(_,i)=>({
+  x:.05+i*.08,h:.15+Math.abs(Math.sin(i*1.3))*.4,
+  w:8+Math.sin(i*.7)*6,lean:(Math.random()-.5)*.3
+}));
+function drawCrystals(ctx,W,H,t){
+  crystalData.forEach(c=>{
+    const x=c.x*W, h=c.h*H, w=c.w;
+    const glow=.1+.08*Math.sin(t*.0015+c.lean*5);
+    // Crystal glow
+    const cg=ctx.createRadialGradient(x,H-h,0,x,H-h,w*5);
+    cg.addColorStop(0,`rgba(232,127,160,${glow+.05})`);
+    cg.addColorStop(.5,`rgba(200,80,120,${glow})`);
+    cg.addColorStop(1,'transparent');
+    ctx.fillStyle=cg;ctx.fillRect(x-w*5,H-h-w*5,w*10,w*10);
+    // Crystal body
+    ctx.beginPath();
+    ctx.moveTo(x,H-h);ctx.lineTo(x-w,H);ctx.lineTo(x+w,H);ctx.closePath();
+    const ig=ctx.createLinearGradient(x-w,H,x+w,H-h);
+    ig.addColorStop(0,'rgba(80,10,40,0.95)');
+    ig.addColorStop(.5,`rgba(160,40,90,${.4+.2*Math.sin(t*.001+c.lean)})`);
+    ig.addColorStop(1,'rgba(220,80,140,0.6)');
+    ctx.fillStyle=ig;ctx.fill();
+  });
+}
+
+const threadData=Array.from({length:8},(_,i)=>({
+  sx:Math.random(),sy:.2+Math.random()*.6,
+  cp1x:Math.random(),cp1y:Math.random(),
+  cp2x:Math.random(),cp2y:Math.random(),
+  ex:Math.random(),ey:.2+Math.random()*.6,
+  phase:Math.random()*Math.PI*2,
+  col:['240,192,96','232,127,160','95,212,200','120,232,176'][i%4]
+}));
+function drawWeaveThreads(ctx,W,H,t){
+  threadData.forEach(th=>{
+    const a=.15+.12*Math.sin(t*.0018+th.phase);
+    ctx.beginPath();
+    ctx.moveTo(th.sx*W,th.sy*H);
+    ctx.bezierCurveTo(
+      (th.cp1x+.05*Math.sin(t*.001+th.phase))*W, th.cp1y*H,
+      (th.cp2x+.05*Math.cos(t*.0012+th.phase))*W, th.cp2y*H,
+      (th.ex+.02*Math.sin(t*.0009+th.phase))*W, th.ey*H
+    );
+    ctx.strokeStyle=`rgba(${th.col},${a})`;
+    ctx.lineWidth=1+Math.sin(t*.001+th.phase)*.5;
+    ctx.stroke();
+  });
+}
+
+// ── SCENE ENGINE ───────────────────────────────────────────────────────────
+const canvas=document.getElementById('sceneCanvas');
+const pcanvas=document.getElementById('partCanvas');
+const ctx=canvas.getContext('2d');
+const pctx=pcanvas.getContext('2d');
+
+function resize(){
+  canvas.width=pcanvas.width=window.innerWidth;
+  canvas.height=pcanvas.height=window.innerHeight;
+}
+resize(); window.addEventListener('resize',resize);
+
+// Particles
+const parts=Array.from({length:80},()=>({
+  x:Math.random(),y:Math.random(),
+  vx:(Math.random()-.5)*.0002,vy:-(Math.random()*.0003+.0001),
+  r:Math.random()*2+.3,
+  col:['240,192,96','232,127,160','95,212,200','253,246,232','120,232,176'][Math.floor(Math.random()*5)],
+  alpha:.1+Math.random()*.4,phase:Math.random()*Math.PI*2
+}));
+
+let targetScene=0, blendProgress=1;
+const sceneLabel=document.getElementById('sceneLabel');
+
+function render(t){
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  scenes[currentScene].draw(ctx,W,H,t);
+  if(blendProgress<1&&targetScene!==currentScene){
+    ctx.globalAlpha=1-blendProgress;
+    scenes[targetScene].draw(ctx,W,H,t);
+    ctx.globalAlpha=1;
+    blendProgress=Math.min(1,blendProgress+.008);
+    if(blendProgress>=1)currentScene=targetScene;
+  }
+  // Particles
+  pctx.clearRect(0,0,W,H);
+  parts.forEach(p=>{
+    p.x=(p.x+p.vx+1)%1;
+    p.y=(p.y+p.vy+1)%1;
+    const a=Math.sin(t*.001+p.phase)*p.alpha*.5+p.alpha*.5;
+    pctx.beginPath();pctx.arc(p.x*W,p.y*H,p.r,0,Math.PI*2);
+    pctx.fillStyle=`rgba(${p.col},${a})`;pctx.fill();
+  });
+  animFrame=requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
+function transitionScene(idx){
+  if(idx===targetScene)return;
+  targetScene=idx; blendProgress=0;
+  sceneLabel.textContent=scenes[idx].name;
+  sceneLabel.style.opacity='1';
+  setTimeout(()=>sceneLabel.style.opacity='0',3000);
+}
+
+// ── SCROLL OBSERVER ────────────────────────────────────────────────────────
+const sceneMap={
+  'titleCard':0,'sb1':1,'pq1':1,'sb2':1,'choice1':1,'ai1':1,
+  'ch2mark':2,'sb3':2,'sb4':2,'choice2':3,'ai2':3,
+  'ch3mark':3,'sb5':4,'pq2':4,'sb6':4,'choice3':5,'ai3':5,
+  'epilogue':5
+};
+
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('vis');
+      const sc=sceneMap[e.target.id];
+      if(sc!==undefined) transitionScene(sc);
+    }
+  });
+},{threshold:0.25});
+
+document.querySelectorAll('.chapter-marker,.story-block,.pull-quote,.choice-block,.ai-block,.epilogue')
+  .forEach(el=>observer.observe(el));
+
+// Title auto-show
+setTimeout(()=>document.getElementById('titleCard').classList.add('vis'),400);
+
+// ── CHOICE + AI SYSTEM ────────────────────────────────────────────────────
+const storyContext = `You are the narrator of "The Last Lumenweaver," a lyrical fantasy story set in Lumenweld — a world where beauty is the fundamental law of reality. The protagonist is Sael, a 17-year-old girl who sees color in extraordinary depth, now carrying the last thread of her dead master's Lumenweave.
+
+CRITICAL RULES:
+- Write in third-person, present tense
+- 120–150 words exactly
+- Your paragraph must END by placing Sael at the opening of the next scene described in [NEXT SCENE]. She must physically arrive there or be in the midst of it by your final sentence.
+- Be lyrical but never purple. Emotionally precise.
+- NO clichés. NO "she realized," "she understood," "she knew."
+- Respond with ONLY the prose paragraph. Nothing else.`;
+
+const prompts = {
+  '1-take': {
+    text: `Sael has just wrapped the last glowing thread of Master Orvyn's weave around her wrist. It pulses once, warm and certain.
+
+[NEXT SCENE]: She is three days into crossing the Mirrorfen Shallows — wetlands where sky and reflection are indistinguishable — approaching a Tidebound settlement at the waterline where an elder woman sits on a doorstep half-submerged in mirror.
+
+Write her journey FROM taking the thread TO arriving at the Mirrorfen settlement. Show what the thread does during the crossing. End with her seeing the elder woman for the first time.`,
+    hint: 'carrying the light forward'
+  },
+  '1-leave': {
+    text: `Sael has chosen to leave the last thread of Master Orvyn's weave in the tree roots. She walked away from it. The forest around her dimmed.
+
+[NEXT SCENE]: She is three days into crossing the Mirrorfen Shallows — wetlands where sky and reflection are indistinguishable — approaching a Tidebound settlement at the waterline where an elder woman sits on a doorstep half-submerged in mirror.
+
+Write her journey FROM walking away empty-handed TO arriving at the Mirrorfen settlement. Show how leaving the thread changed her, what she sees differently. End with her seeing the elder woman for the first time.`,
+    hint: 'traveling light, traveling empty'
+  },
+  '2-ask': {
+    text: `Sael has asked the Tidebound elder woman what Master Orvyn had started — what unfinished work he left behind. The elder answered in her cryptic way.
+
+[NEXT SCENE]: Sael is now standing at the gates of Roséveil at the exact moment of the Evengiving — when every citizen simultaneously releases something beautiful, flooding the city with more light than noon.
+
+Write the elder's answer (as reported speech woven into narration, not direct quotes), and then Sael's final hours of travel arriving at Roséveil's gates exactly at the moment the Evengiving erupts around her.`,
+    hint: 'armed with a secret'
+  },
+  '2-continue': {
+    text: `Sael chose not to ask the elder woman anything. She stood, nodded once, and walked on toward Roséveil without looking back.
+
+[NEXT SCENE]: Sael is now standing at the gates of Roséveil at the exact moment of the Evengiving — when every citizen simultaneously releases something beautiful, flooding the city with more light than noon.
+
+Write her silent final hours of travel and the moment she crests the last hill and sees Roséveil erupting in the Evengiving light for the first time — arriving at its gates as the city blazes around her.`,
+    hint: 'trusting the road'
+  },
+  '3-weave': {
+    text: `Sael has chosen to pour everything — her full perception, every color she has ever witnessed, her grief for Master Orvyn, her entire self — into repairing the fraying Lumenweave at the heart of Roséveil's Quartz Quarter.
+
+[NEXT SCENE]: The epilogue — years later, the legend of what happened that night is told by the children of Roséveil who witnessed it.
+
+Write the transcendent moment of the weave — what Sael sees as she works, what the Quartz Quarter does in response, what remains of her afterward. End with the night settling and the city glowing brighter than it ever has.`,
+    hint: 'giving everything'
+  },
+  '3-teach': {
+    text: `Sael has begun to weave — and then stopped. There are children watching her from the shadows of the Quartz Quarter. She realizes: Master Orvyn didn't leave her a task to finish alone. He left her a method to pass on. She starts teaching them, right now, in this broken place.
+
+[NEXT SCENE]: The epilogue — years later, the legend of what happened that night is told by the children of Roséveil who witnessed it.
+
+Write the scene of Sael teaching — the children's first tentative light-threads joining hers — the Quartz Quarter slowly, collectively awakening. End with the night settling and the city glowing, held now by many hands.`,
+    hint: 'teaching the light forward'
+  }
+};
+
+async function makeChoice(num, val, btn) {
+  choices[num] = val;
+  btn.closest('.choices').querySelectorAll('.choice-btn').forEach(b => {
+    b.disabled = true;
+    b.style.opacity = b === btn ? 1 : 0.25;
+  });
+  btn.classList.add('selected');
+
+  const aiBlock    = document.getElementById(`ai${num}`);
+  const aiShimmer  = document.getElementById(`ai${num}shimmer`);
+  const aiText     = document.getElementById(`ai${num}text`);
+  const contWrap   = document.getElementById(`continue${num}`);
+
+  // Make the AI block visible and scroll to it
+  aiBlock.classList.add('vis');
+  setTimeout(() => aiBlock.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
+
+  const key = `${num}-${val}`;
+  const promptDef = prompts[key];
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: storyContext,
+        messages: [{ role: 'user', content: promptDef.text }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.find(b => b.type === 'text')?.text || 'The road continued.';
+    aiShimmer.style.display = 'none';
+    aiText.style.display = 'block';
+    typewrite(aiText, text, 18, () => {
+      if (contWrap) setTimeout(() => contWrap.classList.add('show'), 500);
+    });
+  } catch (e) {
+    aiShimmer.style.display = 'none';
+    aiText.style.display = 'block';
+    aiText.textContent = 'She walked on. The world held its breath.';
+    if (contWrap) setTimeout(() => contWrap.classList.add('show'), 600);
+  }
+}
+
+function openGate(num) {
+  const gate = document.getElementById(`gate${num}`);
+  if (!gate) return;
+  gate.classList.add('open');
+  setTimeout(() => {
+    const first = gate.querySelector('.chapter-marker, .story-block, .epilogue');
+    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 200);
+}
+
+function typewrite(el, text, speed = 18, onDone) {
+  el.innerHTML = '';
+  const cursor = document.createElement('span');
+  cursor.className = 'ai-cursor';
+  el.appendChild(cursor);
+  let i = 0;
+  const iv = setInterval(() => {
+    if (i >= text.length) {
+      clearInterval(iv);
+      cursor.remove();
+      if (onDone) onDone();
+      return;
+    }
+    cursor.before(document.createTextNode(text[i++]));
+  }, speed);
+}
+
+function restartStory() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  setTimeout(() => {
+    document.querySelectorAll('.scroll-gate').forEach(g => g.classList.remove('open'));
+    document.querySelectorAll('.choice-btn').forEach(b => {
+      b.disabled = false; b.style.opacity = 1; b.classList.remove('selected');
+    });
+    document.querySelectorAll('.ai-block').forEach(bl => {
+      bl.classList.remove('vis');
+      const sh = bl.querySelector('[id$="shimmer"]');
+      const tx = bl.querySelector('.ai-text');
+      const cw = bl.querySelector('.continue-wrap');
+      if (sh) sh.style.display = '';
+      if (tx) { tx.style.display = 'none'; tx.textContent = ''; }
+      if (cw) cw.classList.remove('show');
+    });
+    document.querySelectorAll('.vis').forEach(el => el.classList.remove('vis'));
+    setTimeout(() => document.getElementById('titleCard').classList.add('vis'), 600);
+  }, 800);
+}
+</script>
+</body>
+</html>
