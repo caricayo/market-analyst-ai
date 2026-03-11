@@ -11,6 +11,13 @@ export type StorySection = {
   paragraphs: string[];
 };
 
+export type Story = {
+  title: string;
+  subtitle: string;
+  sections: StorySection[];
+  wordCount: number;
+};
+
 function repairText(value: string) {
   let repaired = value;
 
@@ -124,7 +131,7 @@ export function parseStory(raw: string) {
     subtitle,
     sections,
     wordCount: normalized.split(/\s+/).filter(Boolean).length,
-  };
+  } satisfies Story;
 }
 
 export const getStory = cache(async () => {
@@ -136,6 +143,10 @@ export const getStory = cache(async () => {
 export async function getStorySection(slug: string) {
   const story = await getStory();
   return story.sections.find((section) => section.slug === slug) ?? null;
+}
+
+export function getStoryHref(section: StorySection) {
+  return section.index === 0 ? "/" : `/chapter/${section.slug}`;
 }
 
 export function renderInline(text: string) {

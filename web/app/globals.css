@@ -339,6 +339,16 @@ a {
   font-size: 0.98rem;
 }
 
+.story-empty-state {
+  max-width: 42rem;
+  margin: 0 auto;
+}
+
+.story-empty-actions {
+  display: flex;
+  margin-top: 1.5rem;
+}
+
 @media (max-width: 900px) {
   .story-shell {
     width: min(100% - 1.25rem, 1120px);

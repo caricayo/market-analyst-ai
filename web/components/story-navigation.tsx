@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { StorySection } from "@/lib/lumenweld";
+import { getStoryHref, type StorySection } from "@/lib/lumenweld";
 
 type StoryNavigationProps = {
   current: StorySection;
@@ -27,7 +27,7 @@ export default function StoryNavigation({
           return (
             <Link
               key={section.slug}
-              href={`/chapter/${section.slug}`}
+              href={getStoryHref(section)}
               className={`story-chip ${isActive ? "story-chip-active" : ""}`}
             >
               {section.kicker ?? section.title}
@@ -38,7 +38,7 @@ export default function StoryNavigation({
 
       <div className="story-pagination">
         {previous ? (
-          <Link href={`/chapter/${previous.slug}`} className="story-page-link">
+          <Link href={getStoryHref(previous)} className="story-page-link">
             Previous: {previous.kicker ?? previous.title}
           </Link>
         ) : (
@@ -46,7 +46,7 @@ export default function StoryNavigation({
         )}
 
         {next ? (
-          <Link href={`/chapter/${next.slug}`} className="story-page-link">
+          <Link href={getStoryHref(next)} className="story-page-link">
             Next: {next.kicker ?? next.title}
           </Link>
         ) : (

@@ -1,16 +1,15 @@
 import StoryNavigation from "@/components/story-navigation";
-import { getStory, renderInline } from "@/lib/lumenweld";
+import { renderInline, type Story, type StorySection } from "@/lib/lumenweld";
 
-export const revalidate = false;
+type StoryChapterShellProps = {
+  section: StorySection;
+  story: Story;
+};
 
-export default async function OverviewPage() {
-  const story = await getStory();
-  const section = story.sections[0];
-
-  if (!section) {
-    return null;
-  }
-
+export default function StoryChapterShell({
+  section,
+  story,
+}: StoryChapterShellProps) {
   return (
     <main className="story-page">
       <div className="story-shell story-shell-chapter">

@@ -5,6 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "The Last Lumenweaver",
   description: "A Lumenweld story presented as an immersive reading experience.",
+  metadataBase: new URL("https://arfor.app"),
 };
 
 export default function RootLayout({
