@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { cache } from "react";
 
 export type StorySection = {
+  index: number;
   kicker: string | null;
   title: string;
   slug: string;
@@ -71,6 +75,7 @@ export function parseStory(raw: string) {
 
     const heading = splitHeading(currentHeading);
     sections.push({
+      index: sections.length,
       ...heading,
       slug: slugify(currentHeading),
       paragraphs: currentParagraphs,
@@ -120,6 +125,17 @@ export function parseStory(raw: string) {
     sections,
     wordCount: normalized.split(/\s+/).filter(Boolean).length,
   };
+}
+
+export const getStory = cache(async () => {
+  const sourcePath = path.join(process.cwd(), "content", "lumenweld-novel-expanded.md");
+  const raw = await fs.readFile(sourcePath, "utf8");
+  return parseStory(raw);
+});
+
+export async function getStorySection(slug: string) {
+  const story = await getStory();
+  return story.sections.find((section) => section.slug === slug) ?? null;
 }
 
 export function renderInline(text: string) {
