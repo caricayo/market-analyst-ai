@@ -430,8 +430,19 @@ export function ArforDashboard() {
                 <div className="mt-4 grid gap-3">
                   {games.slice(0, 2).map((game) => (
                     <div key={game.name} className="rounded-[22px] border border-white/8 bg-black/15 p-4">
-                      <p className="font-display text-2xl text-[var(--cream)]">{game.name}</p>
-                      <p className="mt-2 text-sm text-[var(--sand)]">{game.description}</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-display text-2xl text-[var(--cream)]">{game.name}</p>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.3em] text-[var(--muted)]">
+                          {game.license}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-[var(--sand)]">{game.tagline}</p>
+                      <Link
+                        href={`/games/${game.slug}`}
+                        className="mt-4 inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-[var(--cream)]"
+                      >
+                        Launch {game.name}
+                      </Link>
                     </div>
                   ))}
                 </div>

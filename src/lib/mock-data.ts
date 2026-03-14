@@ -209,25 +209,30 @@ export const weatherCities = [
 
 export const games = [
   {
-    name: "Signal Sweep",
+    slug: "2048",
+    name: "2048",
     description:
-      "A fast pattern-recognition puzzle built around market candles and color sequences.",
+      "Merge matching tiles, build momentum, and keep the grid alive long enough to reach 2048.",
+    tagline: "The cleanest quick-session puzzle for touch and keyboard play.",
     sessionLength: "3 min",
-    mode: "Daily challenge",
+    mode: "Solo puzzle",
+    license: "MIT",
+    sourceName: "gabrielecirulli/2048",
+    sourceUrl: "https://github.com/gabrielecirulli/2048",
+    accent: "from-[#ffd27d33] via-[#ffd27d10] to-transparent",
   },
   {
-    name: "Orbit Tiles",
+    slug: "blockfall",
+    name: "Blockfall",
     description:
-      "A tactile spatial puzzle with soft motion and a short reset loop between work sessions.",
+      "A responsive falling-block arcade lane tuned for quick restarts and equal mobile or desktop play.",
+    tagline: "Arfor's lightweight block stacker, built for short bursts.",
     sessionLength: "5 min",
-    mode: "Zen mode",
-  },
-  {
-    name: "Word Drift",
-    description:
-      "A stylish language game where you chain themes from news and finance into clean streaks.",
-    sessionLength: "4 min",
-    mode: "Solo",
+    mode: "Arcade run",
+    license: "MIT",
+    sourceName: "ovidiuch/flatris",
+    sourceUrl: "https://github.com/ovidiuch/flatris",
+    accent: "from-[#7cc4ff33] via-[#7cc4ff10] to-transparent",
   },
 ];
 
