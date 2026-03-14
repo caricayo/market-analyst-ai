@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Arfor
 
-## Getting Started
+Arfor is a dark-first glass dashboard built with Next.js 16 and TypeScript. It combines:
 
-First, run the development server:
+- toggleable news categories
+- a month calendar with add-event controls
+- a recurring bill manager with perpetual due dates
+- a stock watchlist with focused ticker news
+- AI-style stock suggestions
+- a weather widget plus a full weather page
+- a dedicated mini-games page
+- Supabase-ready Google auth scaffolding
+
+## Stack
+
+- Next.js App Router
+- TypeScript
+- Tailwind CSS v4
+- Supabase SSR auth helpers
+- Railway-friendly deployment setup
+
+## Local setup
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Copy `.env.example` to `.env.local` and fill in:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Auth
 
-## Learn More
+- `/login` contains the Google OAuth entry point.
+- `/auth/callback` exchanges the auth code for a session.
+- `src/proxy.ts` keeps the Supabase session fresh.
 
-To learn more about Next.js, take a look at the following resources:
+## Database
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The first pass schema lives at:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `supabase/migrations/202603140001_arfor_core.sql`
 
-## Deploy on Vercel
+It includes tables for:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- profiles
+- calendar events
+- recurring bills
+- stock watchlists
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Build
+
+```bash
+npm run build
+```
