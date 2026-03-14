@@ -1,13 +1,14 @@
+import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
-type GlassCardProps = {
+type GlassCardProps = HTMLAttributes<HTMLElement> & {
   children: React.ReactNode;
-  className?: string;
 };
 
-export function GlassCard({ children, className }: GlassCardProps) {
+export function GlassCard({ children, className, ...props }: GlassCardProps) {
   return (
     <section
+      {...props}
       className={cn(
         "glass-panel relative overflow-hidden rounded-[30px] border border-[var(--panel-border)]",
         className,
