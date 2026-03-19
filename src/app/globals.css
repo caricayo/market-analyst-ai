@@ -3,6 +3,8 @@
 :root {
   --background: #09090b;
   --foreground: #f4ecd8;
+  --font-body: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --panel-border: rgba(245, 227, 186, 0.16);
   --cream: #f4ecd8;
   --sand: #cab59a;

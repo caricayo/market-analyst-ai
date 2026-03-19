@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The repo also contains a separate nested app under web/.
+    "web/**",
   ]),
 ]);
 

@@ -13,7 +13,7 @@ const navItems = [
   { href: "/", label: "Brief", icon: LayoutGrid },
   { href: "/weather", label: "Weather", icon: CloudSun },
   { href: "/games", label: "Games", icon: Gamepad2 },
-  { href: "/login", label: "Login", icon: ShieldCheck },
+  { href: "/login", label: "Account", icon: ShieldCheck },
 ];
 
 type ArforFrameProps = {
@@ -86,19 +86,19 @@ export function ArforFrame({
 
             <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.3em] text-[var(--muted)]">
               <span className="rounded-full border border-white/10 bg-white/5 px-3 py-2">
-                Dark first
+                Live data when available
               </span>
               <span className="rounded-full border border-white/10 bg-white/5 px-3 py-2">
-                Glass system
+                Local-first workspace
               </span>
               <span className="rounded-full border border-white/10 bg-white/5 px-3 py-2">
-                Mobile + desktop equal
+                Backup and restore built in
               </span>
               <Link
                 href="/login"
                 className="ml-auto flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[var(--cream)] transition-colors hover:border-[var(--panel-border)]"
               >
-                Google auth scaffold
+                Account and sync
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             </div>

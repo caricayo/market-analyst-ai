@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCcw } from "lucide-react";
 
 type Direction = "up" | "down" | "left" | "right";
@@ -140,6 +140,7 @@ export function TwentyFortyEightGame() {
       const savedBest = window.localStorage.getItem(BEST_KEY);
 
       if (savedBest) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- saved best score is restored from local storage after mount.
         setBest(Number(savedBest));
       }
 
@@ -209,35 +210,35 @@ export function TwentyFortyEightGame() {
     setBest((current) => Math.max(current, nextScore));
   }
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      const keyMap: Record<string, Direction> = {
-        ArrowUp: "up",
-        ArrowDown: "down",
-        ArrowLeft: "left",
-        ArrowRight: "right",
-        w: "up",
-        a: "left",
-        s: "down",
-        d: "right",
-        W: "up",
-        A: "left",
-        S: "down",
-        D: "right",
-      };
+  const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    const keyMap: Record<string, Direction> = {
+      ArrowUp: "up",
+      ArrowDown: "down",
+      ArrowLeft: "left",
+      ArrowRight: "right",
+      w: "up",
+      a: "left",
+      s: "down",
+      d: "right",
+      W: "up",
+      A: "left",
+      S: "down",
+      D: "right",
+    };
 
-      const direction = keyMap[event.key];
-      if (!direction) {
-        return;
-      }
-
-      event.preventDefault();
-      handleMove(direction);
+    const direction = keyMap[event.key];
+    if (!direction) {
+      return;
     }
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [board, score, won, gameOver]);
+    event.preventDefault();
+    handleMove(direction);
+  });
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const controls: Array<{ label: string; direction: Direction; icon: typeof ArrowUp }> = [
     { label: "Up", direction: "up", icon: ArrowUp },

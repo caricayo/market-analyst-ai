@@ -5,9 +5,9 @@ export default function GamesPage() {
   return (
     <ArforFrame
       activePath="/games"
-      eyebrow="Game Room"
-      title="A real launcher, not a decorative games tab."
-      description="The shelf is now narrowed to MIT-safe browser games that can actually be played across devices, with a clean launch flow and on-screen controls."
+      eyebrow="Arcade"
+      title="Quick games, full-screen and ready to play."
+      description="A compact library of browser-safe picks with clear controls, local progress, and focused play views that still fit the rest of the product."
     >
       <GameLibrary />
     </ArforFrame>

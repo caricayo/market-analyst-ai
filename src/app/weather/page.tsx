@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CloudSun, MapPinned, Sunrise, ThermometerSun, Umbrella, Wind } from "lucide-react";
+import { CloudSun, MapPinned, RefreshCcw, Sunrise, ThermometerSun, Umbrella, Wind } from "lucide-react";
 import { ArforFrame } from "@/components/arfor-frame";
 import { GlassCard } from "@/components/glass-card";
+import { useLiveWeather } from "@/hooks/use-live-weather";
 import { formatTemp, getWeatherSnapshot, isoDate } from "@/lib/arfor-utils";
 import { weatherCities } from "@/lib/mock-data";
 
@@ -11,26 +12,36 @@ export default function WeatherPage() {
   const [city, setCity] = useState(weatherCities[0].name);
   const [compareCity, setCompareCity] = useState(weatherCities[1].name);
   const dayKey = isoDate(new Date());
+  const cityNames = useMemo(() => weatherCities.map((item) => item.name), []);
+  const {
+    weatherCities: liveWeatherCities,
+    weatherMode,
+    weatherLoading,
+    weatherWarning,
+    weatherGeneratedAt,
+    refreshWeather,
+  } = useLiveWeather(cityNames);
+  const weatherFeed = liveWeatherCities.length ? liveWeatherCities : weatherCities;
 
   const featured = useMemo(
-    () => getWeatherSnapshot(weatherCities.find((item) => item.name === city) ?? weatherCities[0], dayKey),
-    [city, dayKey],
+    () => getWeatherSnapshot(weatherFeed.find((item) => item.name === city) ?? weatherFeed[0], dayKey),
+    [city, dayKey, weatherFeed],
   );
   const compared = useMemo(
     () =>
       getWeatherSnapshot(
-        weatherCities.find((item) => item.name === compareCity) ?? weatherCities[1],
+        weatherFeed.find((item) => item.name === compareCity) ?? weatherFeed[1] ?? weatherFeed[0],
         dayKey,
       ),
-    [compareCity, dayKey],
+    [compareCity, dayKey, weatherFeed],
   );
 
   return (
     <ArforFrame
       activePath="/weather"
-      eyebrow="Weather Atlas"
-      title="Forecasts that are actually useful beyond a single widget."
-      description="Use this page for city switching, short-range hourly planning, five-day scanning, and a quick travel comparison against a second location."
+      eyebrow="Forecast"
+      title="Plan the day, compare cities, and scan the week at a glance."
+      description="Use the weather board for hourly timing, five-day planning, and quick side-by-side comparisons when you are deciding where to go or what to pack."
     >
       <div className="grid gap-6 xl:grid-cols-[1.16fr_0.84fr]">
         <GlassCard className="p-6 sm:p-8">
@@ -45,21 +56,51 @@ export default function WeatherPage() {
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--sand)]">{featured.summary}</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <select value={city} onChange={(event) => setCity(event.target.value)} aria-label="Featured city" className="rounded-[18px] border border-white/8 bg-white/5 px-4 py-3 text-sm text-[var(--cream)] outline-none">
-                {weatherCities.map((item) => (
+              <select
+                value={city}
+                onChange={(event) => setCity(event.target.value)}
+                aria-label="Featured city"
+                className="rounded-[18px] border border-white/8 bg-white/5 px-4 py-3 text-sm text-[var(--cream)] outline-none"
+              >
+                {weatherFeed.map((item) => (
                   <option key={item.name} value={item.name}>
                     {item.name}
                   </option>
                 ))}
               </select>
-              <select value={compareCity} onChange={(event) => setCompareCity(event.target.value)} aria-label="Comparison city" className="rounded-[18px] border border-white/8 bg-white/5 px-4 py-3 text-sm text-[var(--cream)] outline-none">
-                {weatherCities.map((item) => (
+              <select
+                value={compareCity}
+                onChange={(event) => setCompareCity(event.target.value)}
+                aria-label="Comparison city"
+                className="rounded-[18px] border border-white/8 bg-white/5 px-4 py-3 text-sm text-[var(--cream)] outline-none"
+              >
+                {weatherFeed.map((item) => (
                   <option key={item.name} value={item.name}>
                     {item.name}
                   </option>
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.25em] text-[var(--sand)]">
+              {weatherMode === "live" ? "Live forecast" : "Fallback forecast"}
+            </span>
+            <button
+              type="button"
+              onClick={refreshWeather}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--cream)]"
+            >
+              <RefreshCcw className={`h-4 w-4 ${weatherLoading ? "animate-spin" : ""}`} />
+              Refresh weather
+            </button>
+            {weatherGeneratedAt ? (
+              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-[var(--muted)]">
+                Updated {new Date(weatherGeneratedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+              </span>
+            ) : null}
+            {weatherWarning ? <p className="text-sm text-[var(--sand)]">{weatherWarning}</p> : null}
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-4">
@@ -128,7 +169,7 @@ export default function WeatherPage() {
           <GlassCard className="p-6">
             <h2 className="font-display text-3xl text-[var(--cream)]">City board</h2>
             <div className="mt-5 grid gap-4">
-              {weatherCities.map((cityItem) => {
+              {weatherFeed.map((cityItem) => {
                 const snapshot = getWeatherSnapshot(cityItem, dayKey);
                 return (
                   <button

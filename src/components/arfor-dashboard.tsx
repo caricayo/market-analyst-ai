@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { ArforFrame } from "@/components/arfor-frame";
 import { GlassCard } from "@/components/glass-card";
+import { useDashboardLiveData } from "@/hooks/use-dashboard-live-data";
+import { useLiveWeather } from "@/hooks/use-live-weather";
 import {
   addMonths,
   formatCadence,
@@ -46,7 +48,6 @@ import {
   type StockRange,
 } from "@/lib/arfor-utils";
 import {
-  aiStockSuggestions,
   defaultBills,
   defaultEvents,
   defaultWatchlist,
@@ -81,9 +82,12 @@ type PersistedState = {
 
 const storageKey = "arfor-local-state-v4";
 const today = new Date();
+const todayTimestamp = today.getTime();
 const dayKey = isoDate(today);
 const eventCategories = ["Work", "Finance", "Health", "Personal", "Travel"];
-const billCadenceOptions = [1, 2, 3, 6, 12];
+const billCadenceOptions = [1, 3, 12];
+const starterEventIds = new Set(["evt-1", "evt-2", "evt-3"]);
+const starterBillIds = new Set(["bill-1", "bill-2", "bill-3"]);
 
 function buildHistoryFromPrice(basePrice: number, seed: string) {
   return Array.from({ length: 10 }, (_, index) => {
@@ -91,6 +95,26 @@ function buildHistoryFromPrice(basePrice: number, seed: string) {
     const drift = seededNumber(`${seed}-${index}`, -0.025, 0.025);
     return Number((baseline * (1 + drift)).toFixed(2));
   });
+}
+
+function migrateEvents(version: number | undefined, events: DashboardEvent[]) {
+  if (version !== undefined && version >= 5) {
+    return events;
+  }
+
+  const looksLikeStarterPack =
+    events.length === starterEventIds.size && events.every((event) => starterEventIds.has(event.id));
+  return looksLikeStarterPack ? defaultEvents : events;
+}
+
+function migrateBills(version: number | undefined, bills: DashboardBill[]) {
+  if (version !== undefined && version >= 5) {
+    return bills;
+  }
+
+  const looksLikeStarterPack =
+    bills.length === starterBillIds.size && bills.every((bill) => starterBillIds.has(bill.id));
+  return looksLikeStarterPack ? defaultBills : bills;
 }
 
 function normalizePersistedState(saved: Partial<PersistedState>) {
@@ -102,8 +126,12 @@ function normalizePersistedState(saved: Partial<PersistedState>) {
     readArticles: Array.isArray(saved.readArticles) ? saved.readArticles : [],
     activeArticleId:
       typeof saved.activeArticleId === "string" ? saved.activeArticleId : newsPanels[0].id,
-    events: Array.isArray(saved.events) && saved.events.length ? saved.events : defaultEvents,
-    bills: Array.isArray(saved.bills) && saved.bills.length ? saved.bills : defaultBills,
+    events: Array.isArray(saved.events)
+      ? migrateEvents(saved.version, saved.events as DashboardEvent[])
+      : defaultEvents,
+    bills: Array.isArray(saved.bills)
+      ? migrateBills(saved.version, saved.bills as DashboardBill[])
+      : defaultBills,
     paidBillCycles: Array.isArray(saved.paidBillCycles) ? saved.paidBillCycles : [],
     watchlist:
       Array.isArray(saved.watchlist) && saved.watchlist.length ? saved.watchlist : defaultWatchlist,
@@ -181,6 +209,7 @@ export function ArforDashboard() {
     try {
       const saved = JSON.parse(raw) as Partial<PersistedState>;
       const next = normalizePersistedState(saved);
+      /* eslint-disable react-hooks/set-state-in-effect -- this effect restores a persisted dashboard snapshot from local storage. */
       setFilters(next.filters);
       setNewsSearch(next.newsSearch);
       setSavedOnly(next.savedOnly);
@@ -197,20 +226,84 @@ export function ArforDashboard() {
       setSelectedCity(next.selectedCity);
       setCompareCity(next.compareCity);
       setSelectedDay(next.selectedDay);
+      /* eslint-enable react-hooks/set-state-in-effect */
     } catch {
       window.localStorage.removeItem(storageKey);
     }
   }, []);
 
+  const activeTicker = useDeferredValue(ticker);
+  const deferredNewsSearch = useDeferredValue(newsSearch);
+  const selectedWeatherCities = useMemo(() => [selectedCity, compareCity], [compareCity, selectedCity]);
+  const normalizedQuery = deferredNewsSearch.trim().toLowerCase();
+  const {
+    liveNews,
+    newsMode,
+    newsLoading,
+    newsWarning,
+    newsGeneratedAt,
+    refreshNews,
+    marketQuotes,
+    liveFocusNews,
+    liveSuggestions,
+    marketMode,
+    marketLoading,
+    marketWarning,
+    marketGeneratedAt,
+    refreshMarkets,
+  } = useDashboardLiveData(filters, deferredNewsSearch.trim(), watchlist, activeTicker);
+  const {
+    weatherCities: liveWeatherCities,
+    weatherMode,
+    weatherLoading,
+    weatherWarning,
+    weatherGeneratedAt,
+    refreshWeather,
+  } = useLiveWeather(selectedWeatherCities);
+  const newsFeed = liveNews.length ? liveNews : newsPanels;
+  const filteredNews = useMemo(
+    () =>
+      newsFeed.filter((item) => {
+        const matchesCategory = filters.includes(item.category);
+        const matchesQuery =
+          !normalizedQuery ||
+          [item.headline, item.summary, item.source, item.mood, item.impact]
+            .join(" ")
+            .toLowerCase()
+            .includes(normalizedQuery);
+        const matchesSaved = !savedOnly || savedArticles.includes(item.id);
+        return matchesCategory && matchesQuery && matchesSaved;
+      }),
+    [filters, newsFeed, normalizedQuery, savedArticles, savedOnly],
+  );
+  const resolvedActiveArticleId =
+    newsFeed.find((item) => item.id === activeArticleId)?.id ??
+    filteredNews[0]?.id ??
+    newsFeed[0]?.id ??
+    newsPanels[0].id;
+  const effectiveReadArticles = useMemo(
+    () =>
+      readArticles.includes(resolvedActiveArticleId)
+        ? readArticles
+        : [...readArticles, resolvedActiveArticleId],
+    [readArticles, resolvedActiveArticleId],
+  );
+
+  const activeArticle =
+    newsFeed.find((item) => item.id === resolvedActiveArticleId) ??
+    filteredNews[0] ??
+    newsFeed[0] ??
+    newsPanels[0];
+
   useEffect(() => {
     const payload: PersistedState = {
-      version: 4,
+      version: 5,
       filters,
       newsSearch,
       savedOnly,
       savedArticles,
-      readArticles,
-      activeArticleId,
+      readArticles: effectiveReadArticles,
+      activeArticleId: resolvedActiveArticleId,
       events,
       bills,
       paidBillCycles,
@@ -225,15 +318,15 @@ export function ArforDashboard() {
 
     window.localStorage.setItem(storageKey, JSON.stringify(payload));
   }, [
-    activeArticleId,
     alertTargets,
     bills,
     compareCity,
+    effectiveReadArticles,
     events,
     filters,
     newsSearch,
     paidBillCycles,
-    readArticles,
+    resolvedActiveArticleId,
     savedArticles,
     savedOnly,
     selectedCity,
@@ -243,60 +336,50 @@ export function ArforDashboard() {
     watchlist,
   ]);
 
-  const activeTicker = useDeferredValue(ticker);
-  const normalizedQuery = newsSearch.trim().toLowerCase();
-  const filteredNews = useMemo(
+  const hydratedWatchlist = useMemo(
     () =>
-      newsPanels.filter((item) => {
-        const matchesCategory = filters.includes(item.category);
-        const matchesQuery =
-          !normalizedQuery ||
-          [item.headline, item.summary, item.source, item.mood]
-            .join(" ")
-            .toLowerCase()
-            .includes(normalizedQuery);
-        const matchesSaved = !savedOnly || savedArticles.includes(item.id);
-        return matchesCategory && matchesQuery && matchesSaved;
+      watchlist.map((item) => {
+        const quote = marketQuotes.find((candidate) => candidate.ticker === item.ticker);
+        const quoteLooksReasonable =
+          quote &&
+          quote.price > 0 &&
+          quote.price >= item.price * 0.5 &&
+          quote.price <= item.price * 1.5 &&
+          Math.abs(quote.dayChange) <= 25;
+        if (!quoteLooksReasonable || !quote) {
+          return item;
+        }
+
+        return {
+          ...item,
+          company: quote.company ?? item.company,
+          price: quote.price,
+          dayChange: quote.dayChange,
+          history: buildHistoryFromPrice(quote.price, item.ticker),
+        };
       }),
-    [filters, normalizedQuery, savedArticles, savedOnly],
+    [marketQuotes, watchlist],
   );
 
-  useEffect(() => {
-    if (!filteredNews.length) {
-      return;
-    }
-
-    if (!filteredNews.some((item) => item.id === activeArticleId)) {
-      setActiveArticleId(filteredNews[0].id);
-    }
-  }, [activeArticleId, filteredNews]);
-
-  useEffect(() => {
-    if (!activeArticleId) {
-      return;
-    }
-
-    setReadArticles((current) =>
-      current.includes(activeArticleId) ? current : [...current, activeArticleId],
-    );
-  }, [activeArticleId]);
-
-  const activeArticle =
-    newsPanels.find((item) => item.id === activeArticleId) ?? filteredNews[0] ?? newsPanels[0];
-
-  const stock = watchlist.find((item) => item.ticker === activeTicker) ?? watchlist[0];
+  const stock = hydratedWatchlist.find((item) => item.ticker === activeTicker) ?? hydratedWatchlist[0];
   const stockSnapshot = useMemo(
     () => getStockSnapshot(stock, stockRange, dayKey),
     [stock, stockRange],
   );
   const stockNews = useMemo(() => {
+    if (liveFocusNews.length) {
+      return liveFocusNews;
+    }
+
     const feed = newsTickerFeed[stock.ticker] ?? [];
     const offset = Math.round(seededNumber(`${stock.ticker}-${dayKey}-feed`, 0, 2));
     return [...feed.slice(offset), ...feed.slice(0, offset)].slice(0, 3);
-  }, [stock]);
+  }, [liveFocusNews, stock]);
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- the alert input mirrors the selected ticker's saved target. */
     setAlertDraft(alertTargets[stock.ticker] ? String(alertTargets[stock.ticker]) : "");
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [alertTargets, stock.ticker]);
 
   const calendarDays = useMemo(
@@ -327,7 +410,7 @@ export function ArforDashboard() {
   const upcomingEvents = useMemo(
     () =>
       [...events]
-        .filter((event) => new Date(`${event.date}T${event.time}:00`).getTime() >= Date.now() - 86400000)
+        .filter((event) => new Date(`${event.date}T${event.time}:00`).getTime() >= todayTimestamp - 86400000)
         .sort(
           (left, right) =>
             new Date(`${left.date}T${left.time}:00`).getTime() -
@@ -349,17 +432,24 @@ export function ArforDashboard() {
     0,
   );
 
+  const weatherFeed = liveWeatherCities.length
+    ? liveWeatherCities
+    : weatherCities.filter((city) => [selectedCity, compareCity].includes(city.name));
   const selectedWeather =
-    weatherCities.find((city) => city.name === selectedCity) ?? weatherCities[0];
+    weatherFeed.find((city) => city.name === selectedCity) ??
+    weatherCities.find((city) => city.name === selectedCity) ??
+    weatherCities[0];
   const compareWeather =
-    weatherCities.find((city) => city.name === compareCity) ?? weatherCities[1];
+    weatherFeed.find((city) => city.name === compareCity) ??
+    weatherCities.find((city) => city.name === compareCity) ??
+    weatherCities[1];
   const activeWeather = getWeatherSnapshot(selectedWeather, dayKey);
   const compareWeatherSnapshot = getWeatherSnapshot(compareWeather, dayKey);
 
   const articleStats = [
     { label: "Visible stories", value: filteredNews.length },
     { label: "Saved", value: savedArticles.length },
-    { label: "Read today", value: readArticles.length },
+    { label: "Feed mode", value: newsMode === "live" ? "Live" : "Fallback" },
   ];
 
   const eventConflictCount = getConflictCount(events, eventDraft.date, eventDraft.time);
@@ -373,7 +463,7 @@ export function ArforDashboard() {
     : `Refreshed for ${today.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
-      })}. Local backup tools are enabled.`;
+      })}. Local backup and restore are ready.`;
 
   function toggleArticleSaved(articleId: string) {
     startTransition(() =>
@@ -416,7 +506,7 @@ export function ArforDashboard() {
       id: crypto.randomUUID(),
       name: billDraft.name.trim(),
       amount: Number(billDraft.amount),
-      dueDay: Math.min(Math.max(Number(billDraft.dueDay), 1), 31),
+      dueDay: Math.min(Math.max(Number(billDraft.dueDay), 1), 28),
       cadenceMonths: Number(billDraft.cadence),
       startsAt: billDraft.startsAt,
       autopay: billDraft.autopay,
@@ -521,9 +611,9 @@ export function ArforDashboard() {
   return (
     <ArforFrame
       activePath="/"
-      eyebrow="Daily Brief"
-      title="A calm, cinematic command center that actually behaves like a product."
-      description="Arfor now tracks saved news, event and bill lifecycles, stock alerts, weather context, playable games, and portable local backups inside one dark-first glass system."
+      eyebrow="Command Center"
+      title="One place to read the day, plan the week, and keep the essentials moving."
+      description="Arfor combines a live-or-local brief, planning, bills, markets, weather, and a small arcade inside a workspace that stays usable even when external services are unavailable."
     >
       <div className="grid gap-6 2xl:grid-cols-[1.24fr_0.96fr]">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid gap-6">
@@ -535,8 +625,9 @@ export function ArforDashboard() {
                   <h2 className="font-display text-3xl text-[var(--cream)]">Daily brief</h2>
                 </div>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--sand)]">
-                  Search, save, and revisit the stories you actually care about. This feed stays
-                  useful even when your category mix changes throughout the day.
+                  Search, save, and revisit the stories that matter. When live search is
+                  available, this board pulls current reporting. When it is not, Arfor falls back
+                  to a clearly local operating brief instead of pretending stale content is live.
                 </p>
               </div>
               <div className="grid gap-2 sm:grid-cols-3">
@@ -547,6 +638,25 @@ export function ArforDashboard() {
                   </div>
                 ))}
               </div>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.25em] text-[var(--sand)]">
+                {newsMode === "live" ? "Live web search" : "Fallback brief"}
+              </span>
+              {newsGeneratedAt ? (
+                <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-[var(--muted)]">
+                  Updated {new Date(newsGeneratedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={refreshNews}
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--cream)]"
+              >
+                <RefreshCcw className={cn("h-4 w-4", newsLoading && "animate-spin")} />
+                Refresh feed
+              </button>
+              {newsWarning ? <p className="text-sm text-[var(--sand)]">{newsWarning}</p> : null}
             </div>
             <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_220px]">
               <div className="flex flex-wrap gap-2">
@@ -613,7 +723,7 @@ export function ArforDashboard() {
                   filteredNews.map((item, index) => {
                     const isActive = item.id === activeArticle.id;
                     const isSaved = savedArticles.includes(item.id);
-                    const isRead = readArticles.includes(item.id);
+                    const isRead = effectiveReadArticles.includes(item.id);
                     return (
                       <article
                         key={item.id}
@@ -630,6 +740,11 @@ export function ArforDashboard() {
                             {item.category} · {item.source}
                           </p>
                           <div className="flex items-center gap-2">
+                            {item.publishedAt ? (
+                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-[var(--muted)]">
+                                {new Date(item.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                              </span>
+                            ) : null}
                             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-[var(--sand)]">
                               {item.readTime}
                             </span>
@@ -692,6 +807,24 @@ export function ArforDashboard() {
                 </div>
                 <h3 className="mt-4 font-display text-3xl text-[var(--cream)]">{activeArticle.headline}</h3>
                 <p className="mt-3 text-sm leading-6 text-[var(--sand)]">{activeArticle.summary}</p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {activeArticle.publishedAt ? (
+                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-[var(--muted)]">
+                      {new Date(activeArticle.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </span>
+                  ) : null}
+                  {activeArticle.url ? (
+                    <a
+                      href={activeArticle.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--cream)]"
+                    >
+                      Read source
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  ) : null}
+                </div>
                 <div className="mt-5 rounded-[24px] border border-white/8 bg-white/5 p-4">
                   <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">Key points</p>
                   <div className="mt-3 space-y-3">
@@ -718,9 +851,9 @@ export function ArforDashboard() {
                   <h2 className="font-display text-3xl text-[var(--cream)]">Markets</h2>
                 </div>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--sand)]">
-                  Watchlist items now support custom additions, range switching, alert thresholds,
-                  and a daily-rotating news panel so the section keeps moving without a live data
-                  dependency.
+                  Your watchlist keeps local notes, alerts, and reference ranges. Live mode can
+                  refresh quotes and ticker-specific headlines without replacing the rest of your
+                  workspace.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -740,15 +873,30 @@ export function ArforDashboard() {
                   </button>
                 ))}
                 <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--sand)]">
-                  Refreshed {today.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  {marketMode === "live" ? "Live market brief" : "Fallback market brief"}
                 </div>
+                <button
+                  type="button"
+                  onClick={refreshMarkets}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--cream)]"
+                >
+                  <RefreshCcw className={cn("h-4 w-4", marketLoading && "animate-spin")} />
+                  Refresh
+                </button>
               </div>
             </div>
+            {marketWarning ? (
+              <p className="mt-3 text-sm text-[var(--sand)]">{marketWarning}</p>
+            ) : marketGeneratedAt ? (
+              <p className="mt-3 text-sm text-[var(--sand)]">
+                Updated {new Date(marketGeneratedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+              </p>
+            ) : null}
 
             <div className="mt-5 grid gap-5 xl:grid-cols-[0.88fr_1.12fr]">
               <div className="grid gap-4">
                 <div className="grid gap-3">
-                  {watchlist.map((item) => {
+                  {hydratedWatchlist.map((item) => {
                     const snapshot = getStockSnapshot(item, stockRange, dayKey);
                     return (
                       <button
@@ -991,9 +1139,25 @@ export function ArforDashboard() {
                           <p className="text-sm font-semibold text-[var(--cream)]">{item.headline}</p>
                           <div className="mt-2 flex flex-wrap items-center gap-2">
                             <span className="text-xs uppercase tracking-[0.25em] text-[var(--muted)]">{item.source}</span>
+                            {item.publishedAt ? (
+                              <span className="text-xs text-[var(--muted)]">
+                                {new Date(item.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                              </span>
+                            ) : null}
                             <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-[var(--sand)]">
                               {item.tone}
                             </span>
+                            {item.url ? (
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-[var(--cream)]"
+                              >
+                                Source
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            ) : null}
                           </div>
                         </div>
                       ))}
@@ -1003,7 +1167,7 @@ export function ArforDashboard() {
                   <div className="rounded-[24px] border border-white/8 bg-black/15 p-4">
                     <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">New names to look at</p>
                     <div className="mt-4 grid gap-3">
-                      {aiStockSuggestions.map((item) => (
+                      {liveSuggestions.map((item) => (
                         <button
                           key={item.ticker}
                           type="button"
@@ -1056,9 +1220,28 @@ export function ArforDashboard() {
                   <h2 className="font-display text-3xl text-[var(--cream)]">Weather</h2>
                 </div>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--sand)]">
-                  Choose a home city, compare it against another, and use the full page for the
-                  larger forecast board when you need detail beyond the dashboard glance.
+                  Choose a home city, compare it against another, and pull the current forecast
+                  from live weather data instead of the static seed board when the API is available.
                 </p>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.25em] text-[var(--sand)]">
+                    {weatherMode === "live" ? "Live forecast" : "Fallback forecast"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={refreshWeather}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--cream)]"
+                  >
+                    <RefreshCcw className={cn("h-4 w-4", weatherLoading && "animate-spin")} />
+                    Refresh weather
+                  </button>
+                  {weatherGeneratedAt ? (
+                    <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-[var(--muted)]">
+                      Updated {new Date(weatherGeneratedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                    </span>
+                  ) : null}
+                  {weatherWarning ? <p className="text-sm text-[var(--sand)]">{weatherWarning}</p> : null}
+                </div>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <select
                     value={selectedCity}
@@ -1159,8 +1342,8 @@ export function ArforDashboard() {
                   <h2 className="font-display text-3xl text-[var(--cream)]">Games</h2>
                 </div>
                 <p className="mt-3 text-sm leading-6 text-[var(--sand)]">
-                  The games lane stays MIT-only and launches into focused play views so it never
-                  feels like a bolted-on tab.
+                  The arcade stays compact on purpose: quick sessions, visible controls, and play
+                  routes that feel native to the product instead of tacked onto it.
                 </p>
                 <div className="mt-4 grid gap-3">
                   {games.map((game) => (
@@ -1217,6 +1400,7 @@ export function ArforDashboard() {
                 <button
                   type="button"
                   onClick={() => setMonth((current) => addMonths(current, -1))}
+                  aria-label="Previous month"
                   className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-[var(--cream)]"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -1234,6 +1418,7 @@ export function ArforDashboard() {
                 <button
                   type="button"
                   onClick={() => setMonth((current) => addMonths(current, 1))}
+                  aria-label="Next month"
                   className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-[var(--cream)]"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -1423,17 +1608,23 @@ export function ArforDashboard() {
             <div className="mt-4 rounded-[24px] border border-white/8 bg-black/15 p-4">
               <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">Upcoming agenda</p>
               <div className="mt-4 grid gap-3">
-                {upcomingEvents.map((event) => (
-                  <div key={event.id} className="flex items-start justify-between gap-3 rounded-[18px] border border-white/8 bg-white/5 p-4">
-                    <div>
-                      <p className="font-semibold text-[var(--cream)]">{event.title}</p>
-                      <p className="mt-1 text-sm text-[var(--sand)]">{formatDateTime(event.date, event.time)}</p>
+                {upcomingEvents.length ? (
+                  upcomingEvents.map((event) => (
+                    <div key={event.id} className="flex items-start justify-between gap-3 rounded-[18px] border border-white/8 bg-white/5 p-4">
+                      <div>
+                        <p className="font-semibold text-[var(--cream)]">{event.title}</p>
+                        <p className="mt-1 text-sm text-[var(--sand)]">{formatDateTime(event.date, event.time)}</p>
+                      </div>
+                      <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1 text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
+                        {event.category}
+                      </span>
                     </div>
-                    <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1 text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                      {event.category}
-                    </span>
+                  ))
+                ) : (
+                  <div className="rounded-[18px] border border-dashed border-white/10 bg-white/5 p-4 text-sm text-[var(--sand)]">
+                    No upcoming events yet. Add one above to start building the week.
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </GlassCard>
@@ -1443,11 +1634,11 @@ export function ArforDashboard() {
               <div>
                 <div className="flex items-center gap-3">
                   <WalletCards className="h-5 w-5 text-[var(--gold)]" />
-                  <h2 className="font-display text-3xl text-[var(--cream)]">Bills manager</h2>
+                  <h2 className="font-display text-3xl text-[var(--cream)]">Bills</h2>
                 </div>
                 <p className="mt-3 text-sm leading-6 text-[var(--sand)]">
-                  Recurring bills now expose next occurrences, paid-cycle tracking, account labels,
-                  cadence beyond monthly, and manual or autopay behavior.
+                  Track recurring bills with due windows, payment status, account labels, and
+                  cadence beyond a simple monthly list.
                 </p>
               </div>
               <div className="grid gap-2 sm:grid-cols-3">
@@ -1467,7 +1658,8 @@ export function ArforDashboard() {
             </div>
 
             <div className="mt-5 grid gap-4">
-              {billOccurrences.map((item) => (
+              {billOccurrences.length ? (
+                billOccurrences.map((item) => (
                 <div key={item.key} className="rounded-[24px] border border-white/8 bg-black/15 p-4">
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                     <div>
@@ -1494,14 +1686,20 @@ export function ArforDashboard() {
                     </div>
                   </div>
                 </div>
-              ))}
+                ))
+              ) : (
+                <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-4 text-sm text-[var(--sand)]">
+                  No recurring bills yet. Add the first one below and Arfor will build the next due windows automatically.
+                </div>
+              )}
             </div>
 
             <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_0.98fr]">
               <div className="rounded-[24px] border border-white/8 bg-black/15 p-4">
                 <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">Recurring bills</p>
                 <div className="mt-4 grid gap-3">
-                  {bills.map((bill) => (
+                  {bills.length ? (
+                    bills.map((bill) => (
                     <div key={bill.id} className="rounded-[18px] border border-white/8 bg-white/5 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -1518,7 +1716,12 @@ export function ArforDashboard() {
                         {bill.autopay ? "Autopay on" : "Autopay off"}
                       </button>
                     </div>
-                  ))}
+                    ))
+                  ) : (
+                    <div className="rounded-[18px] border border-dashed border-white/10 bg-white/5 p-4 text-sm text-[var(--sand)]">
+                      Your recurring bill list is empty. Start with rent, subscriptions, or any fixed payment you track every month.
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1528,7 +1731,7 @@ export function ArforDashboard() {
                   <input value={billDraft.name} onChange={(event) => setBillDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Bill name" aria-label="Bill name" className="rounded-[18px] border border-white/8 bg-white/5 px-4 py-3 text-sm text-[var(--cream)] outline-none placeholder:text-[var(--muted)]" />
                   <div className="grid gap-3 sm:grid-cols-2">
                     <input value={billDraft.amount} type="number" onChange={(event) => setBillDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="Amount" aria-label="Bill amount" className="rounded-[18px] border border-white/8 bg-white/5 px-4 py-3 text-sm text-[var(--cream)] outline-none" />
-                    <input value={billDraft.dueDay} type="number" min="1" max="31" onChange={(event) => setBillDraft((current) => ({ ...current, dueDay: event.target.value }))} placeholder="Due day" aria-label="Bill due day" className="rounded-[18px] border border-white/8 bg-white/5 px-4 py-3 text-sm text-[var(--cream)] outline-none" />
+                    <input value={billDraft.dueDay} type="number" min="1" max="28" onChange={(event) => setBillDraft((current) => ({ ...current, dueDay: event.target.value }))} placeholder="Due day" aria-label="Bill due day" className="rounded-[18px] border border-white/8 bg-white/5 px-4 py-3 text-sm text-[var(--cream)] outline-none" />
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <select value={billDraft.cadence} onChange={(event) => setBillDraft((current) => ({ ...current, cadence: event.target.value }))} aria-label="Bill cadence" className="rounded-[18px] border border-white/8 bg-white/5 px-4 py-3 text-sm text-[var(--cream)] outline-none">
@@ -1562,11 +1765,11 @@ export function ArforDashboard() {
               <div>
                 <div className="flex items-center gap-3">
                   <Sparkles className="h-5 w-5 text-[var(--gold)]" />
-                  <h2 className="font-display text-3xl text-[var(--cream)]">Workspace controls</h2>
+                  <h2 className="font-display text-3xl text-[var(--cream)]">Workspace</h2>
                 </div>
                 <p className="mt-3 text-sm leading-6 text-[var(--sand)]">
-                  Export a local backup, restore one later, or reset the workspace cleanly if you
-                  want to start over without losing the codebase.
+                  Keep the workspace portable. Export a local backup, restore it later, or clear
+                  the stored dashboard state without touching the project files.
                 </p>
               </div>
               <div className="rounded-[20px] border border-white/8 bg-white/5 px-4 py-3 text-sm text-[var(--sand)]">
@@ -1599,13 +1802,13 @@ export function ArforDashboard() {
 
             <div className="mt-5 flex flex-wrap gap-2">
               <Link href="/login" className="rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-[var(--cream)]">
-                Open auth page
+                Account
               </Link>
               <Link href="/weather" className="rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-[var(--cream)]">
-                Forecast board
+                Weather
               </Link>
               <Link href="/games" className="rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-[var(--cream)]">
-                Games shelf
+                Games
               </Link>
             </div>
           </GlassCard>

@@ -9,12 +9,11 @@ export function GameLibrary() {
       <GlassCard className="overflow-hidden p-6 sm:p-8">
         <div className="flex items-center gap-3">
           <Sparkles className="h-5 w-5 text-[var(--gold)]" />
-          <h2 className="font-display text-3xl text-[var(--cream)]">MIT-only game shelf</h2>
+          <h2 className="font-display text-3xl text-[var(--cream)]">Curated game shelf</h2>
         </div>
         <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--sand)] sm:text-base">
-          The library is intentionally tight: only lightweight, browser-safe games with verified
-          MIT roots made the cut. Pick one, launch it into a focused play view, and drop back into
-          the rest of Arfor without losing the mood.
+          The library stays intentionally small: lightweight browser games, clear controls, and a
+          focused launch flow that feels consistent with the rest of Arfor instead of bolted on.
         </p>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -64,7 +63,7 @@ export function GameLibrary() {
         <GlassCard className="p-6">
           <div className="flex items-center gap-3">
             <Gamepad2 className="h-5 w-5 text-[var(--gold)]" />
-            <h3 className="font-display text-2xl text-[var(--cream)]">Workflow</h3>
+            <h3 className="font-display text-2xl text-[var(--cream)]">How it works</h3>
           </div>
           <div className="mt-5 space-y-3 text-sm leading-6 text-[var(--sand)]">
             <p>1. Open the games shelf from the main nav or dashboard.</p>
@@ -76,7 +75,7 @@ export function GameLibrary() {
         <GlassCard className="p-6">
           <div className="flex items-center gap-3">
             <BadgeCheck className="h-5 w-5 text-[var(--gold)]" />
-            <h3 className="font-display text-2xl text-[var(--cream)]">Quality bar</h3>
+            <h3 className="font-display text-2xl text-[var(--cream)]">Curation notes</h3>
           </div>
           <div className="mt-5 space-y-3 text-sm leading-6 text-[var(--sand)]">
             <p>Only verified MIT-source picks are surfaced here.</p>

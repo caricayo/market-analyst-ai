@@ -37,8 +37,8 @@ export default async function GamePlayPage({
     <ArforFrame
       activePath="/games"
       eyebrow="Play Mode"
-      title={`${game.name}, launched cleanly.`}
-      description="Arfor keeps the game surface focused so it feels deliberate on mobile and desktop instead of jammed into a cramped widget."
+      title={`${game.name}, ready when you are.`}
+      description="Each game gets a focused play surface with visible controls, local progress, and enough breathing room to feel intentional on mobile and desktop."
     >
       <div className="grid gap-6">
         <GlassCard className="p-5 sm:p-6">
@@ -82,7 +82,7 @@ export default async function GamePlayPage({
         <GlassCard className="p-5 sm:p-6">
           <div className="flex items-center gap-3">
             <ShieldCheck className="h-5 w-5 text-[var(--gold)]" />
-            <h3 className="font-display text-2xl text-[var(--cream)]">Verified lane</h3>
+            <h3 className="font-display text-2xl text-[var(--cream)]">About this build</h3>
           </div>
           <p className="mt-4 text-sm leading-6 text-[var(--sand)]">
             This play route is built for browser use on phone and desktop, with visible controls so

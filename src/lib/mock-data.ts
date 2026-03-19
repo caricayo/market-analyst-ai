@@ -13,6 +13,8 @@ export type NewsPanel = {
   orb: string;
   keyPoints: string[];
   impact: string;
+  url?: string;
+  publishedAt?: string;
 };
 
 export type WatchlistItem = {
@@ -41,6 +43,8 @@ export type StockNewsEntry = {
   headline: string;
   source: string;
   tone: string;
+  url?: string;
+  publishedAt?: string;
 };
 
 export type WeatherHour = {
@@ -114,87 +118,87 @@ export const newsPanels: NewsPanel[] = [
   {
     id: "markets-soft-landing",
     category: "Markets",
-    headline: "Rate-sensitive names are regaining flow as traders lean into a soft-landing week.",
-    source: "Arfor Wire",
+    headline: "Opening range favors quality, liquidity, and names you already understand.",
+    source: "Arfor Desk",
     summary:
-      "Treasury volatility eased overnight, reopening appetite for software, semis, and selective consumer growth names without turning the tape euphoric.",
+      "Use the fallback brief as a planning surface rather than a headline feed: watch broad market tone, stick to liquid names, and wait for conviction before chasing extensions.",
     readTime: "4 min read",
-    mood: "Measured risk-on",
+    mood: "Calm tape",
     orb: "radial-gradient(circle, rgba(226,187,105,0.38), transparent 68%)",
     keyPoints: [
-      "Duration pressure is easing for growth-heavy baskets.",
-      "Leadership is broadening, but not fully rotating.",
-      "Desks still want confirmation from volume and breadth.",
+      "Start with the market's direction before drilling into single names.",
+      "Reference prices stay local until live quotes replace them.",
+      "A narrow watchlist beats a noisy one when the session opens.",
     ],
-    impact: "Watch software, semis, and discretionary strength into the close.",
+    impact: "Treat this lane as a pre-market operating note when live search is unavailable.",
   },
   {
     id: "tech-agent-workflows",
     category: "Tech",
-    headline: "AI copilots are shifting from novelty assistants into workflow surfaces with memory and action depth.",
-    source: "Signal Lab",
+    headline: "Useful AI products are winning by doing work, not by sounding clever.",
+    source: "Product Notes",
     summary:
-      "The strongest product motion is happening where agents sit inside dense personal workflows: planning, calendar control, recurring tasks, and research loops.",
+      "The strongest product experiences now combine memory, action, and a clear interface for recurring work like planning, tracking, and follow-through.",
     readTime: "6 min read",
-    mood: "Product acceleration",
+    mood: "Execution edge",
     orb: "radial-gradient(circle, rgba(124,196,255,0.35), transparent 68%)",
     keyPoints: [
-      "Products with action depth are pulling away from simple chat wrappers.",
-      "Personal memory and recurring workflows are the strongest retention levers.",
-      "The winning UX pattern is less inbox, more command surface.",
+      "Action depth matters more than chat polish.",
+      "Retention grows when products remember context across sessions.",
+      "Interfaces should help users finish loops, not just start them.",
     ],
-    impact: "Workflow-native AI products should keep compounding user time spent.",
+    impact: "Arfor should feel like a working surface, not a collection of widgets.",
   },
   {
     id: "world-shipping-friction",
     category: "World",
-    headline: "Energy and shipping desks are watching regional friction, but freight pricing has not yet broken trend.",
-    source: "Global Current",
+    headline: "External risk is easiest to track through shipping, energy, and policy pressure.",
+    source: "Global Watch",
     summary:
-      "Cross-border supply sensitivity remains high. Markets are treating it as a watch item instead of a confirmed disruption event.",
+      "When the live brief is offline, keep the world lane simple: monitor supply chains, fuel sensitivity, and anything that can quickly alter costs or confidence.",
     readTime: "5 min read",
-    mood: "Cautious",
+    mood: "Watch list",
     orb: "radial-gradient(circle, rgba(247,179,232,0.3), transparent 68%)",
     keyPoints: [
-      "Freight desks still see concern rather than hard dislocation.",
-      "Energy sensitivity remains elevated around headlines.",
-      "Equity traders are waiting for cost pass-through evidence.",
+      "A few global inputs can ripple across many local decisions.",
+      "Cost shocks usually show up before narrative clarity does.",
+      "Keep one eye on logistics even when the rest of the board looks calm.",
     ],
-    impact: "No panic yet, but transport and industrial names are one headline away from repricing.",
+    impact: "This section exists to preserve situational awareness, not to simulate breaking news.",
   },
   {
     id: "culture-mood-objects",
     category: "Culture",
-    headline: "The best consumer apps are becoming mood objects as much as utility layers.",
-    source: "Studio Index",
+    headline: "People keep products that change the texture of the day, not just the task list.",
+    source: "Design Review",
     summary:
-      "Rounded density, tactile translucency, and a distinct point of view are separating memorable software from interchangeable product dashboards.",
+      "A finished product needs a point of view. Visual tone, motion, and pacing are part of the utility because they shape whether users return.",
     readTime: "3 min read",
-    mood: "Design shift",
+    mood: "Taste matters",
     orb: "radial-gradient(circle, rgba(255,220,170,0.35), transparent 68%)",
     keyPoints: [
-      "People keep software that changes how their day feels.",
-      "Visual identity matters more once core utility converges.",
-      "Tactility and pacing can be more memorable than raw feature count.",
+      "Memorability is a product feature.",
+      "Clear hierarchy and restraint age better than ornamental overload.",
+      "Distinctive design should make work feel lighter, not louder.",
     ],
-    impact: "Brand and interaction quality are now product-level moats.",
+    impact: "This app should read as intentional from the first screen, even in offline mode.",
   },
   {
     id: "policy-privacy-posture",
     category: "Policy",
-    headline: "Privacy and platform scrutiny continue to favor products that can explain their data posture clearly.",
-    source: "Policy Note",
+    headline: "Clear account, consent, and storage language now signals product maturity.",
+    source: "Trust Notes",
     summary:
-      "Teams building with identity, personalization, and recommendation systems are investing earlier in permissions clarity and audit trails.",
+      "Users increasingly expect to understand what is local, what syncs, and what requires a connected account before they commit to a product.",
     readTime: "4 min read",
-    mood: "Compliance pressure",
+    mood: "Trust signal",
     orb: "radial-gradient(circle, rgba(148,221,178,0.28), transparent 68%)",
     keyPoints: [
-      "Auditability is becoming a front-of-house product expectation.",
-      "Clear consent language is outperforming vague privacy messaging.",
-      "Permissions design is moving earlier into the build cycle.",
+      "Explain storage and sync behavior in plain language.",
+      "Authentication pages should reassure before they request action.",
+      "Trust is easier to keep when the product is explicit about boundaries.",
     ],
-    impact: "Products with weak data explanations will face trust drag before legal drag.",
+    impact: "Arfor should make local-first behavior and optional sign-in obvious everywhere.",
   },
 ];
 
@@ -475,68 +479,6 @@ export const games: GameEntry[] = [
   },
 ];
 
-export const defaultEvents: CalendarEventSeed[] = [
-  {
-    id: "evt-1",
-    title: "Product review",
-    date: "2026-03-16",
-    time: "10:00",
-    reminderMinutes: 30,
-    category: "Work",
-    notes: "Bring roadmap decisions and open design questions.",
-  },
-  {
-    id: "evt-2",
-    title: "Gym + recovery",
-    date: "2026-03-17",
-    time: "18:30",
-    reminderMinutes: 60,
-    category: "Health",
-    notes: "Mobility first, then cardio block.",
-  },
-  {
-    id: "evt-3",
-    title: "Weekly budget reset",
-    date: "2026-03-18",
-    time: "08:00",
-    reminderMinutes: 15,
-    category: "Finance",
-    notes: "Check subscriptions, bills, and next-week cash needs.",
-  },
-];
+export const defaultEvents: CalendarEventSeed[] = [];
 
-export const defaultBills: RecurringBillSeed[] = [
-  {
-    id: "bill-1",
-    name: "Studio rent",
-    amount: 1800,
-    dueDay: 1,
-    cadenceMonths: 1,
-    startsAt: "2026-01-01",
-    autopay: true,
-    category: "Housing",
-    account: "Checking",
-  },
-  {
-    id: "bill-2",
-    name: "Cloud tools",
-    amount: 84,
-    dueDay: 9,
-    cadenceMonths: 1,
-    startsAt: "2026-02-09",
-    autopay: true,
-    category: "Software",
-    account: "Business card",
-  },
-  {
-    id: "bill-3",
-    name: "Insurance",
-    amount: 220,
-    dueDay: 24,
-    cadenceMonths: 3,
-    startsAt: "2026-03-24",
-    autopay: false,
-    category: "Coverage",
-    account: "Checking",
-  },
-];
+export const defaultBills: RecurringBillSeed[] = [];

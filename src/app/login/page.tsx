@@ -55,15 +55,15 @@ export default function LoginPage() {
   return (
     <ArforFrame
       activePath="/login"
-      eyebrow="Authentication"
-      title="Google sign-in with actual readiness checks."
-      description="This page now shows whether the Supabase environment is present, whether a browser session already exists, and gives you a clean sign-in or sign-out path."
+      eyebrow="Account"
+      title="Sign in when you want sync, stay local when you do not."
+      description="This page shows whether the Supabase client is configured, whether a browser session already exists, and how close the app is to production-ready account sync."
     >
       <div className="mx-auto grid max-w-4xl gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <GlassCard className="p-6 sm:p-8">
           <div className="flex items-center gap-3">
             <LockKeyhole className="h-5 w-5 text-[var(--gold)]" />
-            <h2 className="font-display text-3xl text-[var(--cream)]">Continue to Arfor</h2>
+            <h2 className="font-display text-3xl text-[var(--cream)]">Account access</h2>
           </div>
           <p className="mt-4 text-sm leading-6 text-[var(--sand)]">
             Keep the callback URL aligned in Supabase and on the Railway deployment so Google OAuth
@@ -142,7 +142,7 @@ export default function LoginPage() {
           <GlassCard className="p-6">
             <div className="flex items-center gap-3">
               <CheckCircle2 className="h-5 w-5 text-[var(--gold)]" />
-              <h3 className="font-display text-2xl text-[var(--cream)]">Next production checks</h3>
+              <h3 className="font-display text-2xl text-[var(--cream)]">Setup notes</h3>
             </div>
             <div className="mt-5 space-y-3 text-sm leading-6 text-[var(--sand)]">
               <p>Confirm the Railway deployment URL is listed in Supabase OAuth redirect URLs.</p>

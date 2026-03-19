@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowLeft,
@@ -176,6 +176,7 @@ export function BlockfallGame() {
   useEffect(() => {
     const savedBest = window.localStorage.getItem(BEST_KEY);
     if (savedBest) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- best score is restored from local storage after mount.
       setBest(Number(savedBest));
     }
   }, []);
@@ -303,42 +304,46 @@ export function BlockfallGame() {
     stepDown();
   }
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        moveHorizontally(-1);
-      } else if (event.key === "ArrowRight") {
-        event.preventDefault();
-        moveHorizontally(1);
-      } else if (event.key === "ArrowDown") {
-        event.preventDefault();
-        stepDown(true);
-      } else if (event.key === "ArrowUp" || event.key.toLowerCase() === "x") {
-        event.preventDefault();
-        rotatePiece();
-      } else if (event.key === " ") {
-        event.preventDefault();
-        hardDrop();
-      } else if (event.key.toLowerCase() === "p") {
-        event.preventDefault();
-        setRunning((currentRunning) => !currentRunning);
-      } else if (event.key.toLowerCase() === "r") {
-        event.preventDefault();
-        resetGame();
-      }
+  const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      moveHorizontally(-1);
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      moveHorizontally(1);
+    } else if (event.key === "ArrowDown") {
+      event.preventDefault();
+      stepDown(true);
+    } else if (event.key === "ArrowUp" || event.key.toLowerCase() === "x") {
+      event.preventDefault();
+      rotatePiece();
+    } else if (event.key === " ") {
+      event.preventDefault();
+      hardDrop();
+    } else if (event.key.toLowerCase() === "p") {
+      event.preventDefault();
+      setRunning((currentRunning) => !currentRunning);
+    } else if (event.key.toLowerCase() === "r") {
+      event.preventDefault();
+      resetGame();
     }
+  });
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  const tickDown = useEffectEvent(() => {
+    stepDown();
+  });
 
   useEffect(() => {
     if (!running || gameOver) {
       return;
     }
 
-    const timer = window.setInterval(() => stepDown(), dropDelay);
+    const timer = window.setInterval(() => tickDown(), dropDelay);
     return () => window.clearInterval(timer);
   }, [dropDelay, running, gameOver]);
 
