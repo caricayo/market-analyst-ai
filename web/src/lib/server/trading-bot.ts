@@ -122,15 +122,21 @@ function getManagedTradeSettings(setupType: Exclude<SetupType, "none">, entryPri
   const profitTargetCents =
     setupType === "trend"
       ? tradingConfig.trendProfitTargetCents
-      : tradingConfig.scalpProfitTargetCents;
+      : setupType === "reversal"
+        ? tradingConfig.reversalProfitTargetCents
+        : tradingConfig.scalpProfitTargetCents;
   const stopLossCents =
     setupType === "trend"
       ? tradingConfig.trendStopLossCents
-      : tradingConfig.scalpStopLossCents;
+      : setupType === "reversal"
+        ? tradingConfig.reversalStopLossCents
+        : tradingConfig.scalpStopLossCents;
   const forcedExitLeadSeconds =
     setupType === "trend"
       ? tradingConfig.trendForcedExitLeadSeconds
-      : tradingConfig.scalpForcedExitLeadSeconds;
+      : setupType === "reversal"
+        ? tradingConfig.reversalForcedExitLeadSeconds
+        : tradingConfig.scalpForcedExitLeadSeconds;
 
   return {
     targetPriceDollars: Math.min(0.99, round(entryPriceDollars + profitTargetCents / 100, 2) ?? 0.99),

@@ -27,6 +27,8 @@ export const tradingConfig = {
   stakeDollars: Math.max(1, parseNumber(process.env.BOT_FIXED_STAKE_DOLLARS, 10)),
   scalpProfitTargetCents: Math.max(2, Math.min(30, parseNumber(process.env.BOT_SCALP_TARGET_CENTS, 10))),
   scalpStopLossCents: Math.max(1, Math.min(20, parseNumber(process.env.BOT_SCALP_STOP_CENTS, 6))),
+  reversalProfitTargetCents: Math.max(4, Math.min(30, parseNumber(process.env.BOT_REVERSAL_TARGET_CENTS, 14))),
+  reversalStopLossCents: Math.max(2, Math.min(20, parseNumber(process.env.BOT_REVERSAL_STOP_CENTS, 8))),
   trendProfitTargetCents: Math.max(4, Math.min(40, parseNumber(process.env.BOT_TREND_TARGET_CENTS, 18))),
   trendStopLossCents: Math.max(2, Math.min(25, parseNumber(process.env.BOT_TREND_STOP_CENTS, 10))),
   trendStopArmSeconds: Math.max(
@@ -57,6 +59,10 @@ export const tradingConfig = {
     30,
     Math.min(300, parseNumber(process.env.BOT_SCALP_FORCE_EXIT_LEAD_SECONDS, 90)),
   ),
+  reversalForcedExitLeadSeconds: Math.max(
+    30,
+    Math.min(300, parseNumber(process.env.BOT_REVERSAL_FORCE_EXIT_LEAD_SECONDS, 75)),
+  ),
   trendForcedExitLeadSeconds: Math.max(
     30,
     Math.min(300, parseNumber(process.env.BOT_TREND_FORCE_EXIT_LEAD_SECONDS, 60)),
@@ -67,13 +73,21 @@ export const tradingConfig = {
     Math.min(60_000, parseNumber(process.env.BOT_AUTO_ENTRY_POLL_INTERVAL_MS, 5_000)),
   ),
   confidenceThreshold: Math.max(50, Math.min(95, parseNumber(process.env.BOT_CONFIDENCE_THRESHOLD, 68))),
-  lateWindowConfidenceThreshold: Math.max(
-    70,
-    Math.min(99, parseNumber(process.env.BOT_LATE_WINDOW_CONFIDENCE_THRESHOLD, 82)),
+  reversalPrimaryDistanceFloor: Math.max(
+    10,
+    Math.min(100, parseNumber(process.env.BOT_REVERSAL_PRIMARY_DISTANCE_FLOOR, 25)),
   ),
-  lateWindowDeterministicEdge: Math.max(
-    0.25,
-    Math.min(3, parseNumber(process.env.BOT_LATE_WINDOW_MIN_EDGE, 0.9)),
+  reversalPrimaryAtrMultiplier: Math.max(
+    0.2,
+    Math.min(2, parseNumber(process.env.BOT_REVERSAL_PRIMARY_ATR_MULTIPLIER, 0.7)),
+  ),
+  reversalLateDistanceFloor: Math.max(
+    15,
+    Math.min(120, parseNumber(process.env.BOT_REVERSAL_LATE_DISTANCE_FLOOR, 40)),
+  ),
+  reversalLateAtrMultiplier: Math.max(
+    0.2,
+    Math.min(2.5, parseNumber(process.env.BOT_REVERSAL_LATE_ATR_MULTIPLIER, 0.95)),
   ),
   entryRetryAttempts: Math.max(
     1,

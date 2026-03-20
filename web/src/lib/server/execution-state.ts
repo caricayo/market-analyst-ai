@@ -2,7 +2,6 @@ import { tradingConfig } from "@/lib/server/trading-config";
 
 type ExecutionState = {
   lastExecutionAt: number;
-  executedTickers: string[];
   fundingHalted: boolean;
   fundingHaltReason: string | null;
   fundingHaltedAt: string | null;
@@ -25,7 +24,6 @@ function getStore() {
   if (!executionStateStore.__btcExecutionState) {
     executionStateStore.__btcExecutionState = {
       lastExecutionAt: 0,
-      executedTickers: [],
       fundingHalted: false,
       fundingHaltReason: null,
       fundingHaltedAt: null,
@@ -43,7 +41,6 @@ function pruneStore() {
       store.lastExecutionAt && getDateKey(new Date(store.lastExecutionAt).toISOString()) === todayKey
         ? store.lastExecutionAt
         : 0,
-    executedTickers: store.executedTickers.slice(-50),
     fundingHalted: store.fundingHalted,
     fundingHaltReason: store.fundingHaltReason,
     fundingHaltedAt: store.fundingHaltedAt,
@@ -60,18 +57,6 @@ export function setLastExecutionAt(timestamp: number) {
   executionStateStore.__btcExecutionState = {
     ...store,
     lastExecutionAt: timestamp,
-  };
-}
-
-export function hasExecutedMarketTicker(ticker: string) {
-  return pruneStore().executedTickers.includes(ticker);
-}
-
-export function markExecutedMarketTicker(ticker: string) {
-  const store = pruneStore();
-  executionStateStore.__btcExecutionState = {
-    ...store,
-    executedTickers: [...new Set([ticker, ...store.executedTickers])].slice(0, 50),
   };
 }
 

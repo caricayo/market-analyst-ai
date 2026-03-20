@@ -48,15 +48,21 @@ function getManagedTradeSettings(
   const profitTargetCents =
     setupType === "trend"
       ? tradingConfig.trendProfitTargetCents
-      : tradingConfig.scalpProfitTargetCents;
+      : setupType === "reversal"
+        ? tradingConfig.reversalProfitTargetCents
+        : tradingConfig.scalpProfitTargetCents;
   const stopLossCents =
     setupType === "trend"
       ? tradingConfig.trendStopLossCents
-      : tradingConfig.scalpStopLossCents;
+      : setupType === "reversal"
+        ? tradingConfig.reversalStopLossCents
+        : tradingConfig.scalpStopLossCents;
   const forcedExitLeadSeconds =
     setupType === "trend"
       ? tradingConfig.trendForcedExitLeadSeconds
-      : tradingConfig.scalpForcedExitLeadSeconds;
+      : setupType === "reversal"
+        ? tradingConfig.reversalForcedExitLeadSeconds
+        : tradingConfig.scalpForcedExitLeadSeconds;
 
   return {
     targetPriceDollars: Math.min(0.99, roundPrice(entryPriceDollars + profitTargetCents / 100, 2) ?? 0.99),
@@ -71,6 +77,10 @@ function getManagedTradeSettings(
 }
 
 function inferSetupTypeFromClientOrderId(clientOrderId: string | null, createdAt: string | null) {
+  if (clientOrderId?.includes("-reversal-")) {
+    return "reversal" as const;
+  }
+
   if (clientOrderId?.includes("-scalp-")) {
     return "scalp" as const;
   }
@@ -82,11 +92,11 @@ function inferSetupTypeFromClientOrderId(clientOrderId: string | null, createdAt
   if (createdAt) {
     const minuteInWindow = getMinuteInWindow(new Date(createdAt));
     if (minuteInWindow >= 9 && minuteInWindow <= 12) {
-      return "scalp" as const;
+      return "reversal" as const;
     }
   }
 
-  return "trend" as const;
+  return "reversal" as const;
 }
 
 function clampPrice(value: number) {

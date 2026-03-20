@@ -60,6 +60,8 @@ function riskTone(risk: BotStatusSnapshot["timingRisk"]) {
 
 function setupTone(setupType: SetupType | undefined) {
   switch (setupType) {
+    case "reversal":
+      return "border-amber-300/30 bg-amber-300/12 text-amber-50";
     case "scalp":
       return "border-sky-400/30 bg-sky-400/12 text-sky-100";
     case "trend":
@@ -149,9 +151,9 @@ export function TradingBotDashboard() {
                 Kalshi execution with Coinbase tape and AI-constrained trade calls.
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300">
-                The bot watches the active Bitcoin 15-minute above/below contract, runs separate
-                trend and scalp playbooks on the one-minute tape, and only submits an order when the
-                setup clears the active window and execution gates.
+                The bot watches the active Bitcoin 15-minute above/below contract, prioritizes
+                reversal trades on the one-minute tape, and falls back to trend or scalp entries
+                only when the snapback playbook does not qualify.
               </p>
             </div>
 
@@ -440,8 +442,9 @@ export function TradingBotDashboard() {
             <div className="mt-4 rounded-[24px] border border-emerald-400/20 bg-emerald-400/10 p-4">
               <p className="text-xs uppercase tracking-[0.22em] text-emerald-50/70">Timing Rule</p>
               <p className="mt-2 text-sm leading-6 text-emerald-50">
-                Minutes 1-3 are blocked. Minutes 4-8 allow trend and scalp. Minutes 9-12 allow
-                stricter scalp only. Minutes 13-15 are blocked for new entries.
+                Minutes 1-3 are blocked. Minutes 4-12 prioritize reversal entries. Trend remains a
+                fallback in minutes 4-8, scalp remains a continuation fallback in minutes 4-12, and
+                minutes 13-15 are blocked for new entries.
               </p>
             </div>
           </section>

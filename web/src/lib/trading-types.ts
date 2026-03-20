@@ -6,7 +6,7 @@ export type TimingRiskLevel =
 
 export type TradeCall = "above" | "below" | "no_trade";
 
-export type SetupType = "trend" | "scalp" | "none";
+export type SetupType = "trend" | "scalp" | "reversal" | "none";
 export type ExitReason = "target" | "stop" | "time" | "manual-sync" | "expired" | "unknown";
 export type ManagedTradeStatus = "open" | "exit-submitted" | "closed" | "error";
 
