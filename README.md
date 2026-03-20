@@ -73,14 +73,13 @@ Optional runtime knobs:
 - Background automation starts on server boot and keeps scanning new windows without the button.
 - When the account is flat, automation scans once per minute by default. When live exposure exists, both scanning and managed-trade watching tighten to 10-second cadence.
 - Minutes `1-3` and `13-15` are blocked for new entries.
-- Trend is the primary entry playbook in minutes `4-8`.
-- Reversal is a stricter secondary playbook in minutes `4-12`.
+- Trend is the primary live entry playbook in minutes `4-8`.
+- Live reversals are disabled in the current champion profile while they are evaluated off-line.
 - Scalp remains a continuation fallback in minutes `4-12`.
-- Reversals now require more confidence and at least 5 minutes left before market close.
-- Trend stops arm quickly by default (`12s`) instead of waiting through most of the move.
+- Trend stops arm quickly by default (`8s`) instead of waiting through most of the move.
 - Buy retries now use IOC with short delays and can size off displayed orderbook depth instead of repeatedly sending full-size FoK orders.
 - Entry quality checks now use estimated Kalshi taker fees, with a lighter upside buffer and net-profit floor so strong trend setups are rejected less often.
-- Same-market re-entry is paused briefly after a stop-out to reduce churn in choppy windows.
+- Same-market re-entry is paused for longer after a stop-out to reduce churn in choppy windows.
 - Shadow tuners can be paused completely with `BOT_RESEARCH_ENABLED=false`.
 
 ## Notes

@@ -60,12 +60,12 @@ function buildStrategyCatalog(): StrategyProfileRecord[] {
   return [
     {
       slug: "champion-live",
-      name: "Trend Core v1",
-      allowReversal: true,
+      name: "Trend Core v2",
+      allowReversal: false,
       blockHighRiskOpen: true,
       blockCloseWindow: true,
       trendEdgeThreshold: 0.6,
-      trendConfidenceThreshold: 68,
+      trendConfidenceThreshold: 72,
       scalpPrimaryDistanceFloor: 35,
       scalpPrimaryAtrMultiplier: 0.9,
       scalpLateDistanceFloor: 65,

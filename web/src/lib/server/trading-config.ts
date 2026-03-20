@@ -65,11 +65,11 @@ export const tradingConfig = {
     1,
     Math.min(20, parseNumber(process.env.BOT_REVERSAL_TRAIL_OFFSET_CENTS, 4)),
   ),
-  trendProfitTargetCents: Math.max(4, Math.min(40, parseNumber(process.env.BOT_TREND_TARGET_CENTS, 18))),
-  trendStopLossCents: Math.max(2, Math.min(25, parseNumber(process.env.BOT_TREND_STOP_CENTS, 10))),
+  trendProfitTargetCents: Math.max(4, Math.min(40, parseNumber(process.env.BOT_TREND_TARGET_CENTS, 15))),
+  trendStopLossCents: Math.max(2, Math.min(25, parseNumber(process.env.BOT_TREND_STOP_CENTS, 8))),
   trendStopArmSeconds: Math.max(
     5,
-    Math.min(180, parseNumber(process.env.BOT_TREND_STOP_ARM_SECONDS, 12)),
+    Math.min(180, parseNumber(process.env.BOT_TREND_STOP_ARM_SECONDS, 8)),
   ),
   trendBreakevenTriggerCents: Math.max(
     2,
@@ -105,7 +105,7 @@ export const tradingConfig = {
   ),
   postStopCooldownSeconds: Math.max(
     0,
-    Math.min(900, Math.round(parseNumber(process.env.BOT_POST_STOP_COOLDOWN_SECONDS, 90))),
+    Math.min(900, Math.round(parseNumber(process.env.BOT_POST_STOP_COOLDOWN_SECONDS, 180))),
   ),
   autoEntryEnabled: parseBoolean(process.env.BOT_AUTO_ENTRY_ENABLED, true),
   researchEnabled: parseBoolean(process.env.BOT_RESEARCH_ENABLED, false),
