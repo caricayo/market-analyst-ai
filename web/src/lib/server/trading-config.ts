@@ -28,7 +28,7 @@ export const tradingConfig = {
   scalpProfitTargetCents: Math.max(2, Math.min(30, parseNumber(process.env.BOT_SCALP_TARGET_CENTS, 10))),
   scalpStopLossCents: Math.max(1, Math.min(20, parseNumber(process.env.BOT_SCALP_STOP_CENTS, 6))),
   reversalProfitTargetCents: Math.max(4, Math.min(30, parseNumber(process.env.BOT_REVERSAL_TARGET_CENTS, 14))),
-  reversalStopLossCents: Math.max(2, Math.min(20, parseNumber(process.env.BOT_REVERSAL_STOP_CENTS, 8))),
+  reversalStopLossCents: Math.max(1, Math.min(20, parseNumber(process.env.BOT_REVERSAL_STOP_CENTS, 1))),
   reversalMaxEntryPriceCents: Math.max(
     20,
     Math.min(95, Math.round(parseNumber(process.env.BOT_REVERSAL_MAX_ENTRY_PRICE_CENTS, 78))),
