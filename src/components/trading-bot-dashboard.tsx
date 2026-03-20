@@ -234,6 +234,10 @@ export function TradingBotDashboard() {
                     <span className="rounded-full border border-rose-400/30 bg-rose-400/12 px-3 py-2 text-rose-100">
                       Funding halt: {snapshot.fundingHaltReason ?? "Kalshi reported insufficient funds."}
                     </span>
+                  ) : snapshot?.riskHalted ? (
+                    <span className="rounded-full border border-amber-300/30 bg-amber-300/12 px-3 py-2 text-amber-50">
+                      Risk halt: {snapshot.riskHaltReason ?? "Recent losses tripped the circuit breaker."}
+                    </span>
                   ) : (
                     <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-2 text-emerald-50">
                       New windows are scanned automatically without pressing the button.

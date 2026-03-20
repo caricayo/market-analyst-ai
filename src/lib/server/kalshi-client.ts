@@ -561,6 +561,18 @@ function buildKalshiHeaders(method: string, path: string, useFullApiPath: boolea
   };
 }
 
+export function buildKalshiSignedHeaders(method: string, path: string) {
+  return buildKalshiHeaders(method, path, false);
+}
+
+export function getKalshiWebSocketUrl() {
+  if (tradingConfig.kalshiBaseUrl.includes("demo-api.kalshi.co")) {
+    return "wss://demo-api.kalshi.co/trade-api/ws/v2";
+  }
+
+  return "wss://api.elections.kalshi.com/trade-api/ws/v2";
+}
+
 export async function submitKalshiOrder(input: {
   action?: "buy" | "sell";
   ticker: string;

@@ -263,6 +263,89 @@ export async function findLatestClosedManagedTradeByTicker(ticker: string) {
   }
 }
 
+export async function getRecentClosedTradeRiskMetrics() {
+  const todayKey = getDateKey(new Date().toISOString());
+  const localClosedTrades = listManagedTrades()
+    .filter((trade) => trade.status === "closed" || trade.status === "error")
+    .sort((left, right) => (right.updatedAt || right.createdAt).localeCompare(left.updatedAt || left.createdAt));
+
+  const localDailyRealizedPnl = localClosedTrades.reduce((sum, trade) => {
+    const tradeDate = getDateKey(trade.updatedAt || trade.createdAt);
+    if (tradeDate !== todayKey) {
+      return sum;
+    }
+    return sum + (trade.realizedPnlDollars ?? 0);
+  }, 0);
+
+  let localConsecutiveStops = 0;
+  for (const trade of localClosedTrades) {
+    if (trade.exitReason === "stop") {
+      localConsecutiveStops += 1;
+      continue;
+    }
+    break;
+  }
+
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) {
+    return {
+      dailyRealizedPnlDollars: localDailyRealizedPnl,
+      consecutiveStops: localConsecutiveStops,
+    };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("bot_managed_trades")
+      .select("updated_at, created_at, exit_reason, realized_pnl_dollars, status")
+      .in("status", ["closed", "error"])
+      .order("updated_at", { ascending: false })
+      .limit(50);
+
+    if (error || !data) {
+      return {
+        dailyRealizedPnlDollars: localDailyRealizedPnl,
+        consecutiveStops: localConsecutiveStops,
+      };
+    }
+
+    const rows = data as Array<{
+      updated_at: string;
+      created_at: string;
+      exit_reason: ExitReason | null;
+      realized_pnl_dollars: number | string | null;
+      status: ManagedTradeStatus;
+    }>;
+
+    const dailyRealizedPnlDollars = rows.reduce((sum, row) => {
+      const tradeDate = getDateKey(row.updated_at || row.created_at);
+      if (tradeDate !== todayKey) {
+        return sum;
+      }
+      return sum + (parseNumber(row.realized_pnl_dollars) ?? 0);
+    }, 0);
+
+    let consecutiveStops = 0;
+    for (const row of rows) {
+      if (row.exit_reason === "stop") {
+        consecutiveStops += 1;
+        continue;
+      }
+      break;
+    }
+
+    return {
+      dailyRealizedPnlDollars,
+      consecutiveStops,
+    };
+  } catch {
+    return {
+      dailyRealizedPnlDollars: localDailyRealizedPnl,
+      consecutiveStops: localConsecutiveStops,
+    };
+  }
+}
+
 export async function createManagedTrade(input: Omit<ManagedTrade, "id" | "createdAt" | "updatedAt">) {
   const timestamp = new Date().toISOString();
   const trade: ManagedTrade = {

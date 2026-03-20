@@ -3,11 +3,17 @@ export async function register() {
     return;
   }
 
-  const [{ ensureAutoEntryManagerStarted }, { ensureManagedTradeManagerStarted }] = await Promise.all([
+  const [
+    { ensureAutoEntryManagerStarted },
+    { ensureManagedTradeManagerStarted },
+    { ensureKalshiRealtimeManagerStarted },
+  ] = await Promise.all([
     import("@/lib/server/auto-entry-manager"),
     import("@/lib/server/managed-trade-manager"),
+    import("@/lib/server/kalshi-realtime-manager"),
   ]);
 
   ensureManagedTradeManagerStarted();
   ensureAutoEntryManagerStarted();
+  ensureKalshiRealtimeManagerStarted();
 }
