@@ -100,6 +100,7 @@ export const tradingConfig = {
     Math.min(300, parseNumber(process.env.BOT_TREND_FORCE_EXIT_LEAD_SECONDS, 60)),
   ),
   autoEntryEnabled: parseBoolean(process.env.BOT_AUTO_ENTRY_ENABLED, true),
+  researchEnabled: parseBoolean(process.env.BOT_RESEARCH_ENABLED, false),
   autoEntryPollIntervalMs: Math.max(
     5_000,
     Math.min(60_000, parseNumber(process.env.BOT_AUTO_ENTRY_POLL_INTERVAL_MS, 5_000)),
@@ -136,6 +137,10 @@ export const tradingConfig = {
   entryRetrySamePriceAttempts: Math.max(
     1,
     Math.min(3, Math.round(parseNumber(process.env.BOT_ENTRY_RETRY_SAME_PRICE_ATTEMPTS, 2))),
+  ),
+  entryLiquidityOrderbookDepth: Math.max(
+    1,
+    Math.min(50, Math.round(parseNumber(process.env.BOT_ENTRY_LIQUIDITY_ORDERBOOK_DEPTH, 12))),
   ),
   entryRetryStepCents: Math.max(
     1,

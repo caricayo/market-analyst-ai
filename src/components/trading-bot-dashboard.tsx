@@ -60,6 +60,8 @@ function riskTone(risk: BotStatusSnapshot["timingRisk"]) {
 
 function setupTone(setupType: SetupType | undefined) {
   switch (setupType) {
+    case "reversal":
+      return "border-amber-300/30 bg-amber-300/12 text-amber-50";
     case "scalp":
       return "border-sky-400/30 bg-sky-400/12 text-sky-100";
     case "trend":
@@ -149,9 +151,9 @@ export function TradingBotDashboard() {
                 Kalshi execution with Coinbase tape and deterministic trade calls.
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300">
-                The bot watches the active Bitcoin 15-minute above/below contract, runs separate
-                trend and scalp playbooks on the one-minute tape, and only submits an order when the
-                setup clears the active window and execution gates.
+                The bot watches the active Bitcoin 15-minute above/below contract, prioritizes
+                trend continuation in the core trade window, and uses stricter reversal or scalp
+                entries only when the tape still supports them.
               </p>
             </div>
 
@@ -469,13 +471,113 @@ export function TradingBotDashboard() {
 
             <div className="mt-4 rounded-[24px] border border-emerald-400/20 bg-emerald-400/10 p-4">
               <p className="text-xs uppercase tracking-[0.22em] text-emerald-50/70">Timing Rule</p>
-                <p className="mt-2 text-sm leading-6 text-emerald-50">
-                  Minutes 1-3 are blocked. Trend is primary in minutes 4-8. Scalp remains a
-                  continuation fallback in minutes 4-12. Minutes 13-15 are blocked for new entries.
-                </p>
+              <p className="mt-2 text-sm leading-6 text-emerald-50">
+                Minutes 1-3 are blocked. Trend is primary in minutes 4-8, reversal is a stricter
+                secondary playbook in minutes 4-12, scalp remains a continuation fallback in
+                minutes 4-12, and minutes 13-15 are blocked for new entries.
+              </p>
             </div>
           </section>
         </div>
+
+        <section className="mt-5 rounded-[28px] border border-white/10 bg-[rgba(9,15,24,0.78)] p-5 backdrop-blur xl:p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Research Lab</p>
+              <h2 className="mt-2 text-2xl font-semibold text-white">Shadow policy leaderboard</h2>
+            </div>
+            <p className="text-sm text-slate-400">
+              One observation is recorded per market window. Challengers are replayed against the candle path and promotion history is tracked.
+            </p>
+          </div>
+
+          {snapshot?.research ? (
+            <>
+              <div className="mt-5 grid gap-3 sm:grid-cols-4">
+                <div className="rounded-[20px] border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Active Tuner</p>
+                  <p className="mt-2 text-sm font-medium text-white">
+                    {snapshot.research.activeTuner.activePolicyName}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-400">
+                    {snapshot.research.activeTuner.source} since{" "}
+                    {formatTimestamp(snapshot.research.activeTuner.changedAt, snapshot.timeZone)}
+                  </p>
+                </div>
+                <div className="rounded-[20px] border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Pending Windows</p>
+                  <p className="mt-2 text-2xl font-semibold text-white">{snapshot.research.pendingWindows}</p>
+                </div>
+                <div className="rounded-[20px] border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Resolved Windows</p>
+                  <p className="mt-2 text-2xl font-semibold text-white">{snapshot.research.resolvedWindows}</p>
+                </div>
+                <div className="rounded-[20px] border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Latest Window</p>
+                  <p className="mt-2 text-sm font-medium text-white">
+                    {snapshot.research.latestWindow?.marketTicker ?? "No recorded research windows yet"}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-400">
+                    Champion then {snapshot.research.latestWindow?.championPolicySlug ?? "--"}.
+                  </p>
+                  <p className="mt-2 text-sm text-slate-400">
+                    Settlement {formatMoney(snapshot.research.latestWindow?.settlementPriceDollars)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                {snapshot.research.recentChanges.length ? (
+                  <div className="rounded-[22px] border border-white/10 bg-[#0c1420] p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Recent Tuner Changes</p>
+                    <div className="mt-3 grid gap-2 text-sm text-slate-300">
+                      {snapshot.research.recentChanges.map((change) => (
+                        <p key={change.id}>
+                          {change.fromPolicyName ?? "none"} {"->"} {change.toPolicyName} ({change.source}) at{" "}
+                          {formatTimestamp(change.promotedAt, snapshot.timeZone)}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {snapshot.research.leaderboard.length ? (
+                  snapshot.research.leaderboard.map((entry) => (
+                    <div key={entry.policySlug} className="rounded-[22px] border border-white/10 bg-[#0c1420] p-4">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-lg font-semibold text-white">{entry.policyName}</p>
+                            <span
+                              className={`rounded-full border px-3 py-1 text-xs ${entry.isChampion ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-50" : "border-white/10 bg-white/5 text-slate-300"}`}
+                            >
+                              {entry.isChampion ? "champion" : "challenger"}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm text-slate-400">
+                            {entry.windows} windows | {entry.trades} paper trades | hit rate {formatNumber(entry.hitRate * 100)}%
+                          </p>
+                        </div>
+                        <div className="grid gap-2 text-right text-sm text-slate-300">
+                          <p>Total paper PnL: <span className="font-semibold text-white">{formatMoney(entry.totalPaperPnlDollars)}</span></p>
+                          <p>Avg paper PnL: <span className="font-semibold text-white">{formatMoney(entry.avgPaperPnlDollars)}</span></p>
+                          <p>Wins / losses: <span className="font-semibold text-white">{entry.wins} / {entry.losses}</span></p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-[22px] border border-dashed border-white/12 bg-white/5 px-5 py-6 text-sm text-slate-400">
+                    The research engine has not resolved any completed windows yet.
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="mt-5 rounded-[22px] border border-dashed border-white/12 bg-white/5 px-5 py-6 text-sm text-slate-400">
+              Shadow tuners are temporarily paused. The live bot is trading only the active champion profile.
+            </div>
+          )}
+        </section>
 
         <section className="mt-5 rounded-[28px] border border-white/10 bg-[rgba(9,15,24,0.78)] p-5 backdrop-blur xl:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

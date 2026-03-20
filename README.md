@@ -52,10 +52,12 @@ Optional runtime knobs:
 - `BOT_ENTRY_RETRY_ATTEMPTS`
 - `BOT_ENTRY_RETRY_DELAY_MS`
 - `BOT_ENTRY_RETRY_SAME_PRICE_ATTEMPTS`
+- `BOT_ENTRY_LIQUIDITY_ORDERBOOK_DEPTH`
 - `BOT_ENTRY_REPRICE_CENTS`
 - `BOT_ENTRY_RETRY_SIZE_DECAY`
 - `BOT_ENTRY_MIN_UPSIDE_BUFFER_CENTS`
 - `BOT_ENTRY_MIN_REWARD_RISK_RATIO`
+- `BOT_RESEARCH_ENABLED`
 - `BOT_RESEARCH_AUTO_PROMOTE_ENABLED`
 - `BOT_RESEARCH_PROMOTION_MIN_WINDOWS`
 - `BOT_RESEARCH_PROMOTION_MIN_TRADES`
@@ -74,6 +76,8 @@ Optional runtime knobs:
 - Scalp remains a continuation fallback in minutes `4-12`.
 - Reversals now require more confidence and at least 5 minutes left before market close.
 - Trend stops arm quickly by default (`12s`) instead of waiting through most of the move.
+- Buy retries now use IOC with short delays and can size off displayed orderbook depth instead of repeatedly sending full-size FoK orders.
+- Shadow tuners can be paused completely with `BOT_RESEARCH_ENABLED=false`.
 
 ## Notes
 

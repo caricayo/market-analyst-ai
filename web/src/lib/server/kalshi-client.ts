@@ -78,7 +78,21 @@ type OrderResponse = {
     no_price_dollars?: string | null;
     yes_price?: number | null;
     no_price?: number | null;
+    fill_count_fp?: string | null;
+    remaining_count_fp?: string | null;
+    initial_count_fp?: string | null;
+    taker_fill_cost_dollars?: string | null;
+    maker_fill_cost_dollars?: string | null;
   };
+};
+
+type OrderbookPriceLevel = [string, string];
+
+type OrderbookResponse = {
+  orderbook_fp?: {
+    yes_dollars?: OrderbookPriceLevel[] | null;
+    no_dollars?: OrderbookPriceLevel[] | null;
+  } | null;
 };
 
 export type KalshiPositionSnapshot = {
@@ -102,6 +116,11 @@ export type KalshiFillSnapshot = {
   contracts: number;
   priceDollars: number | null;
   createdAt: string | null;
+};
+
+export type KalshiOrderbookLiquiditySnapshot = {
+  availableContracts: number | null;
+  complementaryPriceDollars: number;
 };
 
 type CachedMarketEntry = {
@@ -344,6 +363,63 @@ export async function fetchKalshiMarketByTicker(ticker: string) {
   return toSnapshot(payload.market);
 }
 
+export async function getKalshiAvailableLiquidityForBuy(input: {
+  ticker: string;
+  side: "yes" | "no";
+  limitPriceDollars: number;
+  depth?: number;
+}) {
+  if (!hasKalshiTradingCredentials()) {
+    return {
+      availableContracts: null,
+      complementaryPriceDollars: Number((1 - input.limitPriceDollars).toFixed(4)),
+    } satisfies KalshiOrderbookLiquiditySnapshot;
+  }
+
+  const depth = Math.max(1, Math.min(100, input.depth ?? 10));
+  const params = new URLSearchParams({ depth: String(depth) });
+  const path = `/markets/${encodeURIComponent(input.ticker)}/orderbook?${params.toString()}`;
+  const requestUrl = `${tradingConfig.kalshiBaseUrl}${path}`;
+  let response = await fetch(requestUrl, {
+    headers: buildKalshiHeaders("GET", path, false),
+    cache: "no-store",
+  });
+
+  if (response.status === 401) {
+    response = await fetch(requestUrl, {
+      headers: buildKalshiHeaders("GET", path, true),
+      cache: "no-store",
+    });
+  }
+
+  if (!response.ok) {
+    throw new Error(`Kalshi orderbook lookup failed with ${response.status}.`);
+  }
+
+  const payload = (await response.json()) as OrderbookResponse;
+  const complementaryPriceDollars = Number((1 - input.limitPriceDollars).toFixed(4));
+  const oppositeLevels =
+    input.side === "yes"
+      ? payload.orderbook_fp?.no_dollars ?? []
+      : payload.orderbook_fp?.yes_dollars ?? [];
+
+  const availableContracts = oppositeLevels.reduce((sum, level) => {
+    const [priceText, contractsText] = level;
+    const price = parseNumberish(priceText);
+    const contracts = parseNumberish(contractsText);
+    if (price === null || contracts === null) {
+      return sum;
+    }
+
+    return price + 0.0001 >= complementaryPriceDollars ? sum + contracts : sum;
+  }, 0);
+
+  return {
+    availableContracts: Number.isFinite(availableContracts) ? availableContracts : null,
+    complementaryPriceDollars,
+  } satisfies KalshiOrderbookLiquiditySnapshot;
+}
+
 export async function listKalshiPositions(ticker?: string) {
   if (!hasKalshiTradingCredentials()) {
     return [];
@@ -493,6 +569,7 @@ export async function submitKalshiOrder(input: {
   limitPriceCents: number;
   clientOrderId: string;
   reduceOnly?: boolean;
+  timeInForce?: "fill_or_kill" | "immediate_or_cancel";
 }) {
   if (!hasKalshiTradingCredentials()) {
     throw new Error("Kalshi trading credentials are missing.");
@@ -502,7 +579,7 @@ export async function submitKalshiOrder(input: {
   const action = input.action ?? "buy";
   const totalCostCents = input.contracts * input.limitPriceCents;
   const timeInForce =
-    action === "sell" && input.reduceOnly ? "immediate_or_cancel" : "fill_or_kill";
+    input.timeInForce ?? (action === "sell" && input.reduceOnly ? "immediate_or_cancel" : "fill_or_kill");
   const body = JSON.stringify({
     ticker: input.ticker,
     action,

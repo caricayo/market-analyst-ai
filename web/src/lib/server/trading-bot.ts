@@ -11,6 +11,7 @@ import {
 import { buildIndicatorSnapshot, classifyTimingRisk, getMinuteInWindow } from "@/lib/server/indicator-engine";
 import {
   discoverActiveBtcMarket,
+  getKalshiAvailableLiquidityForBuy,
   getKalshiBalance,
   submitKalshiOrder,
 } from "@/lib/server/kalshi-client";
@@ -126,6 +127,47 @@ function buildEntryAttempt(baseClientOrderId: string, limitPriceCents: number, a
     contracts,
     maxCostDollars,
   };
+}
+
+function parseFilledContracts(order: { fill_count_fp?: string | null; initial_count_fp?: string | null; remaining_count_fp?: string | null } | null | undefined) {
+  const explicitFillCount = Number(order?.fill_count_fp ?? Number.NaN);
+  if (Number.isFinite(explicitFillCount)) {
+    return explicitFillCount;
+  }
+
+  const initialCount = Number(order?.initial_count_fp ?? Number.NaN);
+  const remainingCount = Number(order?.remaining_count_fp ?? Number.NaN);
+  if (Number.isFinite(initialCount) && Number.isFinite(remainingCount)) {
+    return Math.max(0, initialCount - remainingCount);
+  }
+
+  return null;
+}
+
+function parseAverageFillPriceDollars(
+  order: {
+    yes_price_dollars?: string | null;
+    no_price_dollars?: string | null;
+    yes_price?: number | null;
+    no_price?: number | null;
+    taker_fill_cost_dollars?: string | null;
+    maker_fill_cost_dollars?: string | null;
+  } | null | undefined,
+  side: "yes" | "no",
+  fallbackPriceDollars: number,
+  filledContracts: number,
+) {
+  const fillCostDollars = Number(order?.taker_fill_cost_dollars ?? order?.maker_fill_cost_dollars ?? Number.NaN);
+  if (filledContracts > 0 && Number.isFinite(fillCostDollars)) {
+    return fillCostDollars / filledContracts;
+  }
+
+  const directPrice =
+    side === "yes"
+      ? Number(order?.yes_price_dollars ?? order?.yes_price ?? Number.NaN)
+      : Number(order?.no_price_dollars ?? order?.no_price ?? Number.NaN);
+
+  return Number.isFinite(directPrice) && directPrice > 0 ? directPrice : fallbackPriceDollars;
 }
 
 function getEntryAttemptPriceCents(basePriceCents: number, attemptIndex: number) {
@@ -372,7 +414,8 @@ async function maybeSubmitTrade(input: {
   let lastLiquidityMessage: string | null = null;
 
   for (let index = 0; index < entryAttempts.length; index += 1) {
-    const attempt = entryAttempts[index];
+    const baseAttempt = entryAttempts[index];
+    let attempt = baseAttempt;
     const managedSettings = getManagedTradeSettings(
       setupType,
       attempt.limitPriceDollars,
@@ -402,6 +445,38 @@ async function maybeSubmitTrade(input: {
     }
 
     try {
+      const liquidity = await getKalshiAvailableLiquidityForBuy({
+        ticker: input.market.ticker,
+        side,
+        limitPriceDollars: attempt.limitPriceDollars,
+        depth: tradingConfig.entryLiquidityOrderbookDepth,
+      });
+      const liquidityContracts =
+        liquidity.availableContracts !== null ? Math.floor(liquidity.availableContracts) : null;
+      if (liquidityContracts !== null) {
+        if (liquidityContracts < 1) {
+          lastLiquidityMessage =
+            `No displayed orderbook depth was available to buy ${side.toUpperCase()} at ${attempt.limitPriceDollars.toFixed(2)}.`;
+          if (index < entryAttempts.length - 1) {
+            await sleep(tradingConfig.entryRetryDelayMs * (index + 1));
+          }
+          continue;
+        }
+
+        if (liquidityContracts < attempt.contracts) {
+          attempt = {
+            ...attempt,
+            contracts: liquidityContracts,
+            maxCostDollars: round(liquidityContracts * attempt.limitPriceDollars, 2),
+          };
+        }
+      }
+    } catch (error) {
+      lastLiquidityMessage =
+        error instanceof Error ? error.message : "Kalshi orderbook depth lookup failed.";
+    }
+
+    try {
       const response = await submitKalshiOrder({
         action: "buy",
         ticker: input.market.ticker,
@@ -409,12 +484,24 @@ async function maybeSubmitTrade(input: {
         contracts: attempt.contracts,
         limitPriceCents: attempt.limitPriceCents,
         clientOrderId: attempt.clientOrderId,
+        timeInForce: "immediate_or_cancel",
       });
 
+      const filledContractsRaw = parseFilledContracts(response.order);
+      const filledContracts =
+        filledContractsRaw !== null ? Math.max(0, Math.floor(filledContractsRaw)) : attempt.contracts;
+      if (filledContracts < 1) {
+        lastLiquidityMessage =
+          `IOC buy at ${attempt.limitPriceDollars.toFixed(2)} returned no fillable contracts.`;
+        if (index < entryAttempts.length - 1) {
+          await sleep(tradingConfig.entryRetryDelayMs * (index + 1));
+        }
+        continue;
+      }
+
       const entryPriceDollars =
-        (side === "yes"
-          ? Number(response.order?.yes_price_dollars ?? response.order?.yes_price)
-          : Number(response.order?.no_price_dollars ?? response.order?.no_price)) || attempt.limitPriceDollars;
+        parseAverageFillPriceDollars(response.order, side, attempt.limitPriceDollars, filledContracts) ||
+        attempt.limitPriceDollars;
       const managedSettings = getManagedTradeSettings(
         setupType,
         entryPriceDollars,
@@ -428,7 +515,7 @@ async function maybeSubmitTrade(input: {
         setupType,
         entrySide: side,
         entryOutcome: input.decision.derivedOutcome,
-        contracts: attempt.contracts,
+        contracts: filledContracts,
         entryOrderId: response.order?.order_id ?? null,
         entryClientOrderId: response.order?.client_order_id ?? attempt.clientOrderId,
         entryPriceDollars,
@@ -453,8 +540,8 @@ async function maybeSubmitTrade(input: {
         status: "submitted",
         side,
         outcome: input.decision.derivedOutcome,
-        contracts: attempt.contracts,
-        maxCostDollars: attempt.maxCostDollars,
+        contracts: filledContracts,
+        maxCostDollars: round(filledContracts * entryPriceDollars, 2),
         orderId: response.order?.order_id ?? null,
         clientOrderId: response.order?.client_order_id ?? attempt.clientOrderId,
         managedTradeId: managedTrade?.id ?? null,
@@ -463,8 +550,8 @@ async function maybeSubmitTrade(input: {
         stopPriceDollars: managedTrade?.stopPriceDollars ?? null,
         message:
           index === 0
-            ? `Submitted ${attempt.contracts} contract${attempt.contracts === 1 ? "" : "s"} on ${side.toUpperCase()} and started managed ${setupType} exits.`
-            : `Submitted ${attempt.contracts} contract${attempt.contracts === 1 ? "" : "s"} on ${side.toUpperCase()} after ${index + 1} ladder attempts and started managed ${setupType} exits.`,
+            ? `Submitted ${filledContracts} contract${filledContracts === 1 ? "" : "s"} on ${side.toUpperCase()} via IOC and started managed ${setupType} exits.`
+            : `Submitted ${filledContracts} contract${filledContracts === 1 ? "" : "s"} on ${side.toUpperCase()} after ${index + 1} IOC ladder attempts and started managed ${setupType} exits.`,
       } satisfies TradeExecution;
     } catch (error) {
 
@@ -526,7 +613,7 @@ async function maybeSubmitTrade(input: {
     stopPriceDollars: null,
     message:
       entryAttempts.length > 1
-        ? `Trade skipped after ${entryAttempts.length} entry ladder attempts because there was not enough resting liquidity to fill even the reduced size ladder.`
+        ? `Trade skipped after ${entryAttempts.length} IOC ladder attempts because there was not enough displayed liquidity to fill a valid sized entry.${lastLiquidityMessage ? ` ${lastLiquidityMessage}` : ""}`
         : `Trade skipped because there was not enough resting liquidity to fill the full order at the quoted price.${lastLiquidityMessage ? ` ${lastLiquidityMessage}` : ""}`,
   } satisfies TradeExecution;
 }
@@ -667,14 +754,18 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
     decision,
   });
 
-  await recordResearchWindow({
-    market,
-    indicators,
-    minuteInWindow,
-    timingRisk,
-  }).catch(() => undefined);
-  await resolveResearchWindows().catch(() => undefined);
-  const research = await getResearchSnapshot().catch(() => null);
+  if (tradingConfig.researchEnabled) {
+    await recordResearchWindow({
+      market,
+      indicators,
+      minuteInWindow,
+      timingRisk,
+    }).catch(() => undefined);
+    await resolveResearchWindows().catch(() => undefined);
+  }
+  const research = tradingConfig.researchEnabled
+    ? await getResearchSnapshot().catch(() => null)
+    : null;
 
   if (
     options?.executeTrade &&
