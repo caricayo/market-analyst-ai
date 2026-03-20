@@ -364,12 +364,14 @@ export async function submitKalshiOrder(input: {
   const path = "/portfolio/orders";
   const action = input.action ?? "buy";
   const totalCostCents = input.contracts * input.limitPriceCents;
+  const timeInForce =
+    action === "sell" && input.reduceOnly ? "immediate_or_cancel" : "fill_or_kill";
   const body = JSON.stringify({
     ticker: input.ticker,
     action,
     side: input.side,
     type: "limit",
-    time_in_force: "fill_or_kill",
+    time_in_force: timeInForce,
     count: input.contracts,
     client_order_id: input.clientOrderId,
     ...(action === "buy" ? { buy_max_cost: totalCostCents } : {}),
