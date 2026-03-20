@@ -150,6 +150,35 @@ function getTrendStopState(trade: ManagedTrade, now: Date, peakPriceDollars: num
   };
 }
 
+function getScalpStopState(trade: ManagedTrade, now: Date, peakPriceDollars: number) {
+  let stopPriceDollars = trade.stopPriceDollars;
+  let stopArmedAt = trade.stopArmedAt ?? now.toISOString();
+  const breakevenTriggerPrice =
+    trade.entryPriceDollars + tradingConfig.scalpBreakevenTriggerCents / 100;
+  const trailTriggerPrice =
+    trade.entryPriceDollars + tradingConfig.scalpTrailTriggerCents / 100;
+
+  if (peakPriceDollars >= breakevenTriggerPrice) {
+    stopPriceDollars = Math.max(
+      stopPriceDollars,
+      clampPrice(trade.entryPriceDollars + tradingConfig.scalpBreakevenLockCents / 100),
+    );
+  }
+
+  if (peakPriceDollars >= trailTriggerPrice) {
+    stopPriceDollars = Math.max(
+      stopPriceDollars,
+      clampPrice(peakPriceDollars - tradingConfig.scalpTrailOffsetCents / 100),
+    );
+  }
+
+  return {
+    stopArmedAt,
+    stopPriceDollars: clampPrice(stopPriceDollars),
+    stopActive: true,
+  };
+}
+
 function getTrackedContractsForTicker(ticker: string) {
   return listOpenManagedTrades()
     .filter((trade) => trade.marketTicker === ticker)
@@ -321,6 +350,13 @@ function getExitTrigger(
 
 function getManagedExitState(trade: ManagedTrade, now: Date, bidPrice: number | null) {
   const peakPriceDollars = Math.max(trade.peakPriceDollars ?? trade.entryPriceDollars, bidPrice ?? 0);
+
+  if (trade.setupType === "scalp") {
+    return {
+      peakPriceDollars,
+      ...getScalpStopState(trade, now, peakPriceDollars),
+    };
+  }
 
   if (trade.setupType !== "trend" || isOpenWindowTrade(trade)) {
     return {

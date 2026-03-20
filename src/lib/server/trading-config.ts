@@ -24,8 +24,24 @@ export const tradingConfig = {
   coinbaseProductId: process.env.COINBASE_PRODUCT_ID?.trim() || "BTC-USD",
   lookbackCandles: Math.max(120, Math.min(350, parseNumber(process.env.BOT_LOOKBACK_CANDLES, 350))),
   stakeDollars: Math.max(1, parseNumber(process.env.BOT_FIXED_STAKE_DOLLARS, 10)),
-  scalpProfitTargetCents: Math.max(2, Math.min(30, parseNumber(process.env.BOT_SCALP_TARGET_CENTS, 10))),
+  scalpProfitTargetCents: Math.max(2, Math.min(30, parseNumber(process.env.BOT_SCALP_TARGET_CENTS, 12))),
   scalpStopLossCents: Math.max(1, Math.min(20, parseNumber(process.env.BOT_SCALP_STOP_CENTS, 6))),
+  scalpBreakevenTriggerCents: Math.max(
+    2,
+    Math.min(20, parseNumber(process.env.BOT_SCALP_BREAKEVEN_TRIGGER_CENTS, 8)),
+  ),
+  scalpBreakevenLockCents: Math.max(
+    0,
+    Math.min(10, parseNumber(process.env.BOT_SCALP_BREAKEVEN_LOCK_CENTS, 1)),
+  ),
+  scalpTrailTriggerCents: Math.max(
+    4,
+    Math.min(30, parseNumber(process.env.BOT_SCALP_TRAIL_TRIGGER_CENTS, 10)),
+  ),
+  scalpTrailOffsetCents: Math.max(
+    1,
+    Math.min(20, parseNumber(process.env.BOT_SCALP_TRAIL_OFFSET_CENTS, 4)),
+  ),
   openWindowStopLossCents: Math.max(1, Math.min(10, parseNumber(process.env.BOT_OPEN_WINDOW_STOP_CENTS, 1))),
   scalpMaxEntryPriceCents: Math.max(
     20,
