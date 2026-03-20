@@ -51,6 +51,15 @@ function round(value: number | null, decimals = 2) {
   return Number(value.toFixed(decimals));
 }
 
+function ceilToCents(value: number) {
+  return Math.ceil(value * 100) / 100;
+}
+
+function estimateKalshiTakerFeesDollars(contracts: number, priceDollars: number) {
+  const boundedPrice = Math.max(0.01, Math.min(0.99, priceDollars));
+  return ceilToCents(0.07 * contracts * boundedPrice * (1 - boundedPrice));
+}
+
 function isFundingErrorMessage(message: string) {
   const normalized = message.toLowerCase();
   if (isLiquidityErrorMessage(normalized)) {
@@ -227,20 +236,30 @@ function getManagedTradeSettings(
 
 function getEntryPriceQualityBlocker(
   setupType: Exclude<SetupType, "none">,
+  contracts: number,
   entryPriceDollars: number,
   managedSettings: ReturnType<typeof getManagedTradeSettings>,
 ) {
-  const rewardDollars = Math.max(0, managedSettings.targetPriceDollars - entryPriceDollars);
-  const riskDollars = Math.max(0.01, entryPriceDollars - managedSettings.stopPriceDollars);
+  const rewardDollars = Math.max(0, (managedSettings.targetPriceDollars - entryPriceDollars) * contracts);
+  const riskDollars = Math.max(0.01, (entryPriceDollars - managedSettings.stopPriceDollars) * contracts);
   const remainingUpsideDollars = Math.max(0, 0.99 - entryPriceDollars);
-  const minUpsideRequired = rewardDollars + tradingConfig.entryMinUpsideBufferCents / 100;
+  const minUpsideRequired = Math.max(0, managedSettings.targetPriceDollars - entryPriceDollars) + tradingConfig.entryMinUpsideBufferCents / 100;
+  const entryFeesDollars = estimateKalshiTakerFeesDollars(contracts, entryPriceDollars);
+  const targetExitFeesDollars = estimateKalshiTakerFeesDollars(contracts, managedSettings.targetPriceDollars);
+  const stopExitFeesDollars = estimateKalshiTakerFeesDollars(contracts, managedSettings.stopPriceDollars);
+  const netTargetProfitDollars = rewardDollars - entryFeesDollars - targetExitFeesDollars;
+  const netStopLossDollars = riskDollars + entryFeesDollars + stopExitFeesDollars;
 
   if (remainingUpsideDollars + 0.0001 < minUpsideRequired) {
     return `${setupType} entry skipped because only ${remainingUpsideDollars.toFixed(2)} of upside remains to 0.99, below the required ${minUpsideRequired.toFixed(2)}.`;
   }
 
-  if (rewardDollars / riskDollars < tradingConfig.entryMinRewardRiskRatio) {
-    return `${setupType} entry skipped because the reward/risk ratio is ${(rewardDollars / riskDollars).toFixed(2)}, below the required ${tradingConfig.entryMinRewardRiskRatio.toFixed(2)}.`;
+  if (netTargetProfitDollars < tradingConfig.entryMinNetTargetProfitDollars) {
+    return `${setupType} entry skipped because estimated net target profit after Kalshi fees is only ${netTargetProfitDollars.toFixed(2)}, below the required ${tradingConfig.entryMinNetTargetProfitDollars.toFixed(2)}.`;
+  }
+
+  if (netTargetProfitDollars / netStopLossDollars < tradingConfig.entryMinRewardRiskRatio) {
+    return `${setupType} entry skipped because the fee-adjusted reward/risk ratio is ${(netTargetProfitDollars / netStopLossDollars).toFixed(2)}, below the required ${tradingConfig.entryMinRewardRiskRatio.toFixed(2)}.`;
   }
 
   return null;
@@ -391,6 +410,7 @@ async function maybeSubmitTrade(input: {
   );
   const firstAttemptPriceBlocker = getEntryPriceQualityBlocker(
     setupType,
+    firstAttempt.contracts,
     firstAttempt.limitPriceDollars,
     firstManagedSettings,
   );
@@ -424,6 +444,7 @@ async function maybeSubmitTrade(input: {
     );
     const entryPriceBlocker = getEntryPriceQualityBlocker(
       setupType,
+      attempt.contracts,
       attempt.limitPriceDollars,
       managedSettings,
     );

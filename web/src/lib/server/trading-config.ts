@@ -20,6 +20,10 @@ function parseNumber(value: string | undefined, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function roundMoney(value: number) {
+  return Number(value.toFixed(2));
+}
+
 export const tradingConfig = {
   coinbaseProductId: process.env.COINBASE_PRODUCT_ID?.trim() || "BTC-USD",
   lookbackCandles: Math.max(120, Math.min(350, parseNumber(process.env.BOT_LOOKBACK_CANDLES, 350))),
@@ -157,6 +161,10 @@ export const tradingConfig = {
   entryMinRewardRiskRatio: Math.max(
     1,
     Math.min(4, parseNumber(process.env.BOT_ENTRY_MIN_REWARD_RISK_RATIO, 1.5)),
+  ),
+  entryMinNetTargetProfitDollars: Math.max(
+    0,
+    Math.min(10, roundMoney(parseNumber(process.env.BOT_ENTRY_MIN_NET_TARGET_PROFIT_DOLLARS, 0.5))),
   ),
   researchAutoPromoteEnabled: parseBoolean(process.env.BOT_RESEARCH_AUTO_PROMOTE_ENABLED, true),
   researchPromotionMinWindows: Math.max(

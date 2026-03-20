@@ -57,6 +57,7 @@ Optional runtime knobs:
 - `BOT_ENTRY_RETRY_SIZE_DECAY`
 - `BOT_ENTRY_MIN_UPSIDE_BUFFER_CENTS`
 - `BOT_ENTRY_MIN_REWARD_RISK_RATIO`
+- `BOT_ENTRY_MIN_NET_TARGET_PROFIT_DOLLARS`
 - `BOT_RESEARCH_ENABLED`
 - `BOT_RESEARCH_AUTO_PROMOTE_ENABLED`
 - `BOT_RESEARCH_PROMOTION_MIN_WINDOWS`
@@ -77,6 +78,7 @@ Optional runtime knobs:
 - Reversals now require more confidence and at least 5 minutes left before market close.
 - Trend stops arm quickly by default (`12s`) instead of waiting through most of the move.
 - Buy retries now use IOC with short delays and can size off displayed orderbook depth instead of repeatedly sending full-size FoK orders.
+- Entry quality checks now use estimated Kalshi taker fees, so target profit and reward/risk must still clear fees before a trade is allowed.
 - Shadow tuners can be paused completely with `BOT_RESEARCH_ENABLED=false`.
 
 ## Notes
