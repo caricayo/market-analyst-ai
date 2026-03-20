@@ -226,11 +226,6 @@ async function maybeSubmitTrade(input: {
     return buildExecutionDisabled("Kalshi trading credentials are incomplete, so execution is disabled.");
   }
 
-  if (isFundingHalted()) {
-    const reason = getFundingHaltReason() ?? "Funding halt is active.";
-    return buildExecutionDisabled(`Funding halt active. ${reason}`);
-  }
-
   if (!input.market || !input.decision.shouldTrade || !input.decision.derivedOutcome) {
     return {
       status: "skipped",
@@ -293,6 +288,8 @@ async function maybeSubmitTrade(input: {
     })),
   ]);
   const hasLivePosition = exposure.livePositions.length > 0;
+  const fundingHaltReason = getFundingHaltReason();
+  const fundingHaltActive = isFundingHalted();
 
   if (hasLivePosition || exposure.activeManagedTrades.length > 0) {
     return {
@@ -309,6 +306,20 @@ async function maybeSubmitTrade(input: {
       stopPriceDollars: null,
       message: "Trade skipped because another position is still open. The bot will only re-enter after the account is flat.",
     } satisfies TradeExecution;
+  }
+
+  if (fundingHaltActive) {
+    if (
+      balance.availableBalanceDollars !== null &&
+      firstAttempt.maxCostDollars !== null &&
+      balance.availableBalanceDollars + 0.001 >= firstAttempt.maxCostDollars
+    ) {
+      clearFundingHalt();
+    } else {
+      return buildExecutionDisabled(
+        `Funding halt active. ${fundingHaltReason ?? "Kalshi previously reported insufficient funds."}`,
+      );
+    }
   }
 
   if (
