@@ -144,6 +144,8 @@ export type BotStatusSnapshot = {
   minuteInWindow: number;
   timingRisk: TimingRiskLevel;
   stakeDollars: number;
+  availableBalanceDollars: number | null;
+  portfolioValueDollars: number | null;
   confidenceThreshold: number;
   autoEntryEnabled: boolean;
   fundingHalted: boolean;

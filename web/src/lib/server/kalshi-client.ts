@@ -42,6 +42,12 @@ type PositionsResponse = {
   market_positions?: KalshiPositionApi[];
 };
 
+type BalanceResponse = {
+  balance?: number | null;
+  portfolio_value?: number | null;
+  updated_ts?: number | null;
+};
+
 type KalshiFillApi = {
   order_id?: string | null;
   market_ticker?: string | null;
@@ -77,6 +83,12 @@ export type KalshiPositionSnapshot = {
   ticker: string;
   contracts: number;
   realizedPnlDollars: number | null;
+};
+
+export type KalshiBalanceSnapshot = {
+  availableBalanceDollars: number | null;
+  portfolioValueDollars: number | null;
+  updatedAtUnix: number | null;
 };
 
 export type KalshiFillSnapshot = {
@@ -354,6 +366,45 @@ export async function listKalshiPositions(ticker?: string) {
     contracts: Number(position.position_fp ?? 0),
     realizedPnlDollars: parsePrice(position.realized_pnl_dollars),
   })) satisfies KalshiPositionSnapshot[];
+}
+
+export async function getKalshiBalance() {
+  if (!hasKalshiTradingCredentials()) {
+    return {
+      availableBalanceDollars: null,
+      portfolioValueDollars: null,
+      updatedAtUnix: null,
+    } satisfies KalshiBalanceSnapshot;
+  }
+
+  const path = "/portfolio/balance";
+  const requestUrl = `${tradingConfig.kalshiBaseUrl}${path}`;
+  let response = await fetch(requestUrl, {
+    headers: buildKalshiHeaders("GET", path, false),
+    cache: "no-store",
+  });
+
+  if (response.status === 401) {
+    response = await fetch(requestUrl, {
+      headers: buildKalshiHeaders("GET", path, true),
+      cache: "no-store",
+    });
+  }
+
+  if (!response.ok) {
+    throw new Error(`Kalshi balance lookup failed with ${response.status}.`);
+  }
+
+  const payload = (await response.json()) as BalanceResponse;
+  return {
+    availableBalanceDollars:
+      typeof payload.balance === "number" ? Number((payload.balance / 100).toFixed(2)) : null,
+    portfolioValueDollars:
+      typeof payload.portfolio_value === "number"
+        ? Number((payload.portfolio_value / 100).toFixed(2))
+        : null,
+    updatedAtUnix: typeof payload.updated_ts === "number" ? payload.updated_ts : null,
+  } satisfies KalshiBalanceSnapshot;
 }
 
 export async function listKalshiFills(ticker?: string, limit = 50) {

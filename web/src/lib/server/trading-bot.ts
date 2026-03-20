@@ -9,7 +9,12 @@ import {
   setLastExecutionAt,
 } from "@/lib/server/execution-state";
 import { buildIndicatorSnapshot, classifyTimingRisk, getMinuteInWindow } from "@/lib/server/indicator-engine";
-import { discoverActiveBtcMarket, submitKalshiOrder } from "@/lib/server/kalshi-client";
+import {
+  discoverActiveBtcMarket,
+  getKalshiBalance,
+  listKalshiPositions,
+  submitKalshiOrder,
+} from "@/lib/server/kalshi-client";
 import { ensureManagedTradeManagerStarted } from "@/lib/server/managed-trade-manager";
 import { createManagedTrade, listOpenManagedTrades } from "@/lib/server/managed-trade-store";
 import { tradingConfig, hasKalshiTradingCredentials } from "@/lib/server/trading-config";
@@ -189,6 +194,52 @@ async function maybeSubmitTrade(input: {
   const maxCostDollars = round(contracts * limitPriceDollars, 2);
   const setupType = input.decision.setupType === "none" ? "trend" : input.decision.setupType;
   const clientOrderId = buildBotClientOrderId(setupType, "buy");
+  const [balance, livePositions] = await Promise.all([
+    getKalshiBalance(),
+    listKalshiPositions().catch(() => []),
+  ]);
+  const hasLivePosition = livePositions.some((position) => Math.abs(position.contracts) >= 0.01);
+
+  if (hasLivePosition || listOpenManagedTrades().length > 0) {
+    return {
+      status: "skipped",
+      side,
+      outcome: input.decision.derivedOutcome,
+      contracts: null,
+      maxCostDollars,
+      orderId: null,
+      clientOrderId,
+      managedTradeId: null,
+      entryPriceDollars: null,
+      targetPriceDollars: null,
+      stopPriceDollars: null,
+      message: "Trade skipped because another position is still open. The bot will only re-enter after the account is flat.",
+    } satisfies TradeExecution;
+  }
+
+  if (
+    balance.availableBalanceDollars !== null &&
+    maxCostDollars !== null &&
+    balance.availableBalanceDollars + 0.001 < maxCostDollars
+  ) {
+    haltFunding(
+      `Kalshi balance pre-check failed. Available balance ${balance.availableBalanceDollars.toFixed(2)} is below required max cost ${maxCostDollars.toFixed(2)}.`,
+    );
+    return {
+      status: "disabled",
+      side,
+      outcome: input.decision.derivedOutcome,
+      contracts,
+      maxCostDollars,
+      orderId: null,
+      clientOrderId,
+      managedTradeId: null,
+      entryPriceDollars: null,
+      targetPriceDollars: null,
+      stopPriceDollars: null,
+      message: "Bot halted before entry because available balance is below the required order cost. Refill the account, then manually resume once.",
+    } satisfies TradeExecution;
+  }
 
   try {
     const response = await submitKalshiOrder({
@@ -369,7 +420,7 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
     clearFundingHalt();
   }
 
-  const [marketResult, candles] = await Promise.all([
+  const [marketResult, candles, balance] = await Promise.all([
     discoverActiveBtcMarket(now).catch((error) => {
       warnings.push(
         error instanceof Error
@@ -379,6 +430,11 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
       return null;
     }),
     fetchCoinbaseCandles(),
+    getKalshiBalance().catch(() => ({
+      availableBalanceDollars: null,
+      portfolioValueDollars: null,
+      updatedAtUnix: null,
+    })),
   ]);
   const market = marketResult;
   if (!market) {
@@ -429,6 +485,8 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
     minuteInWindow,
     timingRisk,
     stakeDollars: tradingConfig.stakeDollars,
+    availableBalanceDollars: balance.availableBalanceDollars,
+    portfolioValueDollars: balance.portfolioValueDollars,
     confidenceThreshold: tradingConfig.confidenceThreshold,
     autoEntryEnabled: tradingConfig.autoEntryEnabled,
     fundingHalted: isFundingHalted(),

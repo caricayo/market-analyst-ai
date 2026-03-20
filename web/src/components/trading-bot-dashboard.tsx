@@ -175,7 +175,7 @@ export function TradingBotDashboard() {
             </div>
           </div>
 
-          <div className="mt-6 grid gap-3 lg:grid-cols-4">
+          <div className="mt-6 grid gap-3 lg:grid-cols-5">
             <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
               <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Window</p>
               <p className="mt-2 text-2xl font-semibold text-white">{snapshot?.currentWindowLabel ?? "Loading..."}</p>
@@ -201,7 +201,16 @@ export function TradingBotDashboard() {
                 Fixed stake {formatMoney(snapshot?.stakeDollars)} per eligible order.
               </p>
             </div>
-            <div className="rounded-[24px] border border-white/10 bg-white/5 p-4 lg:col-span-4">
+            <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Available Balance</p>
+              <p className="mt-2 text-2xl font-semibold text-white">
+                {formatMoney(snapshot?.availableBalanceDollars)}
+              </p>
+              <p className="mt-2 text-sm text-slate-400">
+                Portfolio {formatMoney(snapshot?.portfolioValueDollars)}
+              </p>
+            </div>
+            <div className="rounded-[24px] border border-white/10 bg-white/5 p-4 lg:col-span-5">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Automation</p>
