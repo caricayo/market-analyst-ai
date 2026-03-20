@@ -109,7 +109,7 @@ export function TradingBotDashboard() {
     void loadSnapshot();
     const timer = window.setInterval(() => {
       void loadSnapshot();
-    }, 20_000);
+    }, 5_000);
     return () => window.clearInterval(timer);
   }, []);
 

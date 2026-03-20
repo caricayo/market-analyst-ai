@@ -507,8 +507,8 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
 export async function runTradingBotExecution(source: ExecutionSource) {
   const now = Date.now();
   const lastExecutionAt = getLastExecutionAt();
-  if (now - lastExecutionAt < 10_000) {
-    throw new Error("Trading is rate-limited for 10 seconds to reduce duplicate order submissions.");
+  if (now - lastExecutionAt < 5_000) {
+    throw new Error("Trading is rate-limited for 5 seconds to reduce duplicate order submissions.");
   }
 
   setLastExecutionAt(now);
