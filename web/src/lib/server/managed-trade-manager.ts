@@ -440,6 +440,28 @@ function getRealizedPnl(trade: ManagedTrade, exitPriceDollars: number | null) {
   return roundMoney((exitPriceDollars - trade.entryPriceDollars) * trade.contracts);
 }
 
+function getMatchingExitFills(trade: ManagedTrade, fills: Awaited<ReturnType<typeof listKalshiFills>>) {
+  return fills.filter(
+    (fill) =>
+      fill.action === "sell" &&
+      ((trade.exitClientOrderId && fill.clientOrderId === trade.exitClientOrderId) ||
+        (trade.exitOrderId && fill.orderId === trade.exitOrderId)),
+  );
+}
+
+function getWeightedFillPrice(fills: Awaited<ReturnType<typeof listKalshiFills>>) {
+  const totalContracts = fills.reduce((sum, fill) => sum + Math.max(0, fill.contracts), 0);
+  if (totalContracts <= 0) {
+    return null;
+  }
+
+  const weighted = fills.reduce(
+    (sum, fill) => sum + Math.max(0, fill.contracts) * (fill.priceDollars ?? 0),
+    0,
+  );
+  return roundPrice(weighted / totalContracts, 2);
+}
+
 async function processTrade(trade: ManagedTrade) {
   const positions = await listKalshiPositions(trade.marketTicker).catch(() => []);
   const matchingPosition = positions.find((position) => position.ticker === trade.marketTicker) ?? null;
@@ -447,6 +469,34 @@ async function processTrade(trade: ManagedTrade) {
   const now = new Date();
 
   if (liveContracts < 0.01) {
+    if (trade.status === "exit-submitted" && (trade.exitClientOrderId || trade.exitOrderId)) {
+      const fills = await listKalshiFills(trade.marketTicker, 100).catch(() => []);
+      const matchingExitFills = getMatchingExitFills(trade, fills);
+      if (matchingExitFills.length) {
+        const exitPriceDollars = getWeightedFillPrice(matchingExitFills);
+        await closeManagedTrade({
+          id: trade.id,
+          exitReason: trade.exitReason ?? "manual-sync",
+          exitPriceDollars,
+          realizedPnlDollars: getRealizedPnl(trade, exitPriceDollars),
+          exitOrderId: trade.exitOrderId,
+          exitClientOrderId: trade.exitClientOrderId,
+        });
+        return;
+      }
+
+      if (
+        trade.lastExitAttemptAt &&
+        now.getTime() - Date.parse(trade.lastExitAttemptAt) < Math.max(tradingConfig.scalpPollIntervalMs * 3, 30_000)
+      ) {
+        await patchManagedTrade(trade.id, {
+          lastCheckedAt: now.toISOString(),
+          errorMessage: "Exit order submitted and awaiting flat-position fill confirmation.",
+        });
+        return;
+      }
+    }
+
     await closeManagedTrade({
       id: trade.id,
       exitReason: trade.exitReason ?? "manual-sync",
@@ -540,10 +590,10 @@ async function processTrade(trade: ManagedTrade) {
       exitReason,
       exitOrderId: response.order?.order_id ?? null,
       exitClientOrderId: response.order?.client_order_id ?? clientOrderId,
-      exitPriceDollars: limitPriceCents / 100,
-      realizedPnlDollars: roundMoney((limitPriceCents / 100 - trade.entryPriceDollars) * contractsToExit),
+      exitPriceDollars: null,
+      realizedPnlDollars: null,
       lastExitAttemptAt: now.toISOString(),
-      errorMessage: null,
+      errorMessage: "Exit order submitted; awaiting fill confirmation.",
     });
   } catch (error) {
     await patchManagedTrade(trade.id, {
