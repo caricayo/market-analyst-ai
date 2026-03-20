@@ -27,6 +27,8 @@ export const tradingConfig = {
   stakeDollars: Math.max(1, parseNumber(process.env.BOT_FIXED_STAKE_DOLLARS, 10)),
   scalpProfitTargetCents: Math.max(2, Math.min(30, parseNumber(process.env.BOT_SCALP_TARGET_CENTS, 10))),
   scalpStopLossCents: Math.max(1, Math.min(20, parseNumber(process.env.BOT_SCALP_STOP_CENTS, 6))),
+  trendProfitTargetCents: Math.max(4, Math.min(40, parseNumber(process.env.BOT_TREND_TARGET_CENTS, 18))),
+  trendStopLossCents: Math.max(2, Math.min(25, parseNumber(process.env.BOT_TREND_STOP_CENTS, 8))),
   scalpPollIntervalMs: Math.max(
     2_000,
     Math.min(30_000, parseNumber(process.env.BOT_SCALP_POLL_INTERVAL_MS, 5_000)),
@@ -34,6 +36,10 @@ export const tradingConfig = {
   scalpForcedExitLeadSeconds: Math.max(
     30,
     Math.min(300, parseNumber(process.env.BOT_SCALP_FORCE_EXIT_LEAD_SECONDS, 90)),
+  ),
+  trendForcedExitLeadSeconds: Math.max(
+    30,
+    Math.min(300, parseNumber(process.env.BOT_TREND_FORCE_EXIT_LEAD_SECONDS, 60)),
   ),
   autoEntryEnabled: parseBoolean(process.env.BOT_AUTO_ENTRY_ENABLED, true),
   autoEntryPollIntervalMs: Math.max(

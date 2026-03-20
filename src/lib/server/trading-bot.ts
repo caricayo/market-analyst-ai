@@ -20,7 +20,7 @@ import {
 } from "@/lib/server/managed-trade-store";
 import { tradingConfig, hasKalshiTradingCredentials } from "@/lib/server/trading-config";
 import { appendTradingLog, listTradingLog } from "@/lib/server/trading-log";
-import type { BotLogEntry, BotStatusSnapshot, TradeExecution } from "@/lib/trading-types";
+import type { BotLogEntry, BotStatusSnapshot, SetupType, TradeExecution } from "@/lib/trading-types";
 
 type ExecutionSource = "manual" | "auto";
 
@@ -102,6 +102,36 @@ function buildExecutionDisabled(message: string): TradeExecution {
   };
 }
 
+function buildBotClientOrderId(setupType: Exclude<SetupType, "none">, action: "buy" | "sell") {
+  return `btcbot-${setupType}-${action}-${crypto.randomUUID()}`;
+}
+
+function getManagedTradeSettings(setupType: Exclude<SetupType, "none">, entryPriceDollars: number, closeTime: string | null) {
+  const profitTargetCents =
+    setupType === "trend"
+      ? tradingConfig.trendProfitTargetCents
+      : tradingConfig.scalpProfitTargetCents;
+  const stopLossCents =
+    setupType === "trend"
+      ? tradingConfig.trendStopLossCents
+      : tradingConfig.scalpStopLossCents;
+  const forcedExitLeadSeconds =
+    setupType === "trend"
+      ? tradingConfig.trendForcedExitLeadSeconds
+      : tradingConfig.scalpForcedExitLeadSeconds;
+
+  return {
+    targetPriceDollars: Math.min(0.99, round(entryPriceDollars + profitTargetCents / 100, 2) ?? 0.99),
+    stopPriceDollars: Math.max(0.01, round(entryPriceDollars - stopLossCents / 100, 2) ?? 0.01),
+    forcedExitAt: new Date(
+      Math.max(
+        Date.now(),
+        Date.parse(closeTime ?? new Date().toISOString()) - forcedExitLeadSeconds * 1_000,
+      ),
+    ).toISOString(),
+  };
+}
+
 async function maybeSubmitTrade(input: {
   executeTrade: boolean;
   market: NonNullable<BotStatusSnapshot["market"]> | null;
@@ -158,10 +188,7 @@ async function maybeSubmitTrade(input: {
     } satisfies TradeExecution;
   }
 
-  if (
-    input.decision.setupType === "scalp" &&
-    findOpenManagedTradeByTicker(input.market.ticker)
-  ) {
+  if (findOpenManagedTradeByTicker(input.market.ticker)) {
     return {
       status: "skipped",
       side: input.decision.derivedSide,
@@ -174,7 +201,7 @@ async function maybeSubmitTrade(input: {
       entryPriceDollars: null,
       targetPriceDollars: null,
       stopPriceDollars: null,
-      message: "Trade skipped because a managed scalp is already open for this market.",
+      message: "Trade skipped because a managed trade is already open for this market.",
     } satisfies TradeExecution;
   }
 
@@ -196,11 +223,12 @@ async function maybeSubmitTrade(input: {
     } satisfies TradeExecution;
   }
 
-  const limitPriceCents = Math.max(1, Math.round(price * 100));
+  const limitPriceCents = Math.max(1, Math.min(99, Math.round(price * 100)));
   const limitPriceDollars = limitPriceCents / 100;
   const contracts = Math.max(1, Math.floor(tradingConfig.stakeDollars / limitPriceDollars));
   const maxCostDollars = round(contracts * limitPriceDollars, 2);
-  const clientOrderId = crypto.randomUUID();
+  const setupType = input.decision.setupType === "none" ? "trend" : input.decision.setupType;
+  const clientOrderId = buildBotClientOrderId(setupType, "buy");
 
   try {
     const response = await submitKalshiOrder({
@@ -216,44 +244,32 @@ async function maybeSubmitTrade(input: {
       (side === "yes"
         ? Number(response.order?.yes_price_dollars ?? response.order?.yes_price)
         : Number(response.order?.no_price_dollars ?? response.order?.no_price)) || limitPriceDollars;
-    const targetPriceDollars =
-      Math.min(0.99, round(entryPriceDollars + tradingConfig.scalpProfitTargetCents / 100, 2) ?? 0.99);
-    const stopPriceDollars =
-      Math.max(0.01, round(entryPriceDollars - tradingConfig.scalpStopLossCents / 100, 2) ?? 0.01);
-    const managedTrade =
-      input.decision.setupType === "scalp"
-        ? createManagedTrade({
-            marketTicker: input.market.ticker,
-            marketTitle: input.market.title,
-            closeTime: input.market.closeTime,
-            setupType: "scalp",
-            entrySide: side,
-            entryOutcome: input.decision.derivedOutcome,
-            contracts,
-            entryOrderId: response.order?.order_id ?? null,
-            entryClientOrderId: response.order?.client_order_id ?? clientOrderId,
-            entryPriceDollars,
-            targetPriceDollars,
-            stopPriceDollars,
-            forcedExitAt: new Date(
-              Math.max(
-                Date.now(),
-                Date.parse(input.market.closeTime ?? new Date().toISOString()) -
-                  tradingConfig.scalpForcedExitLeadSeconds * 1_000,
-              ),
-            ).toISOString(),
-            status: "open",
-            exitReason: null,
-            exitOrderId: null,
-            exitClientOrderId: null,
-            exitPriceDollars: null,
-            realizedPnlDollars: null,
-            lastSeenBidDollars: null,
-            lastCheckedAt: null,
-            lastExitAttemptAt: null,
-            errorMessage: null,
-          })
-        : null;
+    const managedSettings = getManagedTradeSettings(setupType, entryPriceDollars, input.market.closeTime);
+    const managedTrade = createManagedTrade({
+      marketTicker: input.market.ticker,
+      marketTitle: input.market.title,
+      closeTime: input.market.closeTime,
+      setupType,
+      entrySide: side,
+      entryOutcome: input.decision.derivedOutcome,
+      contracts,
+      entryOrderId: response.order?.order_id ?? null,
+      entryClientOrderId: response.order?.client_order_id ?? clientOrderId,
+      entryPriceDollars,
+      targetPriceDollars: managedSettings.targetPriceDollars,
+      stopPriceDollars: managedSettings.stopPriceDollars,
+      forcedExitAt: managedSettings.forcedExitAt,
+      status: "open",
+      exitReason: null,
+      exitOrderId: null,
+      exitClientOrderId: null,
+      exitPriceDollars: null,
+      realizedPnlDollars: null,
+      lastSeenBidDollars: null,
+      lastCheckedAt: null,
+      lastExitAttemptAt: null,
+      errorMessage: null,
+    });
 
     return {
       status: "submitted",
@@ -267,10 +283,7 @@ async function maybeSubmitTrade(input: {
       entryPriceDollars,
       targetPriceDollars: managedTrade?.targetPriceDollars ?? null,
       stopPriceDollars: managedTrade?.stopPriceDollars ?? null,
-      message:
-        managedTrade
-          ? `Submitted ${contracts} contract${contracts === 1 ? "" : "s"} on ${side.toUpperCase()} and started managed scalp exits.`
-          : `Submitted ${contracts} contract${contracts === 1 ? "" : "s"} on ${side.toUpperCase()}.`,
+      message: `Submitted ${contracts} contract${contracts === 1 ? "" : "s"} on ${side.toUpperCase()} and started managed ${setupType} exits.`,
     } satisfies TradeExecution;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Kalshi order submission failed.";

@@ -89,7 +89,7 @@ export type ManagedTrade = {
   marketTicker: string;
   marketTitle: string | null;
   closeTime: string | null;
-  setupType: "scalp";
+  setupType: Exclude<SetupType, "none">;
   entrySide: "yes" | "no";
   entryOutcome: "above" | "below";
   contracts: number;

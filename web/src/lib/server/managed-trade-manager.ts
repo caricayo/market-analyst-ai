@@ -1,15 +1,19 @@
 import {
   fetchKalshiMarketByTicker,
+  listKalshiFills,
   listKalshiPositions,
   submitKalshiOrder,
 } from "@/lib/server/kalshi-client";
 import {
+  createManagedTrade,
   closeManagedTrade,
+  findOpenManagedTradeByTicker,
   listOpenManagedTrades,
   patchManagedTrade,
 } from "@/lib/server/managed-trade-store";
 import { tradingConfig, hasKalshiTradingCredentials } from "@/lib/server/trading-config";
 import type { ExitReason, ManagedTrade } from "@/lib/trading-types";
+import { getMinuteInWindow } from "@/lib/server/indicator-engine";
 
 const managerState = globalThis as typeof globalThis & {
   __btcManagedTradeManagerStarted?: boolean;
@@ -23,6 +27,132 @@ function roundMoney(value: number | null, decimals = 2) {
   }
 
   return Number(value.toFixed(decimals));
+}
+
+function roundPrice(value: number | null, decimals = 2) {
+  if (value === null || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return Number(value.toFixed(decimals));
+}
+
+function buildBotClientOrderId(setupType: ManagedTrade["setupType"], action: "buy" | "sell") {
+  return `btcbot-${setupType}-${action}-${crypto.randomUUID()}`;
+}
+
+function getManagedTradeSettings(
+  setupType: ManagedTrade["setupType"],
+  entryPriceDollars: number,
+  closeTime: string | null,
+) {
+  const profitTargetCents =
+    setupType === "trend"
+      ? tradingConfig.trendProfitTargetCents
+      : tradingConfig.scalpProfitTargetCents;
+  const stopLossCents =
+    setupType === "trend"
+      ? tradingConfig.trendStopLossCents
+      : tradingConfig.scalpStopLossCents;
+  const forcedExitLeadSeconds =
+    setupType === "trend"
+      ? tradingConfig.trendForcedExitLeadSeconds
+      : tradingConfig.scalpForcedExitLeadSeconds;
+
+  return {
+    targetPriceDollars: Math.min(0.99, roundPrice(entryPriceDollars + profitTargetCents / 100, 2) ?? 0.99),
+    stopPriceDollars: Math.max(0.01, roundPrice(entryPriceDollars - stopLossCents / 100, 2) ?? 0.01),
+    forcedExitAt: new Date(
+      Math.max(
+        Date.now(),
+        Date.parse(closeTime ?? new Date().toISOString()) - forcedExitLeadSeconds * 1_000,
+      ),
+    ).toISOString(),
+  };
+}
+
+function inferSetupTypeFromClientOrderId(clientOrderId: string | null, createdAt: string | null) {
+  if (clientOrderId?.includes("-scalp-")) {
+    return "scalp" as const;
+  }
+
+  if (clientOrderId?.includes("-trend-")) {
+    return "trend" as const;
+  }
+
+  if (createdAt) {
+    const minuteInWindow = getMinuteInWindow(new Date(createdAt));
+    if (minuteInWindow >= 9 && minuteInWindow <= 12) {
+      return "scalp" as const;
+    }
+  }
+
+  return "trend" as const;
+}
+
+async function recoverManagedTradesFromPositions() {
+  const positions = await listKalshiPositions().catch(() => []);
+
+  for (const position of positions) {
+    const liveContracts = Math.abs(position.contracts);
+    if (liveContracts < 0.01 || findOpenManagedTradeByTicker(position.ticker)) {
+      continue;
+    }
+
+    const fills = await listKalshiFills(position.ticker, 100).catch(() => []);
+    const botBuyFills = fills
+      .filter((fill) => fill.action === "buy" && fill.clientOrderId?.startsWith("btcbot-"))
+      .sort((left, right) => (right.createdAt ?? "").localeCompare(left.createdAt ?? ""));
+
+    const latestBotFill = botBuyFills[0];
+    if (!latestBotFill) {
+      continue;
+    }
+
+    const fillGroup = botBuyFills.filter((fill) =>
+      latestBotFill.clientOrderId
+        ? fill.clientOrderId === latestBotFill.clientOrderId
+        : fill.orderId === latestBotFill.orderId,
+    );
+    const weightedContracts = fillGroup.reduce((sum, fill) => sum + Math.max(0, fill.contracts), 0);
+    const weightedPrice =
+      weightedContracts > 0
+        ? fillGroup.reduce(
+            (sum, fill) => sum + Math.max(0, fill.contracts) * (fill.priceDollars ?? 0),
+            0,
+          ) / weightedContracts
+        : latestBotFill.priceDollars;
+    const market = await fetchKalshiMarketByTicker(position.ticker).catch(() => null);
+    const setupType = inferSetupTypeFromClientOrderId(latestBotFill.clientOrderId, latestBotFill.createdAt);
+    const entryPriceDollars = roundPrice(weightedPrice, 2) ?? 0.5;
+    const settings = getManagedTradeSettings(setupType, entryPriceDollars, market?.closeTime ?? null);
+
+    createManagedTrade({
+      marketTicker: position.ticker,
+      marketTitle: market?.title ?? null,
+      closeTime: market?.closeTime ?? null,
+      setupType,
+      entrySide: latestBotFill.side,
+      entryOutcome: latestBotFill.side === (market?.mapping.aboveSide ?? "yes") ? "above" : "below",
+      contracts: Math.max(1, Math.round(liveContracts)),
+      entryOrderId: latestBotFill.orderId,
+      entryClientOrderId: latestBotFill.clientOrderId,
+      entryPriceDollars,
+      targetPriceDollars: settings.targetPriceDollars,
+      stopPriceDollars: settings.stopPriceDollars,
+      forcedExitAt: settings.forcedExitAt,
+      status: "open",
+      exitReason: null,
+      exitOrderId: null,
+      exitClientOrderId: null,
+      exitPriceDollars: null,
+      realizedPnlDollars: null,
+      lastSeenBidDollars: null,
+      lastCheckedAt: null,
+      lastExitAttemptAt: null,
+      errorMessage: "Recovered managed trade from live Kalshi fills after local tracker reset.",
+    });
+  }
 }
 
 function getSideBidPrice(trade: ManagedTrade, yesBidPrice: number | null, noBidPrice: number | null) {
@@ -122,7 +252,7 @@ async function processTrade(trade: ManagedTrade) {
   }
 
   const limitPriceCents = Math.max(1, Math.min(99, Math.round(bidPrice * 100)));
-  const clientOrderId = crypto.randomUUID();
+  const clientOrderId = buildBotClientOrderId(trade.setupType, "sell");
 
   try {
     const response = await submitKalshiOrder({
@@ -160,6 +290,7 @@ export async function processManagedTrades() {
 
   managerState.__btcManagedTradeManagerRunning = true;
   try {
+    await recoverManagedTradesFromPositions();
     const trades = listOpenManagedTrades();
     for (const trade of trades) {
       await processTrade(trade);

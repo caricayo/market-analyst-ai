@@ -42,6 +42,24 @@ type PositionsResponse = {
   market_positions?: KalshiPositionApi[];
 };
 
+type KalshiFillApi = {
+  order_id?: string | null;
+  market_ticker?: string | null;
+  ticker?: string | null;
+  side?: "yes" | "no" | null;
+  action?: "buy" | "sell" | null;
+  count_fp?: string | null;
+  yes_price_dollars?: string | null;
+  no_price_dollars?: string | null;
+  client_order_id?: string | null;
+  created_time?: string | null;
+};
+
+type FillsResponse = {
+  fills?: KalshiFillApi[];
+  cursor?: string | null;
+};
+
 type OrderResponse = {
   order?: {
     order_id?: string;
@@ -59,6 +77,17 @@ export type KalshiPositionSnapshot = {
   ticker: string;
   contracts: number;
   realizedPnlDollars: number | null;
+};
+
+export type KalshiFillSnapshot = {
+  marketTicker: string;
+  orderId: string | null;
+  clientOrderId: string | null;
+  side: "yes" | "no";
+  action: "buy" | "sell";
+  contracts: number;
+  priceDollars: number | null;
+  createdAt: string | null;
 };
 
 type CachedMarketEntry = {
@@ -325,6 +354,52 @@ export async function listKalshiPositions(ticker?: string) {
     contracts: Number(position.position_fp ?? 0),
     realizedPnlDollars: parsePrice(position.realized_pnl_dollars),
   })) satisfies KalshiPositionSnapshot[];
+}
+
+export async function listKalshiFills(ticker?: string, limit = 50) {
+  if (!hasKalshiTradingCredentials()) {
+    return [];
+  }
+
+  const params = new URLSearchParams({
+    limit: String(Math.max(1, Math.min(200, limit))),
+  });
+  if (ticker) {
+    params.set("ticker", ticker);
+  }
+
+  const path = `/portfolio/fills?${params.toString()}`;
+  const requestUrl = `${tradingConfig.kalshiBaseUrl}${path}`;
+  let response = await fetch(requestUrl, {
+    headers: buildKalshiHeaders("GET", path, false),
+    cache: "no-store",
+  });
+
+  if (response.status === 401) {
+    response = await fetch(requestUrl, {
+      headers: buildKalshiHeaders("GET", path, true),
+      cache: "no-store",
+    });
+  }
+
+  if (!response.ok) {
+    throw new Error(`Kalshi fills lookup failed with ${response.status}.`);
+  }
+
+  const payload = (await response.json()) as FillsResponse;
+  return (payload.fills ?? []).map((fill) => ({
+    marketTicker: fill.market_ticker ?? fill.ticker ?? "unknown",
+    orderId: fill.order_id ?? null,
+    clientOrderId: fill.client_order_id ?? null,
+    side: fill.side === "no" ? "no" : "yes",
+    action: fill.action === "sell" ? "sell" : "buy",
+    contracts: Number(fill.count_fp ?? 0),
+    priceDollars:
+      fill.side === "no"
+        ? parsePrice(fill.no_price_dollars)
+        : parsePrice(fill.yes_price_dollars),
+    createdAt: fill.created_time ?? null,
+  })) satisfies KalshiFillSnapshot[];
 }
 
 function buildKalshiHeaders(method: string, path: string, useFullApiPath: boolean) {

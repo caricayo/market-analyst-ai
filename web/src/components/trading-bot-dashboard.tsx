@@ -245,11 +245,11 @@ export function TradingBotDashboard() {
         <section className="mt-5 rounded-[28px] border border-white/10 bg-[rgba(9,15,24,0.78)] p-5 backdrop-blur xl:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Managed Scalps</p>
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Managed Trades</p>
               <h2 className="mt-2 text-2xl font-semibold text-white">Automated exit watcher</h2>
             </div>
             <p className="text-sm text-slate-400">
-              Server-side poller checks open scalp positions every few seconds for target, stop, and time exits.
+              Server-side poller checks open bot positions every few seconds for target, stop, and time exits.
             </p>
           </div>
 
@@ -285,7 +285,7 @@ export function TradingBotDashboard() {
               ))
             ) : (
               <div className="rounded-[22px] border border-dashed border-white/12 bg-white/5 px-5 py-6 text-sm text-slate-400">
-                No active managed scalp positions.
+                No active managed trades.
               </div>
             )}
           </div>
