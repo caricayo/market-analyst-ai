@@ -65,6 +65,7 @@ Optional runtime knobs:
 - Trend is the primary entry playbook in minutes `4-8`.
 - Reversal is a stricter secondary playbook in minutes `4-12`.
 - Scalp remains a continuation fallback in minutes `4-12`.
+- Trend stops arm quickly by default (`12s`) instead of waiting through most of the move.
 
 ## Notes
 

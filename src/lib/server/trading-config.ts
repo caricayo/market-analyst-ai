@@ -49,7 +49,7 @@ export const tradingConfig = {
   trendStopLossCents: Math.max(2, Math.min(25, parseNumber(process.env.BOT_TREND_STOP_CENTS, 10))),
   trendStopArmSeconds: Math.max(
     5,
-    Math.min(180, parseNumber(process.env.BOT_TREND_STOP_ARM_SECONDS, 45)),
+    Math.min(180, parseNumber(process.env.BOT_TREND_STOP_ARM_SECONDS, 12)),
   ),
   trendBreakevenTriggerCents: Math.max(
     2,

@@ -768,6 +768,7 @@ export async function resolveResearchWindows() {
     .from("bot_policy_evaluations")
     .select("*")
     .eq("status", "resolved")
+    .eq("replay_mode", "candle_replay")
     .order("resolved_at", { ascending: false })
     .limit(tradingConfig.researchLeaderboardResolvedLimit);
 
@@ -795,6 +796,7 @@ export async function getResearchSnapshot() {
       .from("bot_policy_evaluations")
       .select("*")
       .neq("status", "pending")
+      .eq("replay_mode", "candle_replay")
       .order("resolved_at", { ascending: false })
       .limit(tradingConfig.researchLeaderboardResolvedLimit),
     supabase
