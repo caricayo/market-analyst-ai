@@ -8,7 +8,7 @@ This project is now a Bitcoin 15-minute Kalshi trading console built on the same
 - pulls Coinbase public 1-minute BTC candles
 - computes short-horizon indicators
 - applies timing-risk rules with stricter handling for minutes `1-3` and `9-15`
-- asks the AI for a structured `above`, `below`, or `no_trade` decision
+- makes deterministic `above`, `below`, or `no_trade` decisions from the indicator stack
 - can submit a Kalshi order from the server when the signal clears the configured gates
 - keeps a same-day server-side activity log for analyses and trade attempts
 
@@ -17,7 +17,6 @@ This project is now a Bitcoin 15-minute Kalshi trading console built on the same
 - Next.js App Router
 - TypeScript
 - Tailwind CSS v4
-- OpenAI Node SDK
 - Railway-friendly deployment setup
 
 ## Local setup
@@ -29,7 +28,6 @@ npm run dev
 
 Copy `.env.example` to `.env.local` and fill in:
 
-- `OPENAI_API_KEY`
 - `KALSHI_API_KEY_ID`
 - `KALSHI_PRIVATE_KEY_PEM`
 

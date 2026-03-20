@@ -1,5 +1,4 @@
 const DEFAULT_TIME_ZONE = "Pacific/Honolulu";
-const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
 
 function parseBoolean(value: string | undefined, fallback: boolean) {
   if (!value) {
@@ -127,13 +126,8 @@ export const tradingConfig = {
   kalshiApiKeyId: process.env.KALSHI_API_KEY_ID?.trim() || "",
   kalshiPrivateKeyPem:
     process.env.KALSHI_PRIVATE_KEY_PEM?.replace(/\\n/g, "\n").trim() || "",
-  openAiModel: process.env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL,
   autoTradeEnabled: parseBoolean(process.env.KALSHI_ENABLE_AUTO_TRADE, true),
 };
-
-export function hasOpenAiKey() {
-  return Boolean(process.env.OPENAI_API_KEY?.trim());
-}
 
 export function hasKalshiTradingCredentials() {
   return Boolean(tradingConfig.kalshiApiKeyId && tradingConfig.kalshiPrivateKeyPem);

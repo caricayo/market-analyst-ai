@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "BTC 15-Minute Kalshi Bot",
   description:
-    "A Bitcoin 15-minute Kalshi trading console with Coinbase one-minute candles, timing-risk gates, AI synthesis, and optional server-side execution.",
+    "A Bitcoin 15-minute Kalshi trading console with Coinbase one-minute candles, deterministic timing-risk gates, and optional server-side execution.",
 };
 
 export default function RootLayout({

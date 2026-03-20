@@ -1,5 +1,4 @@
-import OpenAI from "openai";
-import { tradingConfig, hasOpenAiKey } from "@/lib/server/trading-config";
+import { tradingConfig } from "@/lib/server/trading-config";
 import type {
   IndicatorSnapshot,
   KalshiMarketSnapshot,
@@ -8,13 +7,6 @@ import type {
   TradeCall,
   TradingDecision,
 } from "@/lib/trading-types";
-
-type AiDecisionPayload = {
-  call: "above" | "below" | "no_trade";
-  confidence: number;
-  summary: string;
-  reasoning: string[];
-};
 
 type DeterministicCandidate = {
   setupType: Exclude<SetupType, "none">;
@@ -30,18 +22,6 @@ type DeterministicResult = {
   blockers: string[];
 };
 
-type AiDecisionCacheEntry = {
-  expiresAt: number;
-  value: AiDecisionPayload | null;
-};
-
-const decisionEngineCache = globalThis as typeof globalThis & {
-  __btcAiDecisionCache?: Map<string, AiDecisionCacheEntry>;
-};
-
-const openAiClient = hasOpenAiKey() ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
-
-const AI_VETO_CONFIDENCE = 85;
 const TREND_EDGE_THRESHOLD = 0.6;
 const TREND_CONFIDENCE_THRESHOLD = 68;
 const SCALP_CONFIDENCE_THRESHOLD = 64;
@@ -53,54 +33,6 @@ function clamp(value: number, min: number, max: number) {
 
 function uniqueStrings(values: string[]) {
   return [...new Set(values)];
-}
-
-function safeJsonParse<T>(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return null;
-  }
-}
-
-function getAiDecisionCache() {
-  if (!decisionEngineCache.__btcAiDecisionCache) {
-    decisionEngineCache.__btcAiDecisionCache = new Map<string, AiDecisionCacheEntry>();
-  }
-
-  return decisionEngineCache.__btcAiDecisionCache;
-}
-
-function getAiDecisionCacheKey(input: {
-  market: KalshiMarketSnapshot | null;
-  indicators: IndicatorSnapshot;
-  minuteInWindow: number;
-  timingRisk: TimingRiskLevel;
-  deterministic: {
-    candidate: DeterministicCandidate | null;
-    blockers: string[];
-  };
-}) {
-  return JSON.stringify({
-    ticker: input.market?.ticker ?? null,
-    strikePrice: input.market?.strikePrice ?? null,
-    minuteInWindow: input.minuteInWindow,
-    timingRisk: input.timingRisk,
-    currentPrice: Number(input.indicators.currentPrice.toFixed(2)),
-    deterministicEdge: Number(input.indicators.deterministicEdge.toFixed(3)),
-    candidate: input.deterministic.candidate
-      ? {
-          setupType: input.deterministic.candidate.setupType,
-          call: input.deterministic.candidate.call,
-          confidence: input.deterministic.candidate.confidence,
-        }
-      : null,
-    blockers: input.deterministic.blockers.slice(0, 5),
-  });
 }
 
 function deriveOutcomeMapping(
@@ -403,84 +335,6 @@ function buildDeterministicDecision(
   };
 }
 
-async function getAiDecision(input: {
-  market: KalshiMarketSnapshot | null;
-  indicators: IndicatorSnapshot;
-  minuteInWindow: number;
-  timingRisk: TimingRiskLevel;
-  deterministic: {
-    candidate: DeterministicCandidate | null;
-    blockers: string[];
-  };
-}) {
-  if (!openAiClient) {
-    return null;
-  }
-
-  if (!input.deterministic.candidate) {
-    return null;
-  }
-
-  const cacheKey = getAiDecisionCacheKey(input);
-  const cache = getAiDecisionCache();
-  const cached = cache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.value;
-  }
-
-  const response = await openAiClient.chat.completions.create({
-    model: tradingConfig.openAiModel,
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: "btc_kalshi_trade_decision",
-        strict: true,
-        schema: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            call: {
-              type: "string",
-              enum: ["above", "below", "no_trade"],
-            },
-            confidence: {
-              type: "number",
-            },
-            summary: {
-              type: "string",
-            },
-            reasoning: {
-              type: "array",
-              minItems: 2,
-              maxItems: 4,
-              items: { type: "string" },
-            },
-          },
-          required: ["call", "confidence", "summary", "reasoning"],
-        },
-      },
-    },
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are an advisory BTC intraday analyst for 15-minute Kalshi contracts. Deterministic rules own execution. Minutes 1-3 and 13-15 are blocked for new entries. Trend is the primary playbook in minutes 4-8. Scalp is the continuation fallback in minutes 4-12. Only return a strong veto when the deterministic candidate is clearly contradicted by the supplied tape.",
-      },
-      {
-        role: "user",
-        content: JSON.stringify(input),
-      },
-    ],
-  });
-
-  const parsed = safeJsonParse<AiDecisionPayload>(response.choices[0]?.message?.content);
-  cache.set(cacheKey, {
-    expiresAt: Date.now() + 30_000,
-    value: parsed,
-  });
-  return parsed;
-}
-
 export async function buildTradingDecision(input: {
   market: KalshiMarketSnapshot | null;
   indicators: IndicatorSnapshot;
@@ -494,36 +348,15 @@ export async function buildTradingDecision(input: {
     input.timingRisk,
     input.warnings,
   );
-  const aiDecision = await getAiDecision({
-    market: input.market,
-    indicators: input.indicators,
-    minuteInWindow: input.minuteInWindow,
-    timingRisk: input.timingRisk,
-    deterministic,
-  }).catch(() => null);
-
   const candidate = deterministic.candidate;
   const blockers = [...deterministic.blockers];
   const gateReasons = candidate ? [...candidate.gateReasons] : [];
   let call: TradingDecision["call"] = candidate?.call ?? "no_trade";
-  let confidence = candidate?.confidence ?? 50;
-  let deterministicConfidence = candidate?.confidence ?? 50;
-  let setupType: TradingDecision["setupType"] = candidate?.setupType ?? "none";
-  let candidateSide: TradingDecision["candidateSide"] = candidate?.call ?? null;
-  let aiVetoed = false;
-
-  if (
-    candidate &&
-    aiDecision &&
-    aiDecision.confidence >= AI_VETO_CONFIDENCE &&
-    aiDecision.call !== candidate.call
-  ) {
-    aiVetoed = true;
-    call = "no_trade";
-    blockers.push(
-      `AI vetoed the ${candidate.call.toUpperCase()} ${candidate.setupType} setup with confidence ${Math.round(aiDecision.confidence)}.`,
-    );
-  }
+  const confidence = candidate?.confidence ?? 50;
+  const deterministicConfidence = candidate?.confidence ?? 50;
+  const setupType: TradingDecision["setupType"] = candidate?.setupType ?? "none";
+  const candidateSide: TradingDecision["candidateSide"] = candidate?.call ?? null;
+  const aiVetoed = false;
 
   const requiredConfidence =
     candidate?.setupType === "scalp"
@@ -556,8 +389,8 @@ export async function buildTradingDecision(input: {
     call,
     confidence,
     deterministicConfidence,
-    summary: aiDecision?.summary?.trim() || defaultSummary,
-    reasoning: aiDecision?.reasoning?.length ? aiDecision.reasoning : defaultReasoning,
+    summary: defaultSummary,
+    reasoning: defaultReasoning,
     setupType,
     candidateSide,
     timingRisk: input.timingRisk,

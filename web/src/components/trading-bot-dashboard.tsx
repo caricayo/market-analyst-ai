@@ -148,7 +148,7 @@ export function TradingBotDashboard() {
             <div>
               <p className="text-xs uppercase tracking-[0.32em] text-emerald-200/70">BTC 15-Minute Bot</p>
               <h1 className="mt-3 max-w-3xl font-display text-4xl text-white sm:text-5xl">
-                Kalshi execution with Coinbase tape and AI-constrained trade calls.
+                Kalshi execution with Coinbase tape and deterministic trade calls.
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300">
                 The bot watches the active Bitcoin 15-minute above/below contract, prioritizes
@@ -414,11 +414,6 @@ export function TradingBotDashboard() {
                   >
                     {snapshot?.decision?.setupType ?? "none"}
                   </span>
-                  {snapshot?.decision?.aiVetoed ? (
-                    <span className="rounded-full border border-rose-400/30 bg-rose-400/12 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-rose-100">
-                      AI veto
-                    </span>
-                  ) : null}
                 </div>
                 <p className="mt-2 text-sm leading-6 text-slate-300">
                   {snapshot?.decision?.summary ?? "No signal yet."}
@@ -578,7 +573,6 @@ export function TradingBotDashboard() {
                         <p>Target: {formatMoney(entry.execution.targetPriceDollars)}</p>
                         <p>Stop: {formatMoney(entry.execution.stopPriceDollars)}</p>
                         <p>Deterministic confidence: {entry.deterministicConfidence}</p>
-                        <p>AI vetoed: {entry.aiVetoed ? "yes" : "no"}</p>
                         <p>Max cost: {formatMoney(entry.execution.maxCostDollars)}</p>
                         <p>{entry.execution.message}</p>
                       </div>
