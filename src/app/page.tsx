@@ -5,7 +5,7 @@ import { getServerSupabaseUser } from "@/lib/supabase/server";
 export default async function Home() {
   const user = await getServerSupabaseUser();
   if (!user) {
-    redirect("/login");
+    redirect("/login?next=%2F");
   }
 
   return <TradingBotDashboard />;

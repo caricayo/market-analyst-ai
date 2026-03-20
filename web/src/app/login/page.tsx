@@ -1,19 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowRight, CheckCircle2, LockKeyhole, LogOut, ShieldCheck } from "lucide-react";
-import { ArforFrame } from "@/components/arfor-frame";
-import { GlassCard } from "@/components/glass-card";
+import { useRouter } from "next/navigation";
+import { ArrowRight, LockKeyhole, LogOut, ShieldCheck } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [nextPath, setNextPath] = useState("/");
 
   const envReady = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   );
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setNextPath(params.get("next") || "/");
+    setMessage(params.get("error"));
+  }, []);
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();
@@ -22,23 +29,31 @@ export default function LoginPage() {
     }
 
     supabase.auth.getUser().then(({ data }) => {
-      setUserEmail(data.user?.email ?? null);
+      const email = data.user?.email ?? null;
+      setUserEmail(email);
+      if (email) {
+        router.replace(nextPath);
+      }
     });
-  }, []);
+  }, [nextPath, router]);
 
   const handleGoogleLogin = async () => {
     const supabase = createBrowserSupabaseClient();
     if (!supabase) {
-      setMessage("Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY to enable Google auth.");
+      setMessage("Supabase client variables are missing in this environment.");
       return;
     }
 
+    setLoading(true);
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo },
     });
-
-    if (error) setMessage(error.message);
+    if (error) {
+      setMessage(error.message);
+      setLoading(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -53,105 +68,99 @@ export default function LoginPage() {
   };
 
   return (
-    <ArforFrame
-      activePath="/login"
-      eyebrow="Authentication"
-      title="Google sign-in with actual readiness checks."
-      description="This page now shows whether the Supabase environment is present, whether a browser session already exists, and gives you a clean sign-in or sign-out path."
-    >
-      <div className="mx-auto grid max-w-4xl gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <GlassCard className="p-6 sm:p-8">
-          <div className="flex items-center gap-3">
-            <LockKeyhole className="h-5 w-5 text-[var(--gold)]" />
-            <h2 className="font-display text-3xl text-[var(--cream)]">Continue to Arfor</h2>
-          </div>
-          <p className="mt-4 text-sm leading-6 text-[var(--sand)]">
-            Keep the callback URL aligned in Supabase and on the Railway deployment so Google OAuth
-            can round-trip back into this app cleanly.
-          </p>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-[22px] border border-white/8 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">Environment</p>
-              <p className="mt-2 text-xl font-semibold text-[var(--cream)]">
-                {envReady ? "Configured" : "Missing vars"}
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(36,197,94,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.16),transparent_22%),linear-gradient(135deg,#081019_0%,#0f1723_50%,#101827_100%)] px-4 py-6 text-slate-100 sm:px-6 lg:px-10">
+      <div className="mx-auto max-w-5xl">
+        <section className="rounded-[32px] border border-white/10 bg-[rgba(7,12,20,0.76)] p-6 shadow-[0_30px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-8">
+          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <p className="text-xs uppercase tracking-[0.32em] text-emerald-200/70">Protected Access</p>
+              <h1 className="mt-3 max-w-3xl font-display text-4xl text-white sm:text-5xl">
+                Sign in with Google to open the BTC 15-minute trading console.
+              </h1>
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300">
+                This page is isolated from the previous dashboard shell. It only handles Supabase
+                Google login and redirects straight back into the protected bot after a valid session
+                is created.
               </p>
-            </div>
-            <div className="rounded-[22px] border border-white/8 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">Session</p>
-              <p className="mt-2 text-xl font-semibold text-[var(--cream)]">
-                {userEmail ? "Active" : "Not signed in"}
-              </p>
-            </div>
-          </div>
 
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            className="mt-8 flex w-full items-center justify-center gap-2 rounded-full border border-[var(--panel-border)] bg-[var(--gold)] px-5 py-4 text-sm font-semibold text-black"
-          >
-            Continue with Google
-            <ArrowRight className="h-4 w-4" />
-          </button>
-
-          {userEmail ? (
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-4 text-sm text-[var(--cream)]"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </button>
-          ) : null}
-
-          {message ? (
-            <p className="mt-4 rounded-[20px] border border-[var(--panel-border)] bg-white/5 px-4 py-3 text-sm text-[var(--sand)]">
-              {message}
-            </p>
-          ) : null}
-
-          <Link href="/" className="mt-6 inline-flex text-sm text-[var(--sand)]">
-            Back to dashboard
-          </Link>
-        </GlassCard>
-
-        <div className="grid gap-6">
-          <GlassCard className="p-6">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="h-5 w-5 text-[var(--gold)]" />
-              <h3 className="font-display text-2xl text-[var(--cream)]">Status board</h3>
-            </div>
-            <div className="mt-5 grid gap-3">
-              {[
-                envReady
-                  ? "Supabase client variables are present."
-                  : "Supabase client variables are not present in this environment.",
-                userEmail
-                  ? `Signed in as ${userEmail}.`
-                  : "No browser session detected right now.",
-                "Google auth should redirect back to /auth/callback after consent.",
-              ].map((item) => (
-                <div key={item} className="rounded-[18px] border border-white/8 bg-black/15 p-4 text-sm text-[var(--sand)]">
-                  {item}
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Environment</p>
+                  <p className="mt-2 text-xl font-semibold text-white">
+                    {envReady ? "Configured" : "Missing vars"}
+                  </p>
                 </div>
-              ))}
-            </div>
-          </GlassCard>
+                <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Return Path</p>
+                  <p className="mt-2 text-xl font-semibold text-white">{nextPath}</p>
+                </div>
+              </div>
 
-          <GlassCard className="p-6">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-5 w-5 text-[var(--gold)]" />
-              <h3 className="font-display text-2xl text-[var(--cream)]">Next production checks</h3>
+              {message ? (
+                <div className="mt-5 rounded-[24px] border border-amber-300/25 bg-amber-300/10 px-5 py-4 text-sm text-amber-50">
+                  {message}
+                </div>
+              ) : null}
             </div>
-            <div className="mt-5 space-y-3 text-sm leading-6 text-[var(--sand)]">
-              <p>Confirm the Railway deployment URL is listed in Supabase OAuth redirect URLs.</p>
-              <p>Confirm Google provider credentials are enabled in the Supabase auth settings.</p>
-              <p>Once a project is linked, user-level data can move from local backup into profile sync.</p>
+
+            <div className="rounded-[28px] border border-white/10 bg-[rgba(9,15,24,0.78)] p-5 backdrop-blur xl:p-6">
+              <div className="flex items-center gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <LockKeyhole className="h-5 w-5 text-emerald-200" />
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Session Gate</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">Google + Supabase</h2>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                <div className="rounded-[20px] border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Current Session</p>
+                  <p className="mt-2 text-lg font-semibold text-white">{userEmail ?? "Not signed in"}</p>
+                </div>
+                <div className="rounded-[20px] border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-300">
+                  Only authenticated sessions can view the dashboard or call the trading API. After
+                  Google consent, Supabase returns to <span className="font-semibold text-white">/auth/callback</span> and then forwards you to <span className="font-semibold text-white">{nextPath}</span>.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => void handleGoogleLogin()}
+                disabled={loading}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400 px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Redirecting to Google..." : "Continue with Google"}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+
+              {userEmail ? (
+                <button
+                  type="button"
+                  onClick={() => void handleSignOut()}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-white/12 bg-white/5 px-5 py-4 text-sm font-medium text-white transition hover:bg-white/10"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </button>
+              ) : null}
+
+              <div className="mt-5 rounded-[20px] border border-white/10 bg-[#0c1420] p-4 text-sm text-slate-300">
+                <div className="flex items-center gap-2 text-white">
+                  <ShieldCheck className="h-4 w-4 text-emerald-200" />
+                  Auth checklist
+                </div>
+                <div className="mt-3 grid gap-2">
+                  <p>Supabase Google provider must be enabled.</p>
+                  <p>Railway domain must exist in Supabase redirect URLs.</p>
+                  <p>The callback endpoint must be reachable at `/auth/callback`.</p>
+                </div>
+              </div>
             </div>
-          </GlassCard>
-        </div>
+          </div>
+        </section>
       </div>
-    </ArforFrame>
+    </main>
   );
 }
