@@ -45,6 +45,22 @@ export const tradingConfig = {
   openWindowStopLossCents: Math.max(1, Math.min(10, parseNumber(process.env.BOT_OPEN_WINDOW_STOP_CENTS, 1))),
   reversalProfitTargetCents: Math.max(4, Math.min(30, parseNumber(process.env.BOT_REVERSAL_TARGET_CENTS, 14))),
   reversalStopLossCents: Math.max(2, Math.min(20, parseNumber(process.env.BOT_REVERSAL_STOP_CENTS, 4))),
+  reversalBreakevenTriggerCents: Math.max(
+    2,
+    Math.min(20, parseNumber(process.env.BOT_REVERSAL_BREAKEVEN_TRIGGER_CENTS, 6)),
+  ),
+  reversalBreakevenLockCents: Math.max(
+    0,
+    Math.min(10, parseNumber(process.env.BOT_REVERSAL_BREAKEVEN_LOCK_CENTS, 1)),
+  ),
+  reversalTrailTriggerCents: Math.max(
+    4,
+    Math.min(30, parseNumber(process.env.BOT_REVERSAL_TRAIL_TRIGGER_CENTS, 10)),
+  ),
+  reversalTrailOffsetCents: Math.max(
+    1,
+    Math.min(20, parseNumber(process.env.BOT_REVERSAL_TRAIL_OFFSET_CENTS, 4)),
+  ),
   trendProfitTargetCents: Math.max(4, Math.min(40, parseNumber(process.env.BOT_TREND_TARGET_CENTS, 18))),
   trendStopLossCents: Math.max(2, Math.min(25, parseNumber(process.env.BOT_TREND_STOP_CENTS, 10))),
   trendStopArmSeconds: Math.max(
@@ -104,6 +120,10 @@ export const tradingConfig = {
   reversalLateAtrMultiplier: Math.max(
     0.2,
     Math.min(2.5, parseNumber(process.env.BOT_REVERSAL_LATE_ATR_MULTIPLIER, 0.95)),
+  ),
+  reversalMinTimeToCloseSeconds: Math.max(
+    60,
+    Math.min(900, Math.round(parseNumber(process.env.BOT_REVERSAL_MIN_TIME_TO_CLOSE_SECONDS, 300))),
   ),
   entryRetryAttempts: Math.max(
     1,

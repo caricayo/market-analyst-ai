@@ -37,11 +37,16 @@ Optional runtime knobs:
 - `BOT_FIXED_STAKE_DOLLARS`
 - `BOT_REVERSAL_TARGET_CENTS`
 - `BOT_REVERSAL_STOP_CENTS`
+- `BOT_REVERSAL_BREAKEVEN_TRIGGER_CENTS`
+- `BOT_REVERSAL_BREAKEVEN_LOCK_CENTS`
+- `BOT_REVERSAL_TRAIL_TRIGGER_CENTS`
+- `BOT_REVERSAL_TRAIL_OFFSET_CENTS`
 - `BOT_REVERSAL_FORCE_EXIT_LEAD_SECONDS`
 - `BOT_REVERSAL_PRIMARY_DISTANCE_FLOOR`
 - `BOT_REVERSAL_PRIMARY_ATR_MULTIPLIER`
 - `BOT_REVERSAL_LATE_DISTANCE_FLOOR`
 - `BOT_REVERSAL_LATE_ATR_MULTIPLIER`
+- `BOT_REVERSAL_MIN_TIME_TO_CLOSE_SECONDS`
 - `BOT_CONFIDENCE_THRESHOLD`
 - `BOT_TIME_ZONE`
 - `BOT_ENTRY_RETRY_ATTEMPTS`
@@ -65,6 +70,7 @@ Optional runtime knobs:
 - Trend is the primary entry playbook in minutes `4-8`.
 - Reversal is a stricter secondary playbook in minutes `4-12`.
 - Scalp remains a continuation fallback in minutes `4-12`.
+- Reversals now require more confidence and at least 5 minutes left before market close.
 - Trend stops arm quickly by default (`12s`) instead of waiting through most of the move.
 
 ## Notes

@@ -76,8 +76,8 @@ function buildStrategyCatalog(): StrategyProfileRecord[] {
       reversalPrimaryAtrMultiplier: tradingConfig.reversalPrimaryAtrMultiplier,
       reversalLateDistanceFloor: tradingConfig.reversalLateDistanceFloor,
       reversalLateAtrMultiplier: tradingConfig.reversalLateAtrMultiplier,
-      reversalConfidenceThreshold: 66,
-      reversalLateConfidenceThreshold: 70,
+      reversalConfidenceThreshold: 74,
+      reversalLateConfidenceThreshold: 82,
     },
     {
       slug: "legacy-dual-playbook",
@@ -97,8 +97,8 @@ function buildStrategyCatalog(): StrategyProfileRecord[] {
       reversalPrimaryAtrMultiplier: tradingConfig.reversalPrimaryAtrMultiplier,
       reversalLateDistanceFloor: tradingConfig.reversalLateDistanceFloor,
       reversalLateAtrMultiplier: tradingConfig.reversalLateAtrMultiplier,
-      reversalConfidenceThreshold: 66,
-      reversalLateConfidenceThreshold: 70,
+      reversalConfidenceThreshold: 74,
+      reversalLateConfidenceThreshold: 82,
     },
     {
       slug: "loose-dual-playbook",
@@ -118,8 +118,8 @@ function buildStrategyCatalog(): StrategyProfileRecord[] {
       reversalPrimaryAtrMultiplier: tradingConfig.reversalPrimaryAtrMultiplier,
       reversalLateDistanceFloor: tradingConfig.reversalLateDistanceFloor,
       reversalLateAtrMultiplier: tradingConfig.reversalLateAtrMultiplier,
-      reversalConfidenceThreshold: 66,
-      reversalLateConfidenceThreshold: 70,
+      reversalConfidenceThreshold: 74,
+      reversalLateConfidenceThreshold: 82,
     },
     {
       slug: "conservative-trend-core",
@@ -139,8 +139,8 @@ function buildStrategyCatalog(): StrategyProfileRecord[] {
       reversalPrimaryAtrMultiplier: tradingConfig.reversalPrimaryAtrMultiplier,
       reversalLateDistanceFloor: tradingConfig.reversalLateDistanceFloor,
       reversalLateAtrMultiplier: tradingConfig.reversalLateAtrMultiplier,
-      reversalConfidenceThreshold: 66,
-      reversalLateConfidenceThreshold: 70,
+      reversalConfidenceThreshold: 74,
+      reversalLateConfidenceThreshold: 82,
     },
   ];
 }

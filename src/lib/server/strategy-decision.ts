@@ -101,6 +101,7 @@ function getEmaTurnBand(atr14: number | null) {
 
 function evaluateReversalCandidate(
   side: "above" | "below",
+  market: KalshiMarketSnapshot | null,
   indicators: IndicatorSnapshot,
   timingRisk: TimingRiskLevel,
   profile: StrategyProfile,
@@ -116,6 +117,16 @@ function evaluateReversalCandidate(
   if (timingRisk !== "trade-window" && timingRisk !== "late-window") {
     blockers.push(`Reversal ${directionLabel} is only allowed in minutes 4-12.`);
     return { candidate: null, blockers };
+  }
+
+  if (market?.closeTime) {
+    const secondsToClose = (Date.parse(market.closeTime) - Date.now()) / 1000;
+    if (Number.isFinite(secondsToClose) && secondsToClose < tradingConfig.reversalMinTimeToCloseSeconds) {
+      blockers.push(
+        `Reversal ${directionLabel} needs at least ${tradingConfig.reversalMinTimeToCloseSeconds} seconds before close; only ${Math.max(0, Math.round(secondsToClose))} remain.`,
+      );
+      return { candidate: null, blockers };
+    }
   }
 
   if (
@@ -482,8 +493,8 @@ function buildDeterministicDecision(
   }
 
   const reversalEvaluations = [
-    evaluateReversalCandidate("below", indicators, timingRisk, profile),
-    evaluateReversalCandidate("above", indicators, timingRisk, profile),
+    evaluateReversalCandidate("below", market, indicators, timingRisk, profile),
+    evaluateReversalCandidate("above", market, indicators, timingRisk, profile),
   ];
   const reversalCandidates = reversalEvaluations
     .map((evaluation) => evaluation.candidate)

@@ -189,6 +189,35 @@ function getScalpStopState(trade: ManagedTrade, now: Date, peakPriceDollars: num
   };
 }
 
+function getReversalStopState(trade: ManagedTrade, now: Date, peakPriceDollars: number) {
+  let stopPriceDollars = trade.stopPriceDollars;
+  const stopArmedAt = trade.stopArmedAt ?? now.toISOString();
+  const breakevenTriggerPrice =
+    trade.entryPriceDollars + tradingConfig.reversalBreakevenTriggerCents / 100;
+  const trailTriggerPrice =
+    trade.entryPriceDollars + tradingConfig.reversalTrailTriggerCents / 100;
+
+  if (peakPriceDollars >= breakevenTriggerPrice) {
+    stopPriceDollars = Math.max(
+      stopPriceDollars,
+      clampPrice(trade.entryPriceDollars + tradingConfig.reversalBreakevenLockCents / 100),
+    );
+  }
+
+  if (peakPriceDollars >= trailTriggerPrice) {
+    stopPriceDollars = Math.max(
+      stopPriceDollars,
+      clampPrice(peakPriceDollars - tradingConfig.reversalTrailOffsetCents / 100),
+    );
+  }
+
+  return {
+    stopArmedAt,
+    stopPriceDollars: clampPrice(stopPriceDollars),
+    stopActive: true,
+  };
+}
+
 function getTrackedContractsForTicker(ticker: string) {
   return listOpenManagedTrades()
     .filter((trade) => trade.marketTicker === ticker)
@@ -418,6 +447,13 @@ function getManagedExitState(trade: ManagedTrade, now: Date, bidPrice: number | 
     return {
       peakPriceDollars,
       ...getScalpStopState(trade, now, peakPriceDollars),
+    };
+  }
+
+  if (trade.setupType === "reversal") {
+    return {
+      peakPriceDollars,
+      ...getReversalStopState(trade, now, peakPriceDollars),
     };
   }
 
