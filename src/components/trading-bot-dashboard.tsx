@@ -221,6 +221,55 @@ export function TradingBotDashboard() {
           </div>
         ) : null}
 
+        <section className="mt-5 rounded-[28px] border border-white/10 bg-[rgba(9,15,24,0.78)] p-5 backdrop-blur xl:p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Managed Scalps</p>
+              <h2 className="mt-2 text-2xl font-semibold text-white">Automated exit watcher</h2>
+            </div>
+            <p className="text-sm text-slate-400">
+              Server-side poller checks open scalp positions every few seconds for target, stop, and time exits.
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-3">
+            {snapshot?.activeManagedTrades.length ? (
+              snapshot.activeManagedTrades.map((trade) => (
+                <div key={trade.id} className="rounded-[22px] border border-white/10 bg-[#0c1420] p-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-lg font-semibold text-white">{trade.marketTicker}</p>
+                        <span className={`rounded-full border px-3 py-1 text-xs ${setupTone(trade.setupType)}`}>
+                          {trade.setupType}
+                        </span>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
+                          {trade.entrySide.toUpperCase()} {trade.contracts} contracts
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-300">
+                        Entry {formatMoney(trade.entryPriceDollars)} | target {formatMoney(trade.targetPriceDollars)} |
+                        stop {formatMoney(trade.stopPriceDollars)}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-400">
+                        Last bid {formatMoney(trade.lastSeenBidDollars)} | forced exit{" "}
+                        {formatTimestamp(trade.forcedExitAt, snapshot.timeZone)}
+                      </p>
+                    </div>
+                    <div className="rounded-[18px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
+                      Status: {trade.status}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-[22px] border border-dashed border-white/12 bg-white/5 px-5 py-6 text-sm text-slate-400">
+                No active managed scalp positions.
+              </div>
+            )}
+          </div>
+        </section>
+
         <div className="mt-5 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
           <section className="rounded-[28px] border border-white/10 bg-[rgba(9,15,24,0.78)] p-5 backdrop-blur xl:p-6">
             <div className="flex items-center justify-between gap-3">
@@ -431,6 +480,10 @@ export function TradingBotDashboard() {
                         <p>Candidate: {entry.candidateSide ?? "n/a"}</p>
                         <p>Side: {entry.execution.side ?? "n/a"}</p>
                         <p>Contracts: {entry.execution.contracts ?? "n/a"}</p>
+                        <p>Managed trade: {entry.execution.managedTradeId ?? "n/a"}</p>
+                        <p>Entry price: {formatMoney(entry.execution.entryPriceDollars)}</p>
+                        <p>Target: {formatMoney(entry.execution.targetPriceDollars)}</p>
+                        <p>Stop: {formatMoney(entry.execution.stopPriceDollars)}</p>
                         <p>Deterministic confidence: {entry.deterministicConfidence}</p>
                         <p>AI vetoed: {entry.aiVetoed ? "yes" : "no"}</p>
                         <p>Max cost: {formatMoney(entry.execution.maxCostDollars)}</p>

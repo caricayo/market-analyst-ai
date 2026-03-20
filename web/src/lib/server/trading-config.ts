@@ -25,6 +25,16 @@ export const tradingConfig = {
   coinbaseProductId: process.env.COINBASE_PRODUCT_ID?.trim() || "BTC-USD",
   lookbackCandles: Math.max(120, Math.min(350, parseNumber(process.env.BOT_LOOKBACK_CANDLES, 350))),
   stakeDollars: Math.max(1, parseNumber(process.env.BOT_FIXED_STAKE_DOLLARS, 10)),
+  scalpProfitTargetCents: Math.max(2, Math.min(30, parseNumber(process.env.BOT_SCALP_TARGET_CENTS, 10))),
+  scalpStopLossCents: Math.max(1, Math.min(20, parseNumber(process.env.BOT_SCALP_STOP_CENTS, 6))),
+  scalpPollIntervalMs: Math.max(
+    2_000,
+    Math.min(30_000, parseNumber(process.env.BOT_SCALP_POLL_INTERVAL_MS, 5_000)),
+  ),
+  scalpForcedExitLeadSeconds: Math.max(
+    30,
+    Math.min(300, parseNumber(process.env.BOT_SCALP_FORCE_EXIT_LEAD_SECONDS, 90)),
+  ),
   confidenceThreshold: Math.max(50, Math.min(95, parseNumber(process.env.BOT_CONFIDENCE_THRESHOLD, 68))),
   lateWindowConfidenceThreshold: Math.max(
     70,

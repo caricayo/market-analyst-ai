@@ -28,11 +28,37 @@ type MarketsResponse = {
   cursor?: string | null;
 };
 
+type MarketResponse = {
+  market?: KalshiMarketApi;
+};
+
+type KalshiPositionApi = {
+  ticker?: string;
+  position_fp?: string | null;
+  realized_pnl_dollars?: string | null;
+};
+
+type PositionsResponse = {
+  market_positions?: KalshiPositionApi[];
+};
+
 type OrderResponse = {
   order?: {
     order_id?: string;
     client_order_id?: string;
+    status?: string | null;
+    action?: string | null;
+    yes_price_dollars?: string | null;
+    no_price_dollars?: string | null;
+    yes_price?: number | null;
+    no_price?: number | null;
   };
+};
+
+export type KalshiPositionSnapshot = {
+  ticker: string;
+  contracts: number;
+  realizedPnlDollars: number | null;
 };
 
 type CachedMarketEntry = {
@@ -249,6 +275,58 @@ export async function discoverActiveBtcMarket(now = new Date()) {
   }
 }
 
+export async function fetchKalshiMarketByTicker(ticker: string) {
+  const response = await fetch(`${tradingConfig.kalshiBaseUrl}/markets/${ticker}`, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "btc-kalshi-bot/1.0",
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Kalshi market lookup failed with ${response.status}.`);
+  }
+
+  const payload = (await response.json()) as MarketResponse;
+  if (!payload.market) {
+    throw new Error("Kalshi market lookup returned no market payload.");
+  }
+
+  return toSnapshot(payload.market);
+}
+
+export async function listKalshiPositions(ticker?: string) {
+  if (!hasKalshiTradingCredentials()) {
+    return [];
+  }
+
+  const path = `/portfolio/positions${ticker ? `?count_filter=position&ticker=${encodeURIComponent(ticker)}` : "?count_filter=position"}`;
+  const requestUrl = `${tradingConfig.kalshiBaseUrl}${path}`;
+  let response = await fetch(requestUrl, {
+    headers: buildKalshiHeaders("GET", path, false),
+    cache: "no-store",
+  });
+
+  if (response.status === 401) {
+    response = await fetch(requestUrl, {
+      headers: buildKalshiHeaders("GET", path, true),
+      cache: "no-store",
+    });
+  }
+
+  if (!response.ok) {
+    throw new Error(`Kalshi positions lookup failed with ${response.status}.`);
+  }
+
+  const payload = (await response.json()) as PositionsResponse;
+  return (payload.market_positions ?? []).map((position) => ({
+    ticker: position.ticker ?? "unknown",
+    contracts: Number(position.position_fp ?? 0),
+    realizedPnlDollars: parsePrice(position.realized_pnl_dollars),
+  })) satisfies KalshiPositionSnapshot[];
+}
+
 function buildKalshiHeaders(method: string, path: string, useFullApiPath: boolean) {
   const privateKey = createPrivateKey(tradingConfig.kalshiPrivateKeyPem);
   const timestamp = String(Date.now());
@@ -271,27 +349,31 @@ function buildKalshiHeaders(method: string, path: string, useFullApiPath: boolea
 }
 
 export async function submitKalshiOrder(input: {
+  action?: "buy" | "sell";
   ticker: string;
   side: "yes" | "no";
   contracts: number;
   limitPriceCents: number;
   clientOrderId: string;
+  reduceOnly?: boolean;
 }) {
   if (!hasKalshiTradingCredentials()) {
     throw new Error("Kalshi trading credentials are missing.");
   }
 
   const path = "/portfolio/orders";
+  const action = input.action ?? "buy";
   const totalCostCents = input.contracts * input.limitPriceCents;
   const body = JSON.stringify({
     ticker: input.ticker,
-    action: "buy",
+    action,
     side: input.side,
     type: "limit",
     time_in_force: "fill_or_kill",
     count: input.contracts,
-    buy_max_cost: totalCostCents,
     client_order_id: input.clientOrderId,
+    ...(action === "buy" ? { buy_max_cost: totalCostCents } : {}),
+    ...(input.reduceOnly ? { reduce_only: true } : {}),
     ...(input.side === "yes"
       ? { yes_price: input.limitPriceCents }
       : { no_price: input.limitPriceCents }),

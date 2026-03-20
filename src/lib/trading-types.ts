@@ -7,6 +7,8 @@ export type TimingRiskLevel =
 export type TradeCall = "above" | "below" | "no_trade";
 
 export type SetupType = "trend" | "scalp" | "none";
+export type ExitReason = "target" | "stop" | "time" | "manual-sync" | "expired" | "unknown";
+export type ManagedTradeStatus = "open" | "exit-submitted" | "closed" | "error";
 
 export type TradingDecision = {
   call: TradeCall;
@@ -73,7 +75,40 @@ export type TradeExecution = {
   maxCostDollars: number | null;
   orderId: string | null;
   clientOrderId: string | null;
+  managedTradeId: string | null;
+  entryPriceDollars: number | null;
+  targetPriceDollars: number | null;
+  stopPriceDollars: number | null;
   message: string;
+};
+
+export type ManagedTrade = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  marketTicker: string;
+  marketTitle: string | null;
+  closeTime: string | null;
+  setupType: "scalp";
+  entrySide: "yes" | "no";
+  entryOutcome: "above" | "below";
+  contracts: number;
+  entryOrderId: string | null;
+  entryClientOrderId: string | null;
+  entryPriceDollars: number;
+  targetPriceDollars: number;
+  stopPriceDollars: number;
+  forcedExitAt: string;
+  status: ManagedTradeStatus;
+  exitReason: ExitReason | null;
+  exitOrderId: string | null;
+  exitClientOrderId: string | null;
+  exitPriceDollars: number | null;
+  realizedPnlDollars: number | null;
+  lastSeenBidDollars: number | null;
+  lastCheckedAt: string | null;
+  lastExitAttemptAt: string | null;
+  errorMessage: string | null;
 };
 
 export type BotLogEntry = {
@@ -112,5 +147,6 @@ export type BotStatusSnapshot = {
   decision: TradingDecision | null;
   tradingEnabled: boolean;
   warnings: string[];
+  activeManagedTrades: ManagedTrade[];
   log: BotLogEntry[];
 };
