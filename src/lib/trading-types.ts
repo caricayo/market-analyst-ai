@@ -72,13 +72,27 @@ export type TradeExecution = {
   side: "yes" | "no" | null;
   outcome: "above" | "below" | null;
   contracts: number | null;
+  plannedContracts: number | null;
   maxCostDollars: number | null;
+  plannedMaxCostDollars: number | null;
   orderId: string | null;
   clientOrderId: string | null;
   managedTradeId: string | null;
   entryPriceDollars: number | null;
   targetPriceDollars: number | null;
   stopPriceDollars: number | null;
+  liquidityAvailableContracts: number | null;
+  liquidityDepthLevels: number | null;
+  attempts: {
+    attemptNumber: number;
+    limitPriceDollars: number;
+    plannedContracts: number;
+    submittedContracts: number | null;
+    maxCostDollars: number | null;
+    liquidityAvailableContracts: number | null;
+    status: "planned" | "liquidity-skip" | "submitted" | "zero-fill" | "error";
+    message: string;
+  }[];
   message: string;
 };
 

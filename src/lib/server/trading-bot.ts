@@ -103,13 +103,18 @@ function buildExecutionDisabled(message: string): TradeExecution {
     side: null,
     outcome: null,
     contracts: null,
+    plannedContracts: null,
     maxCostDollars: null,
+    plannedMaxCostDollars: null,
     orderId: null,
     clientOrderId: null,
     managedTradeId: null,
     entryPriceDollars: null,
     targetPriceDollars: null,
     stopPriceDollars: null,
+    liquidityAvailableContracts: null,
+    liquidityDepthLevels: null,
+    attempts: [],
     message,
   };
 }
@@ -293,13 +298,18 @@ async function maybeSubmitTrade(input: {
       side: input.decision.derivedSide,
       outcome: input.decision.derivedOutcome,
       contracts: null,
+      plannedContracts: null,
       maxCostDollars: null,
+      plannedMaxCostDollars: null,
       orderId: null,
       clientOrderId: null,
       managedTradeId: null,
       entryPriceDollars: null,
       targetPriceDollars: null,
       stopPriceDollars: null,
+      liquidityAvailableContracts: null,
+      liquidityDepthLevels: null,
+      attempts: [],
       message: "Trade skipped because the signal did not pass execution gates.",
     } satisfies TradeExecution;
   }
@@ -311,13 +321,18 @@ async function maybeSubmitTrade(input: {
       side,
       outcome: input.decision.derivedOutcome,
       contracts: null,
+      plannedContracts: null,
       maxCostDollars: null,
+      plannedMaxCostDollars: null,
       orderId: null,
       clientOrderId: null,
       managedTradeId: null,
       entryPriceDollars: null,
       targetPriceDollars: null,
       stopPriceDollars: null,
+      liquidityAvailableContracts: null,
+      liquidityDepthLevels: null,
+      attempts: [],
       message: "The active Kalshi market did not return a usable ask price for the selected side.",
     } satisfies TradeExecution;
   }
@@ -340,6 +355,7 @@ async function maybeSubmitTrade(input: {
       ) === index,
   );
   const firstAttempt = entryAttempts[0];
+  const executionAttempts: TradeExecution["attempts"] = [];
   const [balance, exposure] = await Promise.all([
     getKalshiBalance(),
     syncManagedTradesWithPositions().catch(() => ({
@@ -358,13 +374,18 @@ async function maybeSubmitTrade(input: {
       side,
       outcome: input.decision.derivedOutcome,
       contracts: null,
+      plannedContracts: firstAttempt.contracts,
       maxCostDollars: firstAttempt.maxCostDollars,
+      plannedMaxCostDollars: firstAttempt.maxCostDollars,
       orderId: null,
       clientOrderId: baseClientOrderId,
       managedTradeId: null,
       entryPriceDollars: null,
       targetPriceDollars: null,
       stopPriceDollars: null,
+      liquidityAvailableContracts: null,
+      liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
+      attempts: executionAttempts,
       message: "Trade skipped because another position is still open. The bot will only re-enter after the account is flat.",
     } satisfies TradeExecution;
   }
@@ -383,13 +404,18 @@ async function maybeSubmitTrade(input: {
           side,
           outcome: input.decision.derivedOutcome,
           contracts: null,
+          plannedContracts: firstAttempt.contracts,
           maxCostDollars: firstAttempt.maxCostDollars,
+          plannedMaxCostDollars: firstAttempt.maxCostDollars,
           orderId: null,
           clientOrderId: baseClientOrderId,
           managedTradeId: null,
           entryPriceDollars: null,
           targetPriceDollars: null,
           stopPriceDollars: null,
+          liquidityAvailableContracts: null,
+          liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
+          attempts: executionAttempts,
           message: `Trade skipped because ${input.market.ticker} stopped out recently. Cooldown active for ${cooldownSecondsRemaining}s before re-entry on the same market.`,
         } satisfies TradeExecution;
       }
@@ -423,13 +449,18 @@ async function maybeSubmitTrade(input: {
       side,
       outcome: input.decision.derivedOutcome,
       contracts: firstAttempt.contracts,
+      plannedContracts: firstAttempt.contracts,
       maxCostDollars: firstAttempt.maxCostDollars,
+      plannedMaxCostDollars: firstAttempt.maxCostDollars,
       orderId: null,
       clientOrderId: baseClientOrderId,
       managedTradeId: null,
       entryPriceDollars: null,
       targetPriceDollars: null,
       stopPriceDollars: null,
+      liquidityAvailableContracts: null,
+      liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
+      attempts: executionAttempts,
       message: "Bot halted before entry because available balance is below the required order cost. Refill the account, then manually resume once.",
     } satisfies TradeExecution;
   }
@@ -452,13 +483,18 @@ async function maybeSubmitTrade(input: {
       side,
       outcome: input.decision.derivedOutcome,
       contracts: firstAttempt.contracts,
+      plannedContracts: firstAttempt.contracts,
       maxCostDollars: firstAttempt.maxCostDollars,
+      plannedMaxCostDollars: firstAttempt.maxCostDollars,
       orderId: null,
       clientOrderId: baseClientOrderId,
       managedTradeId: null,
       entryPriceDollars: null,
       targetPriceDollars: null,
       stopPriceDollars: null,
+      liquidityAvailableContracts: null,
+      liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
+      attempts: executionAttempts,
       message: firstAttemptPriceBlocker,
     } satisfies TradeExecution;
   }
@@ -468,6 +504,7 @@ async function maybeSubmitTrade(input: {
   for (let index = 0; index < entryAttempts.length; index += 1) {
     const baseAttempt = entryAttempts[index];
     let attempt = baseAttempt;
+    let liquidityContracts: number | null = null;
     const managedSettings = getManagedTradeSettings(
       setupType,
       attempt.limitPriceDollars,
@@ -486,13 +523,18 @@ async function maybeSubmitTrade(input: {
         side,
         outcome: input.decision.derivedOutcome,
         contracts: attempt.contracts,
+        plannedContracts: attempt.contracts,
         maxCostDollars: attempt.maxCostDollars,
+        plannedMaxCostDollars: attempt.maxCostDollars,
         orderId: null,
         clientOrderId: attempt.clientOrderId,
         managedTradeId: null,
         entryPriceDollars: null,
         targetPriceDollars: null,
         stopPriceDollars: null,
+        liquidityAvailableContracts: null,
+        liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
+        attempts: executionAttempts,
         message: entryPriceBlocker,
       } satisfies TradeExecution;
     }
@@ -504,12 +546,22 @@ async function maybeSubmitTrade(input: {
         limitPriceDollars: attempt.limitPriceDollars,
         depth: tradingConfig.entryLiquidityOrderbookDepth,
       });
-      const liquidityContracts =
+      liquidityContracts =
         liquidity.availableContracts !== null ? Math.floor(liquidity.availableContracts) : null;
       if (liquidityContracts !== null) {
         if (liquidityContracts < 1) {
           lastLiquidityMessage =
             `No displayed orderbook depth was available to buy ${side.toUpperCase()} at ${attempt.limitPriceDollars.toFixed(2)}.`;
+          executionAttempts.push({
+            attemptNumber: index + 1,
+            limitPriceDollars: attempt.limitPriceDollars,
+            plannedContracts: baseAttempt.contracts,
+            submittedContracts: 0,
+            maxCostDollars: attempt.maxCostDollars,
+            liquidityAvailableContracts: liquidityContracts,
+            status: "liquidity-skip",
+            message: lastLiquidityMessage,
+          });
           if (index < entryAttempts.length - 1) {
             await sleep(tradingConfig.entryRetryDelayMs * (index + 1));
           }
@@ -546,6 +598,16 @@ async function maybeSubmitTrade(input: {
       if (filledContracts < 1) {
         lastLiquidityMessage =
           `IOC buy at ${attempt.limitPriceDollars.toFixed(2)} returned no fillable contracts.`;
+        executionAttempts.push({
+          attemptNumber: index + 1,
+          limitPriceDollars: attempt.limitPriceDollars,
+          plannedContracts: baseAttempt.contracts,
+          submittedContracts: attempt.contracts,
+          maxCostDollars: attempt.maxCostDollars,
+          liquidityAvailableContracts: liquidityContracts,
+          status: "zero-fill",
+          message: lastLiquidityMessage,
+        });
         if (index < entryAttempts.length - 1) {
           await sleep(tradingConfig.entryRetryDelayMs * (index + 1));
         }
@@ -594,13 +656,33 @@ async function maybeSubmitTrade(input: {
         side,
         outcome: input.decision.derivedOutcome,
         contracts: filledContracts,
+        plannedContracts: baseAttempt.contracts,
         maxCostDollars: round(filledContracts * entryPriceDollars, 2),
+        plannedMaxCostDollars: baseAttempt.maxCostDollars,
         orderId: response.order?.order_id ?? null,
         clientOrderId: response.order?.client_order_id ?? attempt.clientOrderId,
         managedTradeId: managedTrade?.id ?? null,
         entryPriceDollars,
         targetPriceDollars: managedTrade?.targetPriceDollars ?? null,
         stopPriceDollars: managedTrade?.stopPriceDollars ?? null,
+        liquidityAvailableContracts: liquidityContracts,
+        liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
+        attempts: [
+          ...executionAttempts,
+          {
+            attemptNumber: index + 1,
+            limitPriceDollars: attempt.limitPriceDollars,
+            plannedContracts: baseAttempt.contracts,
+            submittedContracts: filledContracts,
+            maxCostDollars: round(filledContracts * entryPriceDollars, 2),
+            liquidityAvailableContracts: liquidityContracts,
+            status: "submitted",
+            message:
+              filledContracts < attempt.contracts
+                ? `IOC filled ${filledContracts} of ${attempt.contracts} submitted contracts.`
+                : `IOC filled ${filledContracts} contracts.`,
+          },
+        ],
         message:
           index === 0
             ? `Submitted ${filledContracts} contract${filledContracts === 1 ? "" : "s"} on ${side.toUpperCase()} via IOC and started managed ${setupType} exits.`
@@ -624,29 +706,61 @@ async function maybeSubmitTrade(input: {
           side,
           outcome: input.decision.derivedOutcome,
           contracts: attempt.contracts,
+          plannedContracts: baseAttempt.contracts,
           maxCostDollars: attempt.maxCostDollars,
+          plannedMaxCostDollars: baseAttempt.maxCostDollars,
           orderId: null,
           clientOrderId: attempt.clientOrderId,
           managedTradeId: null,
           entryPriceDollars: null,
           targetPriceDollars: null,
           stopPriceDollars: null,
+          liquidityAvailableContracts: liquidityContracts,
+          liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
+          attempts: [
+            ...executionAttempts,
+            {
+              attemptNumber: index + 1,
+              limitPriceDollars: attempt.limitPriceDollars,
+              plannedContracts: baseAttempt.contracts,
+              submittedContracts: attempt.contracts,
+              maxCostDollars: attempt.maxCostDollars,
+              liquidityAvailableContracts: liquidityContracts,
+              status: "error",
+              message: "Bot halted after Kalshi reported insufficient funding.",
+            },
+          ],
           message: "Bot halted after Kalshi reported insufficient funding. Refill the account, then manually resume once.",
         } satisfies TradeExecution;
       }
 
+      executionAttempts.push({
+        attemptNumber: index + 1,
+        limitPriceDollars: attempt.limitPriceDollars,
+        plannedContracts: baseAttempt.contracts,
+        submittedContracts: attempt.contracts,
+        maxCostDollars: attempt.maxCostDollars,
+        liquidityAvailableContracts: liquidityContracts,
+        status: "error",
+        message,
+      });
       return {
         status: "error",
         side,
         outcome: input.decision.derivedOutcome,
         contracts: attempt.contracts,
+        plannedContracts: baseAttempt.contracts,
         maxCostDollars: attempt.maxCostDollars,
+        plannedMaxCostDollars: baseAttempt.maxCostDollars,
         orderId: null,
         clientOrderId: attempt.clientOrderId,
         managedTradeId: null,
         entryPriceDollars: null,
         targetPriceDollars: null,
         stopPriceDollars: null,
+        liquidityAvailableContracts: liquidityContracts,
+        liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
+        attempts: executionAttempts,
         message,
       } satisfies TradeExecution;
     }
@@ -657,13 +771,18 @@ async function maybeSubmitTrade(input: {
     side,
     outcome: input.decision.derivedOutcome,
     contracts: firstAttempt.contracts,
+    plannedContracts: firstAttempt.contracts,
     maxCostDollars: firstAttempt.maxCostDollars,
+    plannedMaxCostDollars: firstAttempt.maxCostDollars,
     orderId: null,
     clientOrderId: baseClientOrderId,
     managedTradeId: null,
     entryPriceDollars: null,
     targetPriceDollars: null,
     stopPriceDollars: null,
+    liquidityAvailableContracts: null,
+    liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
+    attempts: executionAttempts,
     message:
       entryAttempts.length > 1
         ? `Trade skipped after ${entryAttempts.length} IOC ladder attempts because there was not enough displayed liquidity to fill a valid sized entry.${lastLiquidityMessage ? ` ${lastLiquidityMessage}` : ""}`

@@ -45,6 +45,15 @@ function formatTimestamp(value: string | null | undefined, timeZone: string) {
   });
 }
 
+function formatContracts(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "n/a";
+  }
+  return value.toLocaleString("en-US", {
+    maximumFractionDigits: 0,
+  });
+}
+
 function riskTone(risk: BotStatusSnapshot["timingRisk"]) {
   switch (risk) {
     case "high-risk-open":
@@ -666,14 +675,32 @@ export function TradingBotDashboard() {
                         <p>Outcome: {entry.execution.outcome ?? "n/a"}</p>
                         <p>Candidate: {entry.candidateSide ?? "n/a"}</p>
                         <p>Side: {entry.execution.side ?? "n/a"}</p>
-                        <p>Contracts: {entry.execution.contracts ?? "n/a"}</p>
+                        <p>Filled contracts: {formatContracts(entry.execution.contracts)}</p>
+                        <p>Planned contracts: {formatContracts(entry.execution.plannedContracts)}</p>
                         <p>Managed trade: {entry.execution.managedTradeId ?? "n/a"}</p>
                         <p>Entry price: {formatMoney(entry.execution.entryPriceDollars)}</p>
                         <p>Target: {formatMoney(entry.execution.targetPriceDollars)}</p>
                         <p>Stop: {formatMoney(entry.execution.stopPriceDollars)}</p>
                         <p>Deterministic confidence: {entry.deterministicConfidence}</p>
-                        <p>Max cost: {formatMoney(entry.execution.maxCostDollars)}</p>
+                        <p>Filled max cost: {formatMoney(entry.execution.maxCostDollars)}</p>
+                        <p>Planned max cost: {formatMoney(entry.execution.plannedMaxCostDollars)}</p>
+                        <p>Visible liquidity: {formatContracts(entry.execution.liquidityAvailableContracts)}</p>
+                        <p>Orderbook depth: {entry.execution.liquidityDepthLevels ?? "n/a"} levels</p>
                         <p>{entry.execution.message}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-[18px] border border-white/10 bg-white/5 p-4 lg:col-span-3">
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Execution Attempts</p>
+                      <div className="mt-3 grid gap-2 text-sm text-slate-300">
+                        {entry.execution.attempts.length ? (
+                          entry.execution.attempts.map((attempt) => (
+                            <p key={`${entry.id}-attempt-${attempt.attemptNumber}`}>
+                              Attempt {attempt.attemptNumber}: {formatMoney(attempt.limitPriceDollars)} | planned {formatContracts(attempt.plannedContracts)} | submitted {formatContracts(attempt.submittedContracts)} | visible liquidity {formatContracts(attempt.liquidityAvailableContracts)} | {attempt.status} | {attempt.message}
+                            </p>
+                          ))
+                        ) : (
+                          <p>No execution attempts were made for this run.</p>
+                        )}
                       </div>
                     </div>
                   </div>
