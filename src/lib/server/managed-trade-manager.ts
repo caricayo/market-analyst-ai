@@ -89,6 +89,42 @@ function inferSetupTypeFromClientOrderId(clientOrderId: string | null, createdAt
   return "trend" as const;
 }
 
+function clampPrice(value: number) {
+  return Math.max(0.01, Math.min(0.99, roundPrice(value, 2) ?? value));
+}
+
+function getTrendStopState(trade: ManagedTrade, now: Date, peakPriceDollars: number) {
+  const armThresholdPrice =
+    trade.entryPriceDollars + tradingConfig.trendBreakevenTriggerCents / 100;
+  const trailThresholdPrice =
+    trade.entryPriceDollars + tradingConfig.trendTrailTriggerCents / 100;
+  const elapsedMs = now.getTime() - Date.parse(trade.createdAt);
+  const shouldArmByTime = elapsedMs >= tradingConfig.trendStopArmSeconds * 1_000;
+  const shouldArmByProfit = peakPriceDollars >= armThresholdPrice;
+  const stopArmedAt = trade.stopArmedAt ?? (shouldArmByTime || shouldArmByProfit ? now.toISOString() : null);
+
+  let stopPriceDollars = trade.stopPriceDollars;
+  if (peakPriceDollars >= armThresholdPrice) {
+    stopPriceDollars = Math.max(
+      stopPriceDollars,
+      clampPrice(trade.entryPriceDollars + tradingConfig.trendBreakevenLockCents / 100),
+    );
+  }
+
+  if (peakPriceDollars >= trailThresholdPrice) {
+    stopPriceDollars = Math.max(
+      stopPriceDollars,
+      clampPrice(peakPriceDollars - tradingConfig.trendTrailOffsetCents / 100),
+    );
+  }
+
+  return {
+    stopArmedAt,
+    stopPriceDollars: clampPrice(stopPriceDollars),
+    stopActive: Boolean(stopArmedAt),
+  };
+}
+
 function getTrackedContractsForTicker(ticker: string) {
   return listOpenManagedTrades()
     .filter((trade) => trade.marketTicker === ticker)
@@ -160,8 +196,10 @@ async function recoverManagedTradesFromPositions() {
       exitPriceDollars: null,
       realizedPnlDollars: null,
       lastSeenBidDollars: null,
+      peakPriceDollars: entryPriceDollars,
       lastCheckedAt: null,
       lastExitAttemptAt: null,
+      stopArmedAt: null,
       errorMessage:
         trackedContracts > 0
           ? "Recovered additional live contracts for this ticker after local tracker drift."
@@ -174,7 +212,12 @@ function getSideBidPrice(trade: ManagedTrade, yesBidPrice: number | null, noBidP
   return trade.entrySide === "yes" ? yesBidPrice : noBidPrice;
 }
 
-function getExitTrigger(trade: ManagedTrade, now: Date, bidPrice: number | null): ExitReason | null {
+function getExitTrigger(
+  trade: ManagedTrade,
+  now: Date,
+  bidPrice: number | null,
+  stopActive = true,
+): ExitReason | null {
   if (now.getTime() >= Date.parse(trade.forcedExitAt)) {
     return "time";
   }
@@ -187,11 +230,29 @@ function getExitTrigger(trade: ManagedTrade, now: Date, bidPrice: number | null)
     return "target";
   }
 
-  if (bidPrice <= trade.stopPriceDollars) {
+  if (stopActive && bidPrice <= trade.stopPriceDollars) {
     return "stop";
   }
 
   return null;
+}
+
+function getManagedExitState(trade: ManagedTrade, now: Date, bidPrice: number | null) {
+  const peakPriceDollars = Math.max(trade.peakPriceDollars ?? trade.entryPriceDollars, bidPrice ?? 0);
+
+  if (trade.setupType !== "trend") {
+    return {
+      peakPriceDollars,
+      stopPriceDollars: trade.stopPriceDollars,
+      stopArmedAt: trade.stopArmedAt,
+      stopActive: true,
+    };
+  }
+
+  return {
+    peakPriceDollars,
+    ...getTrendStopState(trade, now, peakPriceDollars),
+  };
 }
 
 function getRealizedPnl(trade: ManagedTrade, exitPriceDollars: number | null) {
@@ -237,15 +298,25 @@ async function processTrade(trade: ManagedTrade) {
 
   const market = await fetchKalshiMarketByTicker(trade.marketTicker).catch(() => null);
   const bidPrice = market ? getSideBidPrice(trade, market.yesBidPrice, market.noBidPrice) : null;
+  const exitState = getManagedExitState(trade, now, bidPrice);
   patchManagedTrade(trade.id, {
     lastCheckedAt: now.toISOString(),
     lastSeenBidDollars: bidPrice,
+    peakPriceDollars: exitState.peakPriceDollars,
+    stopArmedAt: exitState.stopArmedAt,
+    stopPriceDollars: exitState.stopPriceDollars,
   });
 
+  const tradeWithDynamicStop: ManagedTrade = {
+    ...trade,
+    peakPriceDollars: exitState.peakPriceDollars,
+    stopArmedAt: exitState.stopArmedAt,
+    stopPriceDollars: exitState.stopPriceDollars,
+  };
   const exitReason =
     trade.status === "exit-submitted"
-      ? trade.exitReason ?? getExitTrigger(trade, now, bidPrice)
-      : getExitTrigger(trade, now, bidPrice);
+      ? trade.exitReason ?? getExitTrigger(tradeWithDynamicStop, now, bidPrice, exitState.stopActive)
+      : getExitTrigger(tradeWithDynamicStop, now, bidPrice, exitState.stopActive);
   if (!exitReason) {
     return;
   }

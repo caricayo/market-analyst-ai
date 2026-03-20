@@ -28,7 +28,27 @@ export const tradingConfig = {
   scalpProfitTargetCents: Math.max(2, Math.min(30, parseNumber(process.env.BOT_SCALP_TARGET_CENTS, 10))),
   scalpStopLossCents: Math.max(1, Math.min(20, parseNumber(process.env.BOT_SCALP_STOP_CENTS, 6))),
   trendProfitTargetCents: Math.max(4, Math.min(40, parseNumber(process.env.BOT_TREND_TARGET_CENTS, 18))),
-  trendStopLossCents: Math.max(2, Math.min(25, parseNumber(process.env.BOT_TREND_STOP_CENTS, 8))),
+  trendStopLossCents: Math.max(2, Math.min(25, parseNumber(process.env.BOT_TREND_STOP_CENTS, 10))),
+  trendStopArmSeconds: Math.max(
+    5,
+    Math.min(180, parseNumber(process.env.BOT_TREND_STOP_ARM_SECONDS, 45)),
+  ),
+  trendBreakevenTriggerCents: Math.max(
+    2,
+    Math.min(30, parseNumber(process.env.BOT_TREND_BREAKEVEN_TRIGGER_CENTS, 10)),
+  ),
+  trendBreakevenLockCents: Math.max(
+    0,
+    Math.min(10, parseNumber(process.env.BOT_TREND_BREAKEVEN_LOCK_CENTS, 1)),
+  ),
+  trendTrailTriggerCents: Math.max(
+    4,
+    Math.min(40, parseNumber(process.env.BOT_TREND_TRAIL_TRIGGER_CENTS, 14)),
+  ),
+  trendTrailOffsetCents: Math.max(
+    2,
+    Math.min(20, parseNumber(process.env.BOT_TREND_TRAIL_OFFSET_CENTS, 6)),
+  ),
   scalpPollIntervalMs: Math.max(
     2_000,
     Math.min(30_000, parseNumber(process.env.BOT_SCALP_POLL_INTERVAL_MS, 5_000)),

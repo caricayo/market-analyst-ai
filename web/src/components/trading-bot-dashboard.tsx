@@ -273,8 +273,12 @@ export function TradingBotDashboard() {
                         stop {formatMoney(trade.stopPriceDollars)}
                       </p>
                       <p className="mt-2 text-sm text-slate-400">
-                        Last bid {formatMoney(trade.lastSeenBidDollars)} | forced exit{" "}
-                        {formatTimestamp(trade.forcedExitAt, snapshot.timeZone)}
+                        Last bid {formatMoney(trade.lastSeenBidDollars)} | peak {formatMoney(trade.peakPriceDollars)} |
+                        forced exit {formatTimestamp(trade.forcedExitAt, snapshot.timeZone)}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-400">
+                        Stop {trade.stopArmedAt ? "armed" : "waiting"} | armed at{" "}
+                        {formatTimestamp(trade.stopArmedAt, snapshot.timeZone)}
                       </p>
                     </div>
                     <div className="rounded-[18px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">

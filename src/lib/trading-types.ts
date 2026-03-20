@@ -106,8 +106,10 @@ export type ManagedTrade = {
   exitPriceDollars: number | null;
   realizedPnlDollars: number | null;
   lastSeenBidDollars: number | null;
+  peakPriceDollars: number | null;
   lastCheckedAt: string | null;
   lastExitAttemptAt: string | null;
+  stopArmedAt: string | null;
   errorMessage: string | null;
 };
 

@@ -226,8 +226,10 @@ async function maybeSubmitTrade(input: {
       exitPriceDollars: null,
       realizedPnlDollars: null,
       lastSeenBidDollars: null,
+      peakPriceDollars: entryPriceDollars,
       lastCheckedAt: null,
       lastExitAttemptAt: null,
+      stopArmedAt: null,
       errorMessage: null,
     });
 
