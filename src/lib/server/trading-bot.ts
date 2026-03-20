@@ -132,12 +132,6 @@ function isHighRiskOpenMinute(minuteInWindow: number) {
   return minuteInWindow >= 1 && minuteInWindow <= 3;
 }
 
-function getMaxEntryPriceCents(setupType: Exclude<SetupType, "none">) {
-  return setupType === "scalp"
-    ? tradingConfig.scalpMaxEntryPriceCents
-    : tradingConfig.trendMaxEntryPriceCents;
-}
-
 function getManagedTradeSettings(
   setupType: Exclude<SetupType, "none">,
   entryPriceDollars: number,
@@ -178,11 +172,6 @@ function getEntryPriceQualityBlocker(
   entryPriceDollars: number,
   managedSettings: ReturnType<typeof getManagedTradeSettings>,
 ) {
-  const maxEntryPriceDollars = getMaxEntryPriceCents(setupType) / 100;
-  if (entryPriceDollars > maxEntryPriceDollars) {
-    return `${setupType} entry skipped because ${entryPriceDollars.toFixed(2)} exceeds the max entry price of ${maxEntryPriceDollars.toFixed(2)}.`;
-  }
-
   const rewardDollars = Math.max(0, managedSettings.targetPriceDollars - entryPriceDollars);
   const riskDollars = Math.max(0.01, entryPriceDollars - managedSettings.stopPriceDollars);
   const remainingUpsideDollars = Math.max(0, 0.99 - entryPriceDollars);
