@@ -17,9 +17,19 @@ import { getMinuteInWindow } from "@/lib/server/indicator-engine";
 
 const managerState = globalThis as typeof globalThis & {
   __btcManagedTradeManagerStarted?: boolean;
-  __btcManagedTradeManagerInterval?: NodeJS.Timeout;
+  __btcManagedTradeManagerTimeout?: NodeJS.Timeout;
   __btcManagedTradeManagerRunning?: boolean;
 };
+
+function scheduleNextManagedTradeCycle(delayMs: number) {
+  if (managerState.__btcManagedTradeManagerTimeout) {
+    clearTimeout(managerState.__btcManagedTradeManagerTimeout);
+  }
+
+  managerState.__btcManagedTradeManagerTimeout = setTimeout(() => {
+    void processManagedTrades();
+  }, delayMs);
+}
 
 function roundMoney(value: number | null, decimals = 2) {
   if (value === null || !Number.isFinite(value)) {
@@ -435,14 +445,19 @@ export async function processManagedTrades() {
   }
 
   managerState.__btcManagedTradeManagerRunning = true;
+  let hasExposure = false;
   try {
-    const { activeManagedTrades } = await syncManagedTradesWithPositions();
+    const { activeManagedTrades, livePositions } = await syncManagedTradesWithPositions();
     const trades = activeManagedTrades;
+    hasExposure = activeManagedTrades.length > 0 || livePositions.length > 0;
     for (const trade of trades) {
       await processTrade(trade);
     }
   } finally {
     managerState.__btcManagedTradeManagerRunning = false;
+    scheduleNextManagedTradeCycle(
+      hasExposure ? tradingConfig.scalpPollIntervalMs : tradingConfig.autoEntryPollIntervalMs,
+    );
   }
 }
 
@@ -456,8 +471,5 @@ export function ensureManagedTradeManagerStarted() {
   }
 
   managerState.__btcManagedTradeManagerStarted = true;
-  managerState.__btcManagedTradeManagerInterval = setInterval(() => {
-    void processManagedTrades();
-  }, tradingConfig.scalpPollIntervalMs);
-  void processManagedTrades();
+  scheduleNextManagedTradeCycle(0);
 }

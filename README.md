@@ -60,6 +60,7 @@ Optional runtime knobs:
 - `GET /api/trading/bot` returns the current market snapshot, indicators, decision, and same-day log.
 - `POST /api/trading/bot` forces one immediate analysis cycle and, if eligible, submits the order.
 - Background automation starts on server boot and keeps scanning new windows without the button.
+- When the account is flat, automation scans once per minute by default. When live exposure exists, both scanning and managed-trade watching tighten to 10-second cadence.
 - Reversal is the primary entry playbook in minutes `4-12`, with trend and scalp used as fallbacks when no reversal qualifies.
 
 ## Notes
