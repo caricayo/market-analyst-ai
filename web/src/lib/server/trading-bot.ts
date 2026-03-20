@@ -157,7 +157,18 @@ export async function getTradingBotSnapshot(options?: { executeTrade?: boolean }
   const minuteInWindow = getMinuteInWindow(now);
   const timingRisk = classifyTimingRisk(minuteInWindow);
 
-  const [market, candles] = await Promise.all([discoverActiveBtcMarket(now), fetchCoinbaseCandles()]);
+  const [marketResult, candles] = await Promise.all([
+    discoverActiveBtcMarket(now).catch((error) => {
+      warnings.push(
+        error instanceof Error
+          ? `Kalshi discovery warning: ${error.message}`
+          : "Kalshi discovery warning: market lookup failed.",
+      );
+      return null;
+    }),
+    fetchCoinbaseCandles(),
+  ]);
+  const market = marketResult;
   if (!market) {
     warnings.push("No active BTC 15-minute Kalshi market was discovered.");
   }

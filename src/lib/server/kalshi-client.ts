@@ -35,6 +35,15 @@ type OrderResponse = {
   };
 };
 
+type CachedMarketEntry = {
+  expiresAt: number;
+  market: KalshiMarketSnapshot | null;
+};
+
+const cacheStore = globalThis as typeof globalThis & {
+  __btcKalshiMarketCache?: CachedMarketEntry;
+};
+
 function parsePrice(value: string | null | undefined) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -160,6 +169,21 @@ function toSnapshot(market: KalshiMarketApi): KalshiMarketSnapshot {
   };
 }
 
+function getCachedMarket() {
+  const cached = cacheStore.__btcKalshiMarketCache;
+  if (!cached || cached.expiresAt <= Date.now()) {
+    return null;
+  }
+  return cached.market;
+}
+
+function setCachedMarket(market: KalshiMarketSnapshot | null) {
+  cacheStore.__btcKalshiMarketCache = {
+    expiresAt: Date.now() + 15_000,
+    market,
+  };
+}
+
 async function fetchMarketPage(status: string | null, cursor?: string | null) {
   const params = new URLSearchParams({ limit: "100" });
   if (status) {
@@ -185,38 +209,53 @@ async function fetchMarketPage(status: string | null, cursor?: string | null) {
 }
 
 export async function discoverActiveBtcMarket(now = new Date()) {
-  const statuses: Array<string | null> = ["open", null];
-
-  for (const status of statuses) {
-    let cursor: string | null | undefined = undefined;
-    const candidates: KalshiMarketApi[] = [];
-
-    for (let page = 0; page < 5; page += 1) {
-      const payload = await fetchMarketPage(status, cursor);
-      const markets = payload.markets ?? [];
-      candidates.push(...markets.filter((market) => looksLikeBtcFifteenMinuteMarket(market, now)));
-      cursor = payload.cursor;
-      if (!cursor) {
-        break;
-      }
-    }
-
-    if (!candidates.length) {
-      continue;
-    }
-
-    const selected = candidates
-      .slice()
-      .sort((left, right) => {
-        const leftTs = Date.parse(left.close_time ?? left.expiration_time ?? "");
-        const rightTs = Date.parse(right.close_time ?? right.expiration_time ?? "");
-        return leftTs - rightTs;
-      })[0];
-
-    return toSnapshot(selected);
+  const cached = getCachedMarket();
+  if (cached) {
+    return cached;
   }
 
-  return null;
+  const statuses: Array<string | null> = ["open", null];
+
+  try {
+    for (const status of statuses) {
+      let cursor: string | null | undefined = undefined;
+      const candidates: KalshiMarketApi[] = [];
+
+      for (let page = 0; page < 5; page += 1) {
+        const payload = await fetchMarketPage(status, cursor);
+        const markets = payload.markets ?? [];
+        candidates.push(...markets.filter((market) => looksLikeBtcFifteenMinuteMarket(market, now)));
+        cursor = payload.cursor;
+        if (!cursor) {
+          break;
+        }
+      }
+
+      if (!candidates.length) {
+        continue;
+      }
+
+      const selected = candidates
+        .slice()
+        .sort((left, right) => {
+          const leftTs = Date.parse(left.close_time ?? left.expiration_time ?? "");
+          const rightTs = Date.parse(right.close_time ?? right.expiration_time ?? "");
+          return leftTs - rightTs;
+        })[0];
+
+      const snapshot = toSnapshot(selected);
+      setCachedMarket(snapshot);
+      return snapshot;
+    }
+
+    setCachedMarket(null);
+    return null;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("429")) {
+      return getCachedMarket();
+    }
+    throw error;
+  }
 }
 
 function buildKalshiHeaders(method: string, path: string, useFullApiPath: boolean) {
