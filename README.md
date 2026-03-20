@@ -48,8 +48,6 @@ Optional runtime knobs:
 - `BOT_REVERSAL_LATE_ATR_MULTIPLIER`
 - `BOT_REVERSAL_MIN_TIME_TO_CLOSE_SECONDS`
 - `BOT_POST_STOP_COOLDOWN_SECONDS`
-- `BOT_DAILY_LOSS_LIMIT_DOLLARS`
-- `BOT_CONSECUTIVE_STOP_LIMIT`
 - `BOT_CONFIDENCE_THRESHOLD`
 - `BOT_TIME_ZONE`
 - `BOT_ENTRY_RETRY_ATTEMPTS`
@@ -83,7 +81,7 @@ Optional runtime knobs:
 - Kalshi fills, positions, and user-order events are also watched over WebSockets so tracker drift resolves faster than REST polling alone.
 - Entry quality checks now use estimated Kalshi taker fees, with a lighter upside buffer and net-profit floor so strong trend setups are rejected less often.
 - Same-market re-entry is paused for longer after a stop-out to reduce churn in choppy windows.
-- New entries halt automatically after too much same-day loss or too many consecutive stop exits.
+- Trend and scalp now use preferred max entry prices based on the recent win distribution, instead of hard daily or consecutive-stop halts.
 - Shadow tuners can be paused completely with `BOT_RESEARCH_ENABLED=false`.
 
 ## Notes

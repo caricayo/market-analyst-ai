@@ -269,8 +269,6 @@ export type BotStatusSnapshot = {
   autoEntryEnabled: boolean;
   fundingHalted: boolean;
   fundingHaltReason: string | null;
-  riskHalted: boolean;
-  riskHaltReason: string | null;
   market: KalshiMarketSnapshot | null;
   indicators: IndicatorSnapshot | null;
   decision: TradingDecision | null;

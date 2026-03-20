@@ -107,14 +107,6 @@ export const tradingConfig = {
     0,
     Math.min(900, Math.round(parseNumber(process.env.BOT_POST_STOP_COOLDOWN_SECONDS, 180))),
   ),
-  dailyLossLimitDollars: Math.max(
-    0,
-    Math.min(500, roundMoney(parseNumber(process.env.BOT_DAILY_LOSS_LIMIT_DOLLARS, 25))),
-  ),
-  consecutiveStopLimit: Math.max(
-    1,
-    Math.min(10, Math.round(parseNumber(process.env.BOT_CONSECUTIVE_STOP_LIMIT, 3))),
-  ),
   autoEntryEnabled: parseBoolean(process.env.BOT_AUTO_ENTRY_ENABLED, true),
   researchEnabled: parseBoolean(process.env.BOT_RESEARCH_ENABLED, false),
   autoEntryPollIntervalMs: Math.max(
@@ -177,6 +169,14 @@ export const tradingConfig = {
   entryMinNetTargetProfitDollars: Math.max(
     0,
     Math.min(10, roundMoney(parseNumber(process.env.BOT_ENTRY_MIN_NET_TARGET_PROFIT_DOLLARS, 0.35))),
+  ),
+  trendPreferredMaxEntryPriceDollars: Math.max(
+    0.4,
+    Math.min(0.95, parseNumber(process.env.BOT_TREND_PREFERRED_MAX_ENTRY_PRICE_DOLLARS, 0.69)),
+  ),
+  scalpPreferredMaxEntryPriceDollars: Math.max(
+    0.4,
+    Math.min(0.95, parseNumber(process.env.BOT_SCALP_PREFERRED_MAX_ENTRY_PRICE_DOLLARS, 0.7)),
   ),
   researchAutoPromoteEnabled: parseBoolean(process.env.BOT_RESEARCH_AUTO_PROMOTE_ENABLED, true),
   researchPromotionMinWindows: Math.max(

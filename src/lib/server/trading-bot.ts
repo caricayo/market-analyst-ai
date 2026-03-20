@@ -1,15 +1,11 @@
 import { fetchCoinbaseCandles } from "@/lib/server/coinbase-client";
 import { buildTradingDecision } from "@/lib/server/decision-engine";
 import {
-  clearRiskHalt,
   clearFundingHalt,
   getFundingHaltReason,
   getLastExecutionAt,
-  getRiskHaltReason,
   haltFunding,
-  haltRisk,
   isFundingHalted,
-  isRiskHalted,
   setLastExecutionAt,
 } from "@/lib/server/execution-state";
 import { buildIndicatorSnapshot, classifyTimingRisk, getMinuteInWindow } from "@/lib/server/indicator-engine";
@@ -26,7 +22,6 @@ import {
 import {
   createManagedTrade,
   findLatestClosedManagedTradeByTicker,
-  getRecentClosedTradeRiskMetrics,
 } from "@/lib/server/managed-trade-store";
 import { getResearchSnapshot, recordResearchWindow, resolveResearchWindows } from "@/lib/server/policy-research";
 import { tradingConfig, hasKalshiTradingCredentials } from "@/lib/server/trading-config";
@@ -267,6 +262,16 @@ function getEntryPriceQualityBlocker(
   const stopExitFeesDollars = estimateKalshiTakerFeesDollars(contracts, managedSettings.stopPriceDollars);
   const netTargetProfitDollars = rewardDollars - entryFeesDollars - targetExitFeesDollars;
   const netStopLossDollars = riskDollars + entryFeesDollars + stopExitFeesDollars;
+  const preferredMaxEntryPriceDollars =
+    setupType === "trend"
+      ? tradingConfig.trendPreferredMaxEntryPriceDollars
+      : setupType === "scalp"
+        ? tradingConfig.scalpPreferredMaxEntryPriceDollars
+        : null;
+
+  if (preferredMaxEntryPriceDollars !== null && entryPriceDollars - preferredMaxEntryPriceDollars > 0.0001) {
+    return `${setupType} entry skipped because the contract is priced at ${entryPriceDollars.toFixed(2)}, above the preferred ${preferredMaxEntryPriceDollars.toFixed(2)} entry range from recent winning trades.`;
+  }
 
   if (remainingUpsideDollars + 0.0001 < minUpsideRequired) {
     return `${setupType} entry skipped because only ${remainingUpsideDollars.toFixed(2)} of upside remains to 0.99, below the required ${minUpsideRequired.toFixed(2)}.`;
@@ -375,8 +380,6 @@ async function maybeSubmitTrade(input: {
   const hasLivePosition = exposure.livePositions.length > 0;
   const fundingHaltReason = getFundingHaltReason();
   const fundingHaltActive = isFundingHalted();
-  const riskHaltReason = getRiskHaltReason();
-  const riskHaltActive = isRiskHalted();
 
   if (hasLivePosition || exposure.activeManagedTrades.length > 0) {
     return {
@@ -442,31 +445,6 @@ async function maybeSubmitTrade(input: {
     } else {
       return buildExecutionDisabled(
         `Funding halt active. ${fundingHaltReason ?? "Kalshi previously reported insufficient funds."}`,
-      );
-    }
-  }
-
-  const riskMetrics = await getRecentClosedTradeRiskMetrics();
-  const dailyLossTriggered =
-    tradingConfig.dailyLossLimitDollars > 0 &&
-    riskMetrics.dailyRealizedPnlDollars <= -tradingConfig.dailyLossLimitDollars;
-  const consecutiveStopsTriggered =
-    riskMetrics.consecutiveStops >= tradingConfig.consecutiveStopLimit;
-
-  if (dailyLossTriggered || consecutiveStopsTriggered) {
-    const reason = dailyLossTriggered
-      ? `Risk halt active after daily realized PnL reached ${riskMetrics.dailyRealizedPnlDollars.toFixed(2)}, beyond the ${tradingConfig.dailyLossLimitDollars.toFixed(2)} daily loss limit.`
-      : `Risk halt active after ${riskMetrics.consecutiveStops} consecutive stop exits, meeting the limit of ${tradingConfig.consecutiveStopLimit}.`;
-    haltRisk(reason);
-    return buildExecutionDisabled(reason);
-  }
-
-  if (riskHaltActive) {
-    if (!dailyLossTriggered && !consecutiveStopsTriggered) {
-      clearRiskHalt();
-    } else {
-      return buildExecutionDisabled(
-        riskHaltReason ?? "Risk halt is active after recent losses. Manual review required before re-entry.",
       );
     }
   }
@@ -903,10 +881,6 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
     clearFundingHalt();
   }
 
-  if (options?.allowFundingResume && isRiskHalted()) {
-    clearRiskHalt();
-  }
-
   if (isFundingHalted() && isLiquidityErrorMessage(getFundingHaltReason() ?? "")) {
     clearFundingHalt();
   }
@@ -1009,16 +983,13 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
     autoEntryEnabled: tradingConfig.autoEntryEnabled,
     fundingHalted: isFundingHalted(),
     fundingHaltReason: getFundingHaltReason(),
-    riskHalted: isRiskHalted(),
-    riskHaltReason: getRiskHaltReason(),
     market,
     indicators,
     decision,
     tradingEnabled:
       tradingConfig.autoTradeEnabled &&
       hasKalshiTradingCredentials() &&
-      !isFundingHalted() &&
-      !isRiskHalted(),
+      !isFundingHalted(),
     warnings,
     livePositions: exposure.livePositions,
     activeManagedTrades: exposure.activeManagedTrades,

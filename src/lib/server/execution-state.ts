@@ -6,9 +6,6 @@ type ExecutionState = {
   fundingHalted: boolean;
   fundingHaltReason: string | null;
   fundingHaltedAt: string | null;
-  riskHalted: boolean;
-  riskHaltReason: string | null;
-  riskHaltedAt: string | null;
 };
 
 const executionStateStore = globalThis as typeof globalThis & {
@@ -32,9 +29,6 @@ function getStore() {
       fundingHalted: false,
       fundingHaltReason: null,
       fundingHaltedAt: null,
-      riskHalted: false,
-      riskHaltReason: null,
-      riskHaltedAt: null,
     };
   }
 
@@ -53,16 +47,6 @@ function pruneStore() {
     fundingHalted: store.fundingHalted,
     fundingHaltReason: store.fundingHaltReason,
     fundingHaltedAt: store.fundingHaltedAt,
-    riskHalted:
-      store.riskHalted && (!store.riskHaltedAt || getDateKey(store.riskHaltedAt) === todayKey),
-    riskHaltReason:
-      store.riskHalted && (!store.riskHaltedAt || getDateKey(store.riskHaltedAt) === todayKey)
-        ? store.riskHaltReason
-        : null,
-    riskHaltedAt:
-      store.riskHalted && (!store.riskHaltedAt || getDateKey(store.riskHaltedAt) === todayKey)
-        ? store.riskHaltedAt
-        : null,
   };
   return executionStateStore.__btcExecutionState;
 }
@@ -116,33 +100,5 @@ export function clearFundingHalt() {
     fundingHalted: false,
     fundingHaltReason: null,
     fundingHaltedAt: null,
-  };
-}
-
-export function isRiskHalted() {
-  return pruneStore().riskHalted;
-}
-
-export function getRiskHaltReason() {
-  return pruneStore().riskHaltReason;
-}
-
-export function haltRisk(reason: string) {
-  const store = pruneStore();
-  executionStateStore.__btcExecutionState = {
-    ...store,
-    riskHalted: true,
-    riskHaltReason: reason,
-    riskHaltedAt: new Date().toISOString(),
-  };
-}
-
-export function clearRiskHalt() {
-  const store = pruneStore();
-  executionStateStore.__btcExecutionState = {
-    ...store,
-    riskHalted: false,
-    riskHaltReason: null,
-    riskHaltedAt: null,
   };
 }
