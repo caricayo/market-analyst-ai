@@ -127,6 +127,12 @@ function buildEntryAttempt(baseClientOrderId: string, limitPriceCents: number, a
   };
 }
 
+function getMaxEntryPriceCents(setupType: Exclude<SetupType, "none">) {
+  return setupType === "scalp"
+    ? tradingConfig.scalpMaxEntryPriceCents
+    : tradingConfig.trendMaxEntryPriceCents;
+}
+
 function getManagedTradeSettings(setupType: Exclude<SetupType, "none">, entryPriceDollars: number, closeTime: string | null) {
   const profitTargetCents =
     setupType === "trend"
@@ -151,6 +157,32 @@ function getManagedTradeSettings(setupType: Exclude<SetupType, "none">, entryPri
       ),
     ).toISOString(),
   };
+}
+
+function getEntryPriceQualityBlocker(
+  setupType: Exclude<SetupType, "none">,
+  entryPriceDollars: number,
+  managedSettings: ReturnType<typeof getManagedTradeSettings>,
+) {
+  const maxEntryPriceDollars = getMaxEntryPriceCents(setupType) / 100;
+  if (entryPriceDollars > maxEntryPriceDollars) {
+    return `${setupType} entry skipped because ${entryPriceDollars.toFixed(2)} exceeds the max entry price of ${maxEntryPriceDollars.toFixed(2)}.`;
+  }
+
+  const rewardDollars = Math.max(0, managedSettings.targetPriceDollars - entryPriceDollars);
+  const riskDollars = Math.max(0.01, entryPriceDollars - managedSettings.stopPriceDollars);
+  const remainingUpsideDollars = Math.max(0, 0.99 - entryPriceDollars);
+  const minUpsideRequired = rewardDollars + tradingConfig.entryMinUpsideBufferCents / 100;
+
+  if (remainingUpsideDollars + 0.0001 < minUpsideRequired) {
+    return `${setupType} entry skipped because only ${remainingUpsideDollars.toFixed(2)} of upside remains to 0.99, below the required ${minUpsideRequired.toFixed(2)}.`;
+  }
+
+  if (rewardDollars / riskDollars < tradingConfig.entryMinRewardRiskRatio) {
+    return `${setupType} entry skipped because the reward/risk ratio is ${(rewardDollars / riskDollars).toFixed(2)}, below the required ${tradingConfig.entryMinRewardRiskRatio.toFixed(2)}.`;
+  }
+
+  return null;
 }
 
 async function maybeSubmitTrade(input: {
@@ -279,10 +311,59 @@ async function maybeSubmitTrade(input: {
     } satisfies TradeExecution;
   }
 
+  const firstManagedSettings = getManagedTradeSettings(
+    setupType,
+    firstAttempt.limitPriceDollars,
+    input.market.closeTime,
+  );
+  const firstAttemptPriceBlocker = getEntryPriceQualityBlocker(
+    setupType,
+    firstAttempt.limitPriceDollars,
+    firstManagedSettings,
+  );
+  if (firstAttemptPriceBlocker) {
+    return {
+      status: "skipped",
+      side,
+      outcome: input.decision.derivedOutcome,
+      contracts: firstAttempt.contracts,
+      maxCostDollars: firstAttempt.maxCostDollars,
+      orderId: null,
+      clientOrderId: baseClientOrderId,
+      managedTradeId: null,
+      entryPriceDollars: null,
+      targetPriceDollars: null,
+      stopPriceDollars: null,
+      message: firstAttemptPriceBlocker,
+    } satisfies TradeExecution;
+  }
+
   let lastLiquidityMessage: string | null = null;
 
   for (let index = 0; index < entryAttempts.length; index += 1) {
     const attempt = entryAttempts[index];
+    const managedSettings = getManagedTradeSettings(setupType, attempt.limitPriceDollars, input.market.closeTime);
+    const entryPriceBlocker = getEntryPriceQualityBlocker(
+      setupType,
+      attempt.limitPriceDollars,
+      managedSettings,
+    );
+    if (entryPriceBlocker) {
+      return {
+        status: "skipped",
+        side,
+        outcome: input.decision.derivedOutcome,
+        contracts: attempt.contracts,
+        maxCostDollars: attempt.maxCostDollars,
+        orderId: null,
+        clientOrderId: attempt.clientOrderId,
+        managedTradeId: null,
+        entryPriceDollars: null,
+        targetPriceDollars: null,
+        stopPriceDollars: null,
+        message: entryPriceBlocker,
+      } satisfies TradeExecution;
+    }
 
     try {
       const response = await submitKalshiOrder({

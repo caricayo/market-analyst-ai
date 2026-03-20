@@ -29,8 +29,20 @@ export const tradingConfig = {
   scalpStopLossCents: Math.max(1, Math.min(20, parseNumber(process.env.BOT_SCALP_STOP_CENTS, 6))),
   reversalProfitTargetCents: Math.max(4, Math.min(30, parseNumber(process.env.BOT_REVERSAL_TARGET_CENTS, 14))),
   reversalStopLossCents: Math.max(2, Math.min(20, parseNumber(process.env.BOT_REVERSAL_STOP_CENTS, 8))),
+  reversalMaxEntryPriceCents: Math.max(
+    20,
+    Math.min(95, Math.round(parseNumber(process.env.BOT_REVERSAL_MAX_ENTRY_PRICE_CENTS, 78))),
+  ),
   trendProfitTargetCents: Math.max(4, Math.min(40, parseNumber(process.env.BOT_TREND_TARGET_CENTS, 18))),
   trendStopLossCents: Math.max(2, Math.min(25, parseNumber(process.env.BOT_TREND_STOP_CENTS, 10))),
+  trendMaxEntryPriceCents: Math.max(
+    20,
+    Math.min(95, Math.round(parseNumber(process.env.BOT_TREND_MAX_ENTRY_PRICE_CENTS, 84))),
+  ),
+  scalpMaxEntryPriceCents: Math.max(
+    20,
+    Math.min(95, Math.round(parseNumber(process.env.BOT_SCALP_MAX_ENTRY_PRICE_CENTS, 80))),
+  ),
   trendStopArmSeconds: Math.max(
     5,
     Math.min(180, parseNumber(process.env.BOT_TREND_STOP_ARM_SECONDS, 45)),
@@ -100,6 +112,14 @@ export const tradingConfig = {
   entryRetrySizeDecay: Math.max(
     0.4,
     Math.min(1, parseNumber(process.env.BOT_ENTRY_RETRY_SIZE_DECAY, 0.85)),
+  ),
+  entryMinUpsideBufferCents: Math.max(
+    0,
+    Math.min(20, Math.round(parseNumber(process.env.BOT_ENTRY_MIN_UPSIDE_BUFFER_CENTS, 4))),
+  ),
+  entryMinRewardRiskRatio: Math.max(
+    1,
+    Math.min(4, parseNumber(process.env.BOT_ENTRY_MIN_REWARD_RISK_RATIO, 1.5)),
   ),
   timeZone: process.env.BOT_TIME_ZONE?.trim() || DEFAULT_TIME_ZONE,
   kalshiBaseUrl: process.env.KALSHI_API_BASE_URL?.trim() || "https://api.elections.kalshi.com/trade-api/v2",
