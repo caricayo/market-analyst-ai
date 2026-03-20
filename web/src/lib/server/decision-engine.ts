@@ -77,7 +77,7 @@ function deriveOutcomeMapping(
 
 function getScalpDistanceThreshold(atr14: number | null, timingRisk: TimingRiskLevel) {
   const atrComponent = (atr14 ?? 0) * (timingRisk === "late-window" ? 1.2 : 0.9);
-  const hardFloor = timingRisk === "late-window" ? 65 : 45;
+  const hardFloor = timingRisk === "late-window" ? 65 : 35;
   return Math.max(hardFloor, atrComponent);
 }
 
