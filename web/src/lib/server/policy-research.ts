@@ -3,6 +3,7 @@ import { buildTradingDecisionForProfile } from "@/lib/server/decision-engine";
 import {
   getRecentStrategyChanges,
   getResearchStrategyProfiles,
+  getStrategyProfileBySlug,
   getStrategyState,
   setActiveStrategyProfile,
 } from "@/lib/server/strategy-profiles";
@@ -649,6 +650,7 @@ export async function recordResearchWindow(input: {
   indicators: IndicatorSnapshot | null;
   minuteInWindow: number;
   timingRisk: BotStatusSnapshot["timingRisk"];
+  recordPolicyEvaluations?: boolean;
 }) {
   const supabase = createAdminSupabaseClient();
   const market = input.market;
@@ -667,24 +669,10 @@ export async function recordResearchWindow(input: {
   }
 
   const createdAt = new Date().toISOString();
-  const profiles = await getResearchStrategyProfiles();
-  const decisions = await Promise.all(
-    profiles.map(async (profile) => ({
-      profile,
-      decision: await buildTradingDecisionForProfile({
-        market: input.market,
-        indicators,
-        minuteInWindow: input.minuteInWindow,
-        timingRisk: input.timingRisk,
-        warnings: [],
-        profile,
-      }),
-    })),
-  );
-
+  const shouldRecordPolicies = input.recordPolicyEvaluations ?? true;
+  const activeState = await getStrategyState();
+  const champion = getStrategyProfileBySlug(activeState.activePolicySlug, activeState.activePolicySlug);
   const windowId = crypto.randomUUID();
-  const champion = profiles.find((profile) => profile.isChampion) ?? profiles[0];
-
   const { error: windowError } = await supabase.from("bot_research_windows").insert({
     id: windowId,
     market_ticker: market.ticker,
@@ -707,6 +695,25 @@ export async function recordResearchWindow(input: {
   if (windowError) {
     throw windowError;
   }
+
+  if (!shouldRecordPolicies) {
+    return;
+  }
+
+  const profiles = await getResearchStrategyProfiles();
+  const decisions = await Promise.all(
+    profiles.map(async (profile) => ({
+      profile,
+      decision: await buildTradingDecisionForProfile({
+        market: input.market,
+        indicators,
+        minuteInWindow: input.minuteInWindow,
+        timingRisk: input.timingRisk,
+        warnings: [],
+        profile,
+      }),
+    })),
+  );
 
   const policyRows = decisions.map(({ profile, decision }) => {
     const result = buildResearchPolicyResult({

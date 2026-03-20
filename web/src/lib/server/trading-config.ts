@@ -65,7 +65,7 @@ export const tradingConfig = {
     1,
     Math.min(20, parseNumber(process.env.BOT_REVERSAL_TRAIL_OFFSET_CENTS, 4)),
   ),
-  trendProfitTargetCents: Math.max(4, Math.min(40, parseNumber(process.env.BOT_TREND_TARGET_CENTS, 15))),
+  trendProfitTargetCents: Math.max(4, Math.min(40, parseNumber(process.env.BOT_TREND_TARGET_CENTS, 14))),
   trendStopLossCents: Math.max(2, Math.min(25, parseNumber(process.env.BOT_TREND_STOP_CENTS, 8))),
   trendStopArmSeconds: Math.max(
     5,
@@ -172,7 +172,7 @@ export const tradingConfig = {
   ),
   trendPreferredMaxEntryPriceDollars: Math.max(
     0.4,
-    Math.min(0.95, parseNumber(process.env.BOT_TREND_PREFERRED_MAX_ENTRY_PRICE_DOLLARS, 0.69)),
+    Math.min(0.95, parseNumber(process.env.BOT_TREND_PREFERRED_MAX_ENTRY_PRICE_DOLLARS, 0.74)),
   ),
   scalpPreferredMaxEntryPriceDollars: Math.max(
     0.4,

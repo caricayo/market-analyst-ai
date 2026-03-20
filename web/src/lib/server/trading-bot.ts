@@ -939,13 +939,15 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
     decision,
   });
 
+  await recordResearchWindow({
+    market,
+    indicators,
+    minuteInWindow,
+    timingRisk,
+    recordPolicyEvaluations: tradingConfig.researchEnabled,
+  }).catch(() => undefined);
+
   if (tradingConfig.researchEnabled) {
-    await recordResearchWindow({
-      market,
-      indicators,
-      minuteInWindow,
-      timingRisk,
-    }).catch(() => undefined);
     await resolveResearchWindows().catch(() => undefined);
   }
   const research = tradingConfig.researchEnabled
