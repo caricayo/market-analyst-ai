@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import type { User } from "@supabase/supabase-js";
 
 export async function createServerSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -17,4 +18,16 @@ export async function createServerSupabaseClient() {
       },
     },
   });
+}
+
+export async function getServerSupabaseUser(): Promise<User | null> {
+  const supabase = await createServerSupabaseClient();
+  if (!supabase) {
+    return null;
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user ?? null;
 }
