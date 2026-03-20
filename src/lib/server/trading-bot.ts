@@ -50,15 +50,32 @@ function round(value: number | null, decimals = 2) {
 
 function isFundingErrorMessage(message: string) {
   const normalized = message.toLowerCase();
+  if (isLiquidityErrorMessage(normalized)) {
+    return false;
+  }
+
   return [
-    "insufficient",
-    "not enough",
     "available balance",
     "insufficient balance",
-    "buy_max_cost",
-    "funding",
+    "insufficient buying power",
+    "insufficient funds",
+    "not enough balance",
+    "not enough funds",
     "out of funds",
     "out of funding",
+    "account balance",
+  ].some((term) => normalized.includes(term));
+}
+
+function isLiquidityErrorMessage(message: string) {
+  const normalized = message.toLowerCase();
+  return [
+    "fill_or_kill_insufficient_resting_volume",
+    "immediate_or_cancel_insufficient_resting_volume",
+    "insufficient resting volume",
+    "resting volume",
+    "insufficient liquidity",
+    "no resting volume",
   ].some((term) => normalized.includes(term));
 }
 
@@ -257,6 +274,23 @@ async function maybeSubmitTrade(input: {
     } satisfies TradeExecution;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Kalshi order submission failed.";
+    if (isLiquidityErrorMessage(message)) {
+      return {
+        status: "skipped",
+        side,
+        outcome: input.decision.derivedOutcome,
+        contracts,
+        maxCostDollars,
+        orderId: null,
+        clientOrderId,
+        managedTradeId: null,
+        entryPriceDollars: null,
+        targetPriceDollars: null,
+        stopPriceDollars: null,
+        message: "Trade skipped because there was not enough resting liquidity to fill the full order at the quoted price.",
+      } satisfies TradeExecution;
+    }
+
     if (isFundingErrorMessage(message)) {
       haltFunding(`Kalshi rejected a buy order for insufficient funds. ${message}`);
       return {
@@ -347,6 +381,10 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
   const source = options?.source ?? "manual";
 
   if (options?.allowFundingResume && isFundingHalted()) {
+    clearFundingHalt();
+  }
+
+  if (isFundingHalted() && isLiquidityErrorMessage(getFundingHaltReason() ?? "")) {
     clearFundingHalt();
   }
 
