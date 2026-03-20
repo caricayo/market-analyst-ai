@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { BotStatusSnapshot } from "@/lib/trading-types";
+import type { BotStatusSnapshot, SetupType } from "@/lib/trading-types";
 
 type LoadState = {
   data: BotStatusSnapshot | null;
@@ -49,10 +49,23 @@ function riskTone(risk: BotStatusSnapshot["timingRisk"]) {
   switch (risk) {
     case "high-risk-open":
       return "border-[#ff9f6e]/40 bg-[#ff9f6e]/12 text-[#ffd8bf]";
+    case "blocked-close":
+      return "border-[#ff7b7b]/35 bg-[#ff7b7b]/12 text-[#ffd6d6]";
     case "late-window":
       return "border-[#f5d76e]/35 bg-[#f5d76e]/12 text-[#fff0bf]";
     default:
       return "border-[#73d9a5]/30 bg-[#73d9a5]/12 text-[#d4ffe5]";
+  }
+}
+
+function setupTone(setupType: SetupType | undefined) {
+  switch (setupType) {
+    case "scalp":
+      return "border-sky-400/30 bg-sky-400/12 text-sky-100";
+    case "trend":
+      return "border-violet-400/30 bg-violet-400/12 text-violet-100";
+    default:
+      return "border-white/10 bg-white/5 text-slate-300";
   }
 }
 
@@ -136,9 +149,9 @@ export function TradingBotDashboard() {
                 Kalshi execution with Coinbase tape and AI-constrained trade calls.
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300">
-                The bot watches the active Bitcoin 15-minute above/below contract, scores the current
-                one-minute tape, downgrades risky entry zones, and only submits an order when the
-                setup survives the timing and confidence gates.
+                The bot watches the active Bitcoin 15-minute above/below contract, runs separate
+                trend and scalp playbooks on the one-minute tape, and only submits an order when the
+                setup clears the active window and execution gates.
               </p>
             </div>
 
@@ -173,7 +186,9 @@ export function TradingBotDashboard() {
             </div>
             <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
               <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Timing Risk</p>
-              <div className={`mt-3 inline-flex rounded-full border px-3 py-2 text-sm font-medium ${snapshot ? riskTone(snapshot.timingRisk) : "border-white/10 bg-white/5 text-slate-200"}`}>
+              <div
+                className={`mt-3 inline-flex rounded-full border px-3 py-2 text-sm font-medium ${snapshot ? riskTone(snapshot.timingRisk) : "border-white/10 bg-white/5 text-slate-200"}`}
+              >
                 {snapshot?.timingRisk ?? "loading"}
               </div>
             </div>
@@ -273,6 +288,18 @@ export function TradingBotDashboard() {
                 <h2 className="text-3xl font-semibold text-white">
                   {snapshot?.decision?.call?.toUpperCase() ?? "WAITING"}
                 </h2>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] ${setupTone(snapshot?.decision?.setupType)}`}
+                  >
+                    {snapshot?.decision?.setupType ?? "none"}
+                  </span>
+                  {snapshot?.decision?.aiVetoed ? (
+                    <span className="rounded-full border border-rose-400/30 bg-rose-400/12 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-rose-100">
+                      AI veto
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-2 text-sm leading-6 text-slate-300">
                   {snapshot?.decision?.summary ?? "No signal yet."}
                 </p>
@@ -280,13 +307,16 @@ export function TradingBotDashboard() {
               <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-right">
                 <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Confidence</p>
                 <p className="mt-2 text-2xl font-semibold text-white">{snapshot?.decision?.confidence ?? "--"}</p>
+                <p className="mt-2 text-xs text-slate-400">
+                  Deterministic {snapshot?.decision?.deterministicConfidence ?? "--"}
+                </p>
               </div>
             </div>
 
             <div className="mt-4 rounded-[24px] border border-white/10 bg-[#0c1420] p-4">
               <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Execution Mapping</p>
               <p className="mt-2 text-sm text-slate-300">
-                Outcome {snapshot?.decision?.derivedOutcome ?? "n/a"} maps to Kalshi side{" "}
+                Candidate {snapshot?.decision?.candidateSide ?? "n/a"} maps to Kalshi side{" "}
                 <span className="font-semibold text-white">{snapshot?.decision?.derivedSide ?? "n/a"}</span>.
               </p>
             </div>
@@ -298,6 +328,17 @@ export function TradingBotDashboard() {
                   snapshot.decision.reasoning.map((reason) => <p key={reason}>{reason}</p>)
                 ) : (
                   <p>Signal reasoning will appear after the first analysis.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-[24px] border border-white/10 bg-[#0c1420] p-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Gate Reasons</p>
+              <div className="mt-3 grid gap-2 text-sm text-slate-300">
+                {snapshot?.decision?.gateReasons?.length ? (
+                  snapshot.decision.gateReasons.map((reason) => <p key={reason}>{reason}</p>)
+                ) : (
+                  <p>No qualifying gate passed yet.</p>
                 )}
               </div>
             </div>
@@ -316,8 +357,8 @@ export function TradingBotDashboard() {
             <div className="mt-4 rounded-[24px] border border-emerald-400/20 bg-emerald-400/10 p-4">
               <p className="text-xs uppercase tracking-[0.22em] text-emerald-50/70">Timing Rule</p>
               <p className="mt-2 text-sm leading-6 text-emerald-50">
-                Minutes 1-3 are hard-blocked. Minutes 4-8 are preferred. Minutes 9-15 require a
-                stronger edge to qualify.
+                Minutes 1-3 are blocked. Minutes 4-8 allow trend and scalp. Minutes 9-12 allow
+                stricter scalp only. Minutes 13-15 are blocked for new entries.
               </p>
             </div>
           </section>
@@ -345,14 +386,17 @@ export function TradingBotDashboard() {
                         <span className={`rounded-full border px-3 py-1 text-xs ${riskTone(entry.timingRisk)}`}>
                           {entry.timingRisk}
                         </span>
+                        <span className={`rounded-full border px-3 py-1 text-xs ${setupTone(entry.setupType)}`}>
+                          {entry.setupType}
+                        </span>
                         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
                           {entry.confidence} confidence
                         </span>
                       </div>
                       <p className="mt-2 text-sm text-slate-300">{entry.summary}</p>
                       <p className="mt-2 text-sm text-slate-400">
-                        {entry.marketTicker ?? "No market"} · strike {formatMoney(entry.strikePrice)} ·
-                        spot {formatMoney(entry.currentPrice)} · minute {entry.minuteInWindow}
+                        {entry.marketTicker ?? "No market"} | strike {formatMoney(entry.strikePrice)} |
+                        spot {formatMoney(entry.currentPrice)} | minute {entry.minuteInWindow}
                       </p>
                     </div>
                     <div className="rounded-[18px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
@@ -360,7 +404,7 @@ export function TradingBotDashboard() {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.8fr]">
+                  <div className="mt-4 grid gap-3 lg:grid-cols-3">
                     <div className="rounded-[18px] border border-white/10 bg-white/5 p-4">
                       <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Reasoning</p>
                       <div className="mt-3 grid gap-2 text-sm text-slate-300">
@@ -370,12 +414,25 @@ export function TradingBotDashboard() {
                       </div>
                     </div>
                     <div className="rounded-[18px] border border-white/10 bg-white/5 p-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Gate Reasons</p>
+                      <div className="mt-3 grid gap-2 text-sm text-slate-300">
+                        {entry.gateReasons.length ? (
+                          entry.gateReasons.map((reason) => <p key={reason}>{reason}</p>)
+                        ) : (
+                          <p>No gate reasons recorded.</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="rounded-[18px] border border-white/10 bg-white/5 p-4">
                       <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Execution</p>
                       <div className="mt-3 grid gap-2 text-sm text-slate-300">
                         <p>Status: {entry.execution.status}</p>
                         <p>Outcome: {entry.execution.outcome ?? "n/a"}</p>
+                        <p>Candidate: {entry.candidateSide ?? "n/a"}</p>
                         <p>Side: {entry.execution.side ?? "n/a"}</p>
                         <p>Contracts: {entry.execution.contracts ?? "n/a"}</p>
+                        <p>Deterministic confidence: {entry.deterministicConfidence}</p>
+                        <p>AI vetoed: {entry.aiVetoed ? "yes" : "no"}</p>
                         <p>Max cost: {formatMoney(entry.execution.maxCostDollars)}</p>
                         <p>{entry.execution.message}</p>
                       </div>
@@ -385,7 +442,7 @@ export function TradingBotDashboard() {
               ))
             ) : (
               <div className="rounded-[22px] border border-dashed border-white/12 bg-white/5 px-5 py-6 text-sm text-slate-400">
-                No same-day runs yet. Use “Analyze and trade” to generate the first bot entry.
+                No same-day runs yet. Use "Analyze and trade" to generate the first bot entry.
               </div>
             )}
           </div>

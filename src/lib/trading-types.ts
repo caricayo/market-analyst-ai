@@ -1,16 +1,27 @@
-export type TimingRiskLevel = "high-risk-open" | "trade-window" | "late-window";
+export type TimingRiskLevel =
+  | "high-risk-open"
+  | "trade-window"
+  | "late-window"
+  | "blocked-close";
 
 export type TradeCall = "above" | "below" | "no_trade";
+
+export type SetupType = "trend" | "scalp" | "none";
 
 export type TradingDecision = {
   call: TradeCall;
   confidence: number;
+  deterministicConfidence: number;
   summary: string;
   reasoning: string[];
+  setupType: SetupType;
+  candidateSide: "above" | "below" | null;
   timingRisk: TimingRiskLevel;
   shouldTrade: boolean;
+  aiVetoed: boolean;
   derivedSide: "yes" | "no" | null;
   derivedOutcome: "above" | "below" | null;
+  gateReasons: string[];
   blockers: string[];
 };
 
@@ -76,9 +87,14 @@ export type BotLogEntry = {
   timingRisk: TimingRiskLevel;
   currentPrice: number | null;
   confidence: number;
+  deterministicConfidence: number;
   call: TradeCall;
+  setupType: SetupType;
+  candidateSide: "above" | "below" | null;
   summary: string;
   reasoning: string[];
+  gateReasons: string[];
+  aiVetoed: boolean;
   blockers: string[];
   execution: TradeExecution;
 };

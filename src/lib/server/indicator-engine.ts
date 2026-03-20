@@ -117,6 +117,9 @@ export function classifyTimingRisk(minuteInWindow: number): TimingRiskLevel {
   if (minuteInWindow <= 3) {
     return "high-risk-open";
   }
+  if (minuteInWindow >= 13) {
+    return "blocked-close";
+  }
   if (minuteInWindow >= 9) {
     return "late-window";
   }
