@@ -40,6 +40,8 @@ type CachedMarketEntry = {
   market: KalshiMarketSnapshot | null;
 };
 
+const BTC_FIFTEEN_MINUTE_SERIES = "KXBTC15M";
+
 const cacheStore = globalThis as typeof globalThis & {
   __btcKalshiMarketCache?: CachedMarketEntry;
 };
@@ -103,47 +105,19 @@ function inferMapping(market: KalshiMarketApi) {
   };
 }
 
-function getRelevantText(market: KalshiMarketApi) {
-  return [
-    market.ticker,
-    market.event_ticker,
-    market.title,
-    market.subtitle,
-    market.yes_sub_title,
-    market.no_sub_title,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+function getCloseTimestamp(market: KalshiMarketApi) {
+  const closeTime = market.close_time ?? market.expiration_time;
+  return closeTime ? Date.parse(closeTime) : Number.NaN;
 }
 
-function looksLikeBtcFifteenMinuteMarket(market: KalshiMarketApi, now: Date) {
-  if (!market.ticker || !market.title) {
+function isActiveBtcFifteenMinuteMarket(market: KalshiMarketApi, now: Date) {
+  if (!market.ticker?.startsWith(BTC_FIFTEEN_MINUTE_SERIES)) {
     return false;
   }
 
-  const relevantText = getRelevantText(market);
-  const closeTime = market.close_time ?? market.expiration_time;
-  const closeTs = closeTime ? Date.parse(closeTime) : Number.NaN;
+  const closeTs = getCloseTimestamp(market);
   const msUntilClose = closeTs - now.getTime();
-
-  const mentionsBitcoin =
-    relevantText.includes("bitcoin") ||
-    relevantText.includes("btc") ||
-    relevantText.includes("btcusd");
-  const mentionsBinaryTarget =
-    relevantText.includes("above") ||
-    relevantText.includes("below") ||
-    relevantText.includes("under") ||
-    relevantText.includes("over");
-
-  return (
-    mentionsBitcoin &&
-    mentionsBinaryTarget &&
-    Number.isFinite(closeTs) &&
-    msUntilClose > 0 &&
-    msUntilClose <= 16 * 60_000
-  );
+  return Number.isFinite(closeTs) && msUntilClose > 0 && msUntilClose <= 16 * 60_000;
 }
 
 function toSnapshot(market: KalshiMarketApi): KalshiMarketSnapshot {
@@ -184,13 +158,20 @@ function setCachedMarket(market: KalshiMarketSnapshot | null) {
   };
 }
 
-async function fetchMarketPage(status: string | null, cursor?: string | null) {
+async function fetchMarketPage(
+  status: string | null,
+  cursor?: string | null,
+  seriesTicker = BTC_FIFTEEN_MINUTE_SERIES,
+) {
   const params = new URLSearchParams({ limit: "100" });
   if (status) {
     params.set("status", status);
   }
   if (cursor) {
     params.set("cursor", cursor);
+  }
+  if (seriesTicker) {
+    params.set("series_ticker", seriesTicker);
   }
 
   const response = await fetch(`${tradingConfig.kalshiBaseUrl}/markets?${params.toString()}`, {
@@ -224,7 +205,7 @@ export async function discoverActiveBtcMarket(now = new Date()) {
       for (let page = 0; page < 5; page += 1) {
         const payload = await fetchMarketPage(status, cursor);
         const markets = payload.markets ?? [];
-        candidates.push(...markets.filter((market) => looksLikeBtcFifteenMinuteMarket(market, now)));
+        candidates.push(...markets.filter((market) => isActiveBtcFifteenMinuteMarket(market, now)));
         cursor = payload.cursor;
         if (!cursor) {
           break;
@@ -238,8 +219,14 @@ export async function discoverActiveBtcMarket(now = new Date()) {
       const selected = candidates
         .slice()
         .sort((left, right) => {
-          const leftTs = Date.parse(left.close_time ?? left.expiration_time ?? "");
-          const rightTs = Date.parse(right.close_time ?? right.expiration_time ?? "");
+          const leftStatusScore = left.status === "active" ? 0 : 1;
+          const rightStatusScore = right.status === "active" ? 0 : 1;
+          if (leftStatusScore !== rightStatusScore) {
+            return leftStatusScore - rightStatusScore;
+          }
+
+          const leftTs = getCloseTimestamp(left);
+          const rightTs = getCloseTimestamp(right);
           return leftTs - rightTs;
         })[0];
 
