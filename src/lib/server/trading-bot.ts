@@ -127,21 +127,34 @@ function buildEntryAttempt(baseClientOrderId: string, limitPriceCents: number, a
   };
 }
 
+function isHighRiskOpenMinute(minuteInWindow: number) {
+  return minuteInWindow >= 1 && minuteInWindow <= 3;
+}
+
 function getMaxEntryPriceCents(setupType: Exclude<SetupType, "none">) {
   return setupType === "scalp"
     ? tradingConfig.scalpMaxEntryPriceCents
     : tradingConfig.trendMaxEntryPriceCents;
 }
 
-function getManagedTradeSettings(setupType: Exclude<SetupType, "none">, entryPriceDollars: number, closeTime: string | null) {
+function getManagedTradeSettings(
+  setupType: Exclude<SetupType, "none">,
+  entryPriceDollars: number,
+  closeTime: string | null,
+  minuteInWindow?: number | null,
+) {
   const profitTargetCents =
     setupType === "trend"
       ? tradingConfig.trendProfitTargetCents
       : tradingConfig.scalpProfitTargetCents;
-  const stopLossCents =
+  const baseStopLossCents =
     setupType === "trend"
       ? tradingConfig.trendStopLossCents
       : tradingConfig.scalpStopLossCents;
+  const stopLossCents =
+    minuteInWindow !== null && minuteInWindow !== undefined && isHighRiskOpenMinute(minuteInWindow)
+      ? Math.min(baseStopLossCents, tradingConfig.openWindowStopLossCents)
+      : baseStopLossCents;
   const forcedExitLeadSeconds =
     setupType === "trend"
       ? tradingConfig.trendForcedExitLeadSeconds
@@ -315,6 +328,7 @@ async function maybeSubmitTrade(input: {
     setupType,
     firstAttempt.limitPriceDollars,
     input.market.closeTime,
+    getMinuteInWindow(),
   );
   const firstAttemptPriceBlocker = getEntryPriceQualityBlocker(
     setupType,
@@ -342,7 +356,12 @@ async function maybeSubmitTrade(input: {
 
   for (let index = 0; index < entryAttempts.length; index += 1) {
     const attempt = entryAttempts[index];
-    const managedSettings = getManagedTradeSettings(setupType, attempt.limitPriceDollars, input.market.closeTime);
+    const managedSettings = getManagedTradeSettings(
+      setupType,
+      attempt.limitPriceDollars,
+      input.market.closeTime,
+      getMinuteInWindow(),
+    );
     const entryPriceBlocker = getEntryPriceQualityBlocker(
       setupType,
       attempt.limitPriceDollars,
@@ -379,7 +398,12 @@ async function maybeSubmitTrade(input: {
         (side === "yes"
           ? Number(response.order?.yes_price_dollars ?? response.order?.yes_price)
           : Number(response.order?.no_price_dollars ?? response.order?.no_price)) || attempt.limitPriceDollars;
-      const managedSettings = getManagedTradeSettings(setupType, entryPriceDollars, input.market.closeTime);
+      const managedSettings = getManagedTradeSettings(
+        setupType,
+        entryPriceDollars,
+        input.market.closeTime,
+        getMinuteInWindow(),
+      );
       const managedTrade = await createManagedTrade({
         marketTicker: input.market.ticker,
         marketTitle: input.market.title,

@@ -474,10 +474,11 @@ export function TradingBotDashboard() {
 
             <div className="mt-4 rounded-[24px] border border-emerald-400/20 bg-emerald-400/10 p-4">
               <p className="text-xs uppercase tracking-[0.22em] text-emerald-50/70">Timing Rule</p>
-              <p className="mt-2 text-sm leading-6 text-emerald-50">
-                Minutes 1-3 are blocked. Minutes 4-8 allow trend and scalp. Minutes 9-12 allow
-                stricter scalp only. Minutes 13-15 are blocked for new entries.
-              </p>
+                <p className="mt-2 text-sm leading-6 text-emerald-50">
+                  Minutes 1-3 are tradable with tighter open-window stops. Minutes 1-8 allow trend
+                  and scalp. Minutes 9-12 allow stricter scalp only. Minutes 13-15 are blocked for
+                  new entries.
+                </p>
             </div>
           </section>
         </div>

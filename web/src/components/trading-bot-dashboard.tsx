@@ -477,9 +477,10 @@ export function TradingBotDashboard() {
             <div className="mt-4 rounded-[24px] border border-emerald-400/20 bg-emerald-400/10 p-4">
               <p className="text-xs uppercase tracking-[0.22em] text-emerald-50/70">Timing Rule</p>
               <p className="mt-2 text-sm leading-6 text-emerald-50">
-                Minutes 1-3 are blocked. Minutes 4-12 prioritize reversal entries. Trend remains a
-                fallback in minutes 4-8, scalp remains a continuation fallback in minutes 4-12, and
-                minutes 13-15 are blocked for new entries.
+                Minutes 1-3 are now tradable with tighter open-window stops. Minutes 4-12
+                prioritize reversal entries, trend remains a fallback in minutes 1-8, scalp remains
+                a continuation fallback in minutes 1-12, and minutes 13-15 are blocked for new
+                entries.
               </p>
             </div>
           </section>

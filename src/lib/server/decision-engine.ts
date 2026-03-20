@@ -146,8 +146,12 @@ function evaluateScalpCandidate(
   const blockers: string[] = [];
   const directionLabel = side.toUpperCase();
 
-  if (timingRisk !== "trade-window" && timingRisk !== "late-window") {
-    blockers.push(`Scalp ${directionLabel} is only allowed in minutes 4-12.`);
+  if (
+    timingRisk !== "high-risk-open" &&
+    timingRisk !== "trade-window" &&
+    timingRisk !== "late-window"
+  ) {
+    blockers.push(`Scalp ${directionLabel} is only allowed in minutes 1-12.`);
     return { candidate: null, blockers };
   }
 
@@ -241,7 +245,9 @@ function evaluateScalpCandidate(
       gateReasons: [
         `Scalp ${directionLabel} distance threshold passed.`,
         trendAligned ? "Trend context supports the scalp side." : "Price is aligned even without full trend support.",
-        timingRisk === "late-window"
+        timingRisk === "high-risk-open"
+          ? "High-risk open scalp thresholds were satisfied with tighter stop handling."
+          : timingRisk === "late-window"
           ? "Late-window scalp thresholds were satisfied."
           : "Primary scalp window thresholds were satisfied.",
       ],
@@ -256,8 +262,8 @@ function evaluateTrendCandidate(
 ): DeterministicResult {
   const blockers: string[] = [];
 
-  if (timingRisk !== "trade-window") {
-    blockers.push("Trend setups are only allowed in minutes 4-8.");
+  if (timingRisk !== "high-risk-open" && timingRisk !== "trade-window") {
+    blockers.push("Trend setups are only allowed in minutes 1-8.");
     return { candidate: null, blockers };
   }
 
@@ -341,14 +347,6 @@ function buildDeterministicDecision(
   warnings: string[],
 ) {
   const blockers = [...warnings];
-
-  if (timingRisk === "high-risk-open") {
-    blockers.push("Minutes 1-3 are hard-blocked as a high-risk open.");
-    return {
-      candidate: null,
-      blockers,
-    };
-  }
 
   if (timingRisk === "blocked-close") {
     blockers.push("Minutes 13-15 are blocked for new entries.");
@@ -458,7 +456,7 @@ async function getAiDecision(input: {
       {
         role: "system",
         content:
-          "You are an advisory BTC intraday analyst for 15-minute Kalshi contracts. Deterministic rules own execution. Minutes 1-3 are blocked. Minutes 4-8 allow trend and scalp setups. Minutes 9-12 allow scalp only. Minutes 13-15 are blocked. Only return a strong veto when the deterministic candidate is clearly contradicted by the supplied tape.",
+          "You are an advisory BTC intraday analyst for 15-minute Kalshi contracts. Deterministic rules own execution. Minutes 1-3 are tradable but use tighter stop handling after entry. Minutes 1-8 allow trend and scalp setups. Minutes 9-12 allow scalp only. Minutes 13-15 are blocked. Only return a strong veto when the deterministic candidate is clearly contradicted by the supplied tape.",
       },
       {
         role: "user",

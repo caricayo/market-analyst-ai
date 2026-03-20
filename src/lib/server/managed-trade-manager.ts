@@ -51,19 +51,33 @@ function buildBotClientOrderId(setupType: ManagedTrade["setupType"], action: "bu
   return `btcbot-${setupType}-${action}-${crypto.randomUUID()}`;
 }
 
+function isHighRiskOpenMinute(minuteInWindow: number) {
+  return minuteInWindow >= 1 && minuteInWindow <= 3;
+}
+
+function isOpenWindowTrade(trade: ManagedTrade) {
+  return isHighRiskOpenMinute(getMinuteInWindow(new Date(trade.createdAt)));
+}
+
 function getManagedTradeSettings(
   setupType: ManagedTrade["setupType"],
   entryPriceDollars: number,
   closeTime: string | null,
+  createdAt?: string | null,
 ) {
   const profitTargetCents =
     setupType === "trend"
       ? tradingConfig.trendProfitTargetCents
       : tradingConfig.scalpProfitTargetCents;
-  const stopLossCents =
+  const baseStopLossCents =
     setupType === "trend"
       ? tradingConfig.trendStopLossCents
       : tradingConfig.scalpStopLossCents;
+  const minuteInWindow = createdAt ? getMinuteInWindow(new Date(createdAt)) : null;
+  const stopLossCents =
+    minuteInWindow !== null && isHighRiskOpenMinute(minuteInWindow)
+      ? Math.min(baseStopLossCents, tradingConfig.openWindowStopLossCents)
+      : baseStopLossCents;
   const forcedExitLeadSeconds =
     setupType === "trend"
       ? tradingConfig.trendForcedExitLeadSeconds
@@ -204,7 +218,12 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
     const market = await fetchKalshiMarketByTicker(position.ticker).catch(() => null);
     const setupType = inferSetupTypeFromClientOrderId(latestBotFill.clientOrderId, latestBotFill.createdAt);
     const entryPriceDollars = roundPrice(weightedPrice, 2) ?? 0.5;
-    const settings = getManagedTradeSettings(setupType, entryPriceDollars, market?.closeTime ?? null);
+    const settings = getManagedTradeSettings(
+      setupType,
+      entryPriceDollars,
+      market?.closeTime ?? null,
+      latestBotFill.createdAt,
+    );
 
     await createManagedTrade({
       marketTicker: position.ticker,
@@ -303,11 +322,11 @@ function getExitTrigger(
 function getManagedExitState(trade: ManagedTrade, now: Date, bidPrice: number | null) {
   const peakPriceDollars = Math.max(trade.peakPriceDollars ?? trade.entryPriceDollars, bidPrice ?? 0);
 
-  if (trade.setupType !== "trend") {
+  if (trade.setupType !== "trend" || isOpenWindowTrade(trade)) {
     return {
       peakPriceDollars,
       stopPriceDollars: trade.stopPriceDollars,
-      stopArmedAt: trade.stopArmedAt,
+      stopArmedAt: trade.stopArmedAt ?? now.toISOString(),
       stopActive: true,
     };
   }

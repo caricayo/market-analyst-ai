@@ -27,6 +27,7 @@ export const tradingConfig = {
   stakeDollars: Math.max(1, parseNumber(process.env.BOT_FIXED_STAKE_DOLLARS, 10)),
   scalpProfitTargetCents: Math.max(2, Math.min(30, parseNumber(process.env.BOT_SCALP_TARGET_CENTS, 10))),
   scalpStopLossCents: Math.max(1, Math.min(20, parseNumber(process.env.BOT_SCALP_STOP_CENTS, 6))),
+  openWindowStopLossCents: Math.max(1, Math.min(10, parseNumber(process.env.BOT_OPEN_WINDOW_STOP_CENTS, 1))),
   scalpMaxEntryPriceCents: Math.max(
     20,
     Math.min(95, Math.round(parseNumber(process.env.BOT_SCALP_MAX_ENTRY_PRICE_CENTS, 80))),
