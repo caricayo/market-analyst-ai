@@ -30,6 +30,15 @@ type DeterministicResult = {
   blockers: string[];
 };
 
+type AiDecisionCacheEntry = {
+  expiresAt: number;
+  value: AiDecisionPayload | null;
+};
+
+const decisionEngineCache = globalThis as typeof globalThis & {
+  __btcAiDecisionCache?: Map<string, AiDecisionCacheEntry>;
+};
+
 const openAiClient = hasOpenAiKey() ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 const AI_VETO_CONFIDENCE = 85;
@@ -56,6 +65,42 @@ function safeJsonParse<T>(value: string | null | undefined) {
   } catch {
     return null;
   }
+}
+
+function getAiDecisionCache() {
+  if (!decisionEngineCache.__btcAiDecisionCache) {
+    decisionEngineCache.__btcAiDecisionCache = new Map<string, AiDecisionCacheEntry>();
+  }
+
+  return decisionEngineCache.__btcAiDecisionCache;
+}
+
+function getAiDecisionCacheKey(input: {
+  market: KalshiMarketSnapshot | null;
+  indicators: IndicatorSnapshot;
+  minuteInWindow: number;
+  timingRisk: TimingRiskLevel;
+  deterministic: {
+    candidate: DeterministicCandidate | null;
+    blockers: string[];
+  };
+}) {
+  return JSON.stringify({
+    ticker: input.market?.ticker ?? null,
+    strikePrice: input.market?.strikePrice ?? null,
+    minuteInWindow: input.minuteInWindow,
+    timingRisk: input.timingRisk,
+    currentPrice: Number(input.indicators.currentPrice.toFixed(2)),
+    deterministicEdge: Number(input.indicators.deterministicEdge.toFixed(3)),
+    candidate: input.deterministic.candidate
+      ? {
+          setupType: input.deterministic.candidate.setupType,
+          call: input.deterministic.candidate.call,
+          confidence: input.deterministic.candidate.confidence,
+        }
+      : null,
+    blockers: input.deterministic.blockers.slice(0, 5),
+  });
 }
 
 function deriveOutcomeMapping(
@@ -366,6 +411,17 @@ async function getAiDecision(input: {
     return null;
   }
 
+  if (!input.deterministic.candidate) {
+    return null;
+  }
+
+  const cacheKey = getAiDecisionCacheKey(input);
+  const cache = getAiDecisionCache();
+  const cached = cache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+
   const response = await openAiClient.chat.completions.create({
     model: tradingConfig.openAiModel,
     response_format: {
@@ -411,7 +467,12 @@ async function getAiDecision(input: {
     ],
   });
 
-  return safeJsonParse<AiDecisionPayload>(response.choices[0]?.message?.content);
+  const parsed = safeJsonParse<AiDecisionPayload>(response.choices[0]?.message?.content);
+  cache.set(cacheKey, {
+    expiresAt: Date.now() + 30_000,
+    value: parsed,
+  });
+  return parsed;
 }
 
 export async function buildTradingDecision(input: {
