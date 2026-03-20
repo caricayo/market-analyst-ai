@@ -160,7 +160,7 @@ export const tradingConfig = {
   ),
   entryMinUpsideBufferCents: Math.max(
     0,
-    Math.min(20, Math.round(parseNumber(process.env.BOT_ENTRY_MIN_UPSIDE_BUFFER_CENTS, 4))),
+    Math.min(20, Math.round(parseNumber(process.env.BOT_ENTRY_MIN_UPSIDE_BUFFER_CENTS, 2))),
   ),
   entryMinRewardRiskRatio: Math.max(
     1,
@@ -168,7 +168,7 @@ export const tradingConfig = {
   ),
   entryMinNetTargetProfitDollars: Math.max(
     0,
-    Math.min(10, roundMoney(parseNumber(process.env.BOT_ENTRY_MIN_NET_TARGET_PROFIT_DOLLARS, 0.5))),
+    Math.min(10, roundMoney(parseNumber(process.env.BOT_ENTRY_MIN_NET_TARGET_PROFIT_DOLLARS, 0.35))),
   ),
   researchAutoPromoteEnabled: parseBoolean(process.env.BOT_RESEARCH_AUTO_PROMOTE_ENABLED, true),
   researchPromotionMinWindows: Math.max(

@@ -79,7 +79,7 @@ Optional runtime knobs:
 - Reversals now require more confidence and at least 5 minutes left before market close.
 - Trend stops arm quickly by default (`12s`) instead of waiting through most of the move.
 - Buy retries now use IOC with short delays and can size off displayed orderbook depth instead of repeatedly sending full-size FoK orders.
-- Entry quality checks now use estimated Kalshi taker fees, so target profit and reward/risk must still clear fees before a trade is allowed.
+- Entry quality checks now use estimated Kalshi taker fees, with a lighter upside buffer and net-profit floor so strong trend setups are rejected less often.
 - Same-market re-entry is paused briefly after a stop-out to reduce churn in choppy windows.
 - Shadow tuners can be paused completely with `BOT_RESEARCH_ENABLED=false`.
 
