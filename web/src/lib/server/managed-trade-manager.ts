@@ -199,6 +199,10 @@ function inferSideFromPositionContracts(contracts: number) {
   return contracts >= 0 ? "yes" : "no";
 }
 
+function isMeaningfulLivePosition(contracts: number) {
+  return Math.abs(contracts) >= 1;
+}
+
 async function closeStaleManagedTrades(liveTickers: Set<string>) {
   for (const trade of listOpenManagedTrades()) {
     if (liveTickers.has(trade.marketTicker)) {
@@ -221,7 +225,7 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
 
   for (const position of positions) {
     const liveContracts = Math.abs(position.contracts);
-    if (liveContracts < 0.01) {
+    if (!isMeaningfulLivePosition(liveContracts)) {
       continue;
     }
 
@@ -351,7 +355,7 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
 export async function syncManagedTradesWithPositions() {
   await hydrateManagedTradesFromPersistence();
   const positions = await listKalshiPositions().catch(() => []);
-  const openPositions = positions.filter((position) => Math.abs(position.contracts) >= 0.01);
+  const openPositions = positions.filter((position) => isMeaningfulLivePosition(position.contracts));
   const liveTickers = new Set(openPositions.map((position) => position.ticker));
 
   await closeStaleManagedTrades(liveTickers);
