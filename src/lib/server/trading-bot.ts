@@ -19,7 +19,7 @@ import {
   ensureManagedTradeManagerStarted,
   syncManagedTradesWithPositions,
 } from "@/lib/server/managed-trade-manager";
-import { createManagedTrade } from "@/lib/server/managed-trade-store";
+import { createManagedTrade, findLatestClosedManagedTradeByTicker } from "@/lib/server/managed-trade-store";
 import { getResearchSnapshot, recordResearchWindow, resolveResearchWindows } from "@/lib/server/policy-research";
 import { tradingConfig, hasKalshiTradingCredentials } from "@/lib/server/trading-config";
 import { appendTradingLog, listTradingLog } from "@/lib/server/trading-log";
@@ -187,6 +187,11 @@ function getEntryAttemptPriceCents(basePriceCents: number, attemptIndex: number)
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getCooldownSecondsRemaining(updatedAt: string, cooldownSeconds: number) {
+  const msRemaining = Date.parse(updatedAt) + cooldownSeconds * 1_000 - Date.now();
+  return Math.max(0, Math.ceil(msRemaining / 1_000));
 }
 
 function isHighRiskOpenMinute(minuteInWindow: number) {
@@ -362,6 +367,33 @@ async function maybeSubmitTrade(input: {
       stopPriceDollars: null,
       message: "Trade skipped because another position is still open. The bot will only re-enter after the account is flat.",
     } satisfies TradeExecution;
+  }
+
+  if (tradingConfig.postStopCooldownSeconds > 0) {
+    const latestClosedTrade = await findLatestClosedManagedTradeByTicker(input.market.ticker);
+    if (latestClosedTrade?.exitReason === "stop") {
+      const cooldownSecondsRemaining = getCooldownSecondsRemaining(
+        latestClosedTrade.updatedAt || latestClosedTrade.createdAt,
+        tradingConfig.postStopCooldownSeconds,
+      );
+
+      if (cooldownSecondsRemaining > 0) {
+        return {
+          status: "skipped",
+          side,
+          outcome: input.decision.derivedOutcome,
+          contracts: null,
+          maxCostDollars: firstAttempt.maxCostDollars,
+          orderId: null,
+          clientOrderId: baseClientOrderId,
+          managedTradeId: null,
+          entryPriceDollars: null,
+          targetPriceDollars: null,
+          stopPriceDollars: null,
+          message: `Trade skipped because ${input.market.ticker} stopped out recently. Cooldown active for ${cooldownSecondsRemaining}s before re-entry on the same market.`,
+        } satisfies TradeExecution;
+      }
+    }
   }
 
   if (fundingHaltActive) {

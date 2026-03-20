@@ -103,6 +103,10 @@ export const tradingConfig = {
     30,
     Math.min(300, parseNumber(process.env.BOT_TREND_FORCE_EXIT_LEAD_SECONDS, 60)),
   ),
+  postStopCooldownSeconds: Math.max(
+    0,
+    Math.min(900, Math.round(parseNumber(process.env.BOT_POST_STOP_COOLDOWN_SECONDS, 90))),
+  ),
   autoEntryEnabled: parseBoolean(process.env.BOT_AUTO_ENTRY_ENABLED, true),
   researchEnabled: parseBoolean(process.env.BOT_RESEARCH_ENABLED, false),
   autoEntryPollIntervalMs: Math.max(

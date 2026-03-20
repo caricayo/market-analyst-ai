@@ -231,6 +231,38 @@ export function findOpenManagedTradeByTicker(ticker: string) {
   return listOpenManagedTrades().find((trade) => trade.marketTicker === ticker) ?? null;
 }
 
+export async function findLatestClosedManagedTradeByTicker(ticker: string) {
+  const localTrade =
+    listManagedTrades()
+      .filter((trade) => trade.marketTicker === ticker && (trade.status === "closed" || trade.status === "error"))
+      .sort((left, right) => (right.updatedAt || right.createdAt).localeCompare(left.updatedAt || left.createdAt))[0] ??
+    null;
+
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) {
+    return localTrade;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("bot_managed_trades")
+      .select("*")
+      .eq("market_ticker", ticker)
+      .in("status", ["closed", "error"])
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) {
+      return localTrade;
+    }
+
+    return toManagedTrade(data as ManagedTradeRow);
+  } catch {
+    return localTrade;
+  }
+}
+
 export async function createManagedTrade(input: Omit<ManagedTrade, "id" | "createdAt" | "updatedAt">) {
   const timestamp = new Date().toISOString();
   const trade: ManagedTrade = {
