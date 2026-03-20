@@ -129,6 +129,14 @@ export const tradingConfig = {
     1,
     Math.min(4, Math.round(parseNumber(process.env.BOT_ENTRY_RETRY_ATTEMPTS, 3))),
   ),
+  entryRetryDelayMs: Math.max(
+    100,
+    Math.min(2_000, Math.round(parseNumber(process.env.BOT_ENTRY_RETRY_DELAY_MS, 750))),
+  ),
+  entryRetrySamePriceAttempts: Math.max(
+    1,
+    Math.min(3, Math.round(parseNumber(process.env.BOT_ENTRY_RETRY_SAME_PRICE_ATTEMPTS, 2))),
+  ),
   entryRetryStepCents: Math.max(
     1,
     Math.min(5, Math.round(parseNumber(process.env.BOT_ENTRY_REPRICE_CENTS, 1))),

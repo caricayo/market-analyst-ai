@@ -128,6 +128,16 @@ function buildEntryAttempt(baseClientOrderId: string, limitPriceCents: number, a
   };
 }
 
+function getEntryAttemptPriceCents(basePriceCents: number, attemptIndex: number) {
+  const samePriceAttempts = Math.max(1, tradingConfig.entryRetrySamePriceAttempts);
+  const repriceStepIndex = Math.max(0, attemptIndex - (samePriceAttempts - 1));
+  return Math.max(1, Math.min(99, basePriceCents + repriceStepIndex * tradingConfig.entryRetryStepCents));
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function isHighRiskOpenMinute(minuteInWindow: number) {
   return minuteInWindow >= 1 && minuteInWindow <= 3;
 }
@@ -252,7 +262,7 @@ async function maybeSubmitTrade(input: {
   const entryAttempts = Array.from({ length: tradingConfig.entryRetryAttempts }, (_, index) =>
     buildEntryAttempt(
       baseClientOrderId,
-      Math.max(1, Math.min(99, limitPriceCents + index * tradingConfig.entryRetryStepCents)),
+      getEntryAttemptPriceCents(limitPriceCents, index),
       index,
     ),
   ).filter(
@@ -461,6 +471,9 @@ async function maybeSubmitTrade(input: {
       const message = error instanceof Error ? error.message : "Kalshi order submission failed.";
       if (isLiquidityErrorMessage(message)) {
         lastLiquidityMessage = message;
+        if (index < entryAttempts.length - 1) {
+          await sleep(tradingConfig.entryRetryDelayMs * (index + 1));
+        }
         continue;
       }
 

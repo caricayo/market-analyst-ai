@@ -128,6 +128,16 @@ function buildEntryAttempt(baseClientOrderId: string, limitPriceCents: number, a
   };
 }
 
+function getEntryAttemptPriceCents(basePriceCents: number, attemptIndex: number) {
+  const samePriceAttempts = Math.max(1, tradingConfig.entryRetrySamePriceAttempts);
+  const repriceStepIndex = Math.max(0, attemptIndex - (samePriceAttempts - 1));
+  return Math.max(1, Math.min(99, basePriceCents + repriceStepIndex * tradingConfig.entryRetryStepCents));
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function isHighRiskOpenMinute(minuteInWindow: number) {
   return minuteInWindow >= 1 && minuteInWindow <= 3;
 }
@@ -141,11 +151,15 @@ function getManagedTradeSettings(
   const profitTargetCents =
     setupType === "trend"
       ? tradingConfig.trendProfitTargetCents
-      : tradingConfig.scalpProfitTargetCents;
+      : setupType === "reversal"
+        ? tradingConfig.reversalProfitTargetCents
+        : tradingConfig.scalpProfitTargetCents;
   const baseStopLossCents =
     setupType === "trend"
       ? tradingConfig.trendStopLossCents
-      : tradingConfig.scalpStopLossCents;
+      : setupType === "reversal"
+        ? tradingConfig.reversalStopLossCents
+        : tradingConfig.scalpStopLossCents;
   const stopLossCents =
     minuteInWindow !== null && minuteInWindow !== undefined && isHighRiskOpenMinute(minuteInWindow)
       ? Math.min(baseStopLossCents, tradingConfig.openWindowStopLossCents)
@@ -153,7 +167,9 @@ function getManagedTradeSettings(
   const forcedExitLeadSeconds =
     setupType === "trend"
       ? tradingConfig.trendForcedExitLeadSeconds
-      : tradingConfig.scalpForcedExitLeadSeconds;
+      : setupType === "reversal"
+        ? tradingConfig.reversalForcedExitLeadSeconds
+        : tradingConfig.scalpForcedExitLeadSeconds;
 
   return {
     targetPriceDollars: Math.min(0.99, round(entryPriceDollars + profitTargetCents / 100, 2) ?? 0.99),
@@ -246,7 +262,7 @@ async function maybeSubmitTrade(input: {
   const entryAttempts = Array.from({ length: tradingConfig.entryRetryAttempts }, (_, index) =>
     buildEntryAttempt(
       baseClientOrderId,
-      Math.max(1, Math.min(99, limitPriceCents + index * tradingConfig.entryRetryStepCents)),
+      getEntryAttemptPriceCents(limitPriceCents, index),
       index,
     ),
   ).filter(
@@ -455,6 +471,9 @@ async function maybeSubmitTrade(input: {
       const message = error instanceof Error ? error.message : "Kalshi order submission failed.";
       if (isLiquidityErrorMessage(message)) {
         lastLiquidityMessage = message;
+        if (index < entryAttempts.length - 1) {
+          await sleep(tradingConfig.entryRetryDelayMs * (index + 1));
+        }
         continue;
       }
 
