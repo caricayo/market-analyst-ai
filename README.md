@@ -48,6 +48,7 @@ Optional runtime knobs:
 - `BOT_TIME_ZONE`
 - `BOT_ENTRY_RETRY_ATTEMPTS`
 - `BOT_ENTRY_REPRICE_CENTS`
+- `BOT_ENTRY_RETRY_SIZE_DECAY`
 
 ## Trading flow
 

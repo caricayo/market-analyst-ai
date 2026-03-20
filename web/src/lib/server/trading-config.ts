@@ -97,6 +97,10 @@ export const tradingConfig = {
     1,
     Math.min(5, Math.round(parseNumber(process.env.BOT_ENTRY_REPRICE_CENTS, 1))),
   ),
+  entryRetrySizeDecay: Math.max(
+    0.4,
+    Math.min(1, parseNumber(process.env.BOT_ENTRY_RETRY_SIZE_DECAY, 0.85)),
+  ),
   timeZone: process.env.BOT_TIME_ZONE?.trim() || DEFAULT_TIME_ZONE,
   kalshiBaseUrl: process.env.KALSHI_API_BASE_URL?.trim() || "https://api.elections.kalshi.com/trade-api/v2",
   kalshiApiKeyId: process.env.KALSHI_API_KEY_ID?.trim() || "",

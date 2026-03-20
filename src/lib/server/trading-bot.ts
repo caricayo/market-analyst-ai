@@ -107,9 +107,16 @@ function buildBotClientOrderId(setupType: Exclude<SetupType, "none">, action: "b
   return `btcbot-${setupType}-${action}-${crypto.randomUUID()}`;
 }
 
-function buildEntryAttempt(baseClientOrderId: string, limitPriceCents: number) {
+function buildEntryAttempt(baseClientOrderId: string, limitPriceCents: number, attemptIndex: number) {
   const limitPriceDollars = limitPriceCents / 100;
-  const contracts = Math.max(1, Math.floor(tradingConfig.stakeDollars / limitPriceDollars));
+  const maxContracts = Math.max(1, Math.floor(tradingConfig.stakeDollars / limitPriceDollars));
+  const contracts = Math.max(
+    1,
+    Math.min(
+      maxContracts,
+      Math.floor(maxContracts * Math.pow(tradingConfig.entryRetrySizeDecay, attemptIndex)),
+    ),
+  );
   const maxCostDollars = round(contracts * limitPriceDollars, 2);
   return {
     clientOrderId: `${baseClientOrderId}-p${limitPriceCents}`,
@@ -210,8 +217,16 @@ async function maybeSubmitTrade(input: {
     buildEntryAttempt(
       baseClientOrderId,
       Math.max(1, Math.min(99, limitPriceCents + index * tradingConfig.entryRetryStepCents)),
+      index,
     ),
-  ).filter((attempt, index, attempts) => attempts.findIndex((candidate) => candidate.limitPriceCents === attempt.limitPriceCents) === index);
+  ).filter(
+    (attempt, index, attempts) =>
+      attempts.findIndex(
+        (candidate) =>
+          candidate.limitPriceCents === attempt.limitPriceCents &&
+          candidate.contracts === attempt.contracts,
+      ) === index,
+  );
   const firstAttempt = entryAttempts[0];
   const [balance, exposure] = await Promise.all([
     getKalshiBalance(),
@@ -386,7 +401,7 @@ async function maybeSubmitTrade(input: {
     stopPriceDollars: null,
     message:
       entryAttempts.length > 1
-        ? `Trade skipped after ${entryAttempts.length} entry ladder attempts because there was not enough resting liquidity to fill the full order.`
+        ? `Trade skipped after ${entryAttempts.length} entry ladder attempts because there was not enough resting liquidity to fill even the reduced size ladder.`
         : `Trade skipped because there was not enough resting liquidity to fill the full order at the quoted price.${lastLiquidityMessage ? ` ${lastLiquidityMessage}` : ""}`,
   } satisfies TradeExecution;
 }
