@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Arfor | Daily command center",
+  title: "BTC 15-Minute Kalshi Bot",
   description:
-    "A polished daily command center for headlines, markets, planning, weather, and a small arcade.",
+    "A Bitcoin 15-minute Kalshi trading console with Coinbase one-minute candles, timing-risk gates, AI synthesis, and optional server-side execution.",
 };
 
 export default function RootLayout({

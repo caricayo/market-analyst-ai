@@ -1,22 +1,21 @@
-# Arfor
+# BTC 15-Minute Kalshi Bot
 
-Arfor is a dark-first glass dashboard built with Next.js 16 and TypeScript. It combines:
+This project is now a Bitcoin 15-minute Kalshi trading console built on the same Next.js 16 infrastructure. It:
 
-- toggleable news categories
-- a month calendar with add-event controls
-- a recurring bill manager with perpetual due dates
-- a stock watchlist with focused ticker news
-- AI-style stock suggestions
-- a weather widget plus a full weather page
-- a dedicated mini-games page
-- Supabase-ready Google auth scaffolding
+- discovers the active BTC 15-minute Kalshi market
+- pulls Coinbase public 1-minute BTC candles
+- computes short-horizon indicators
+- applies timing-risk rules with stricter handling for minutes `1-3` and `9-15`
+- asks the AI for a structured `above`, `below`, or `no_trade` decision
+- can submit a Kalshi order from the server when the signal clears the configured gates
+- keeps a same-day server-side activity log for analyses and trade attempts
 
 ## Stack
 
 - Next.js App Router
 - TypeScript
 - Tailwind CSS v4
-- Supabase SSR auth helpers
+- OpenAI Node SDK
 - Railway-friendly deployment setup
 
 ## Local setup
@@ -28,28 +27,32 @@ npm run dev
 
 Copy `.env.example` to `.env.local` and fill in:
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `OPENAI_API_KEY`
+- `KALSHI_API_KEY_ID`
+- `KALSHI_PRIVATE_KEY_PEM`
 
-## Auth
+Optional runtime knobs:
 
-- `/login` contains the Google OAuth entry point.
-- `/auth/callback` exchanges the auth code for a session.
-- `src/proxy.ts` keeps the Supabase session fresh.
+- `KALSHI_ENABLE_AUTO_TRADE`
+- `BOT_FIXED_STAKE_DOLLARS`
+- `BOT_CONFIDENCE_THRESHOLD`
+- `BOT_LATE_WINDOW_CONFIDENCE_THRESHOLD`
+- `BOT_LATE_WINDOW_MIN_EDGE`
+- `BOT_TIME_ZONE`
+- `BOT_OPERATOR_EMAILS`
 
-## Database
+## Trading flow
 
-The first pass schema lives at:
+- `GET /api/trading/bot` returns the current market snapshot, indicators, current decision, and same-day log.
+- `POST /api/trading/bot` runs the analysis and, if enabled and qualified, submits the Kalshi order.
+- The UI auto-refreshes the snapshot and exposes a manual `Analyze and trade` action.
 
-- `supabase/migrations/202603140001_arfor_core.sql`
+## Notes
 
-It includes tables for:
-
-- profiles
-- calendar events
-- recurring bills
-- stock watchlists
+- Kalshi execution requires both the key ID and the RSA private key for signing requests.
+- Coinbase candles use public market data; no Coinbase key is required in the current implementation.
+- Live order execution is gated behind a Supabase-authenticated operator email allowlist from `BOT_OPERATOR_EMAILS`.
+- The same-day activity log is kept in server memory for the current deployment instance.
 
 ## Build
 

@@ -1,0 +1,52 @@
+const DEFAULT_TIME_ZONE = "Pacific/Honolulu";
+const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
+
+function parseBoolean(value: string | undefined, fallback: boolean) {
+  if (!value) {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  return fallback;
+}
+
+function parseNumber(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+export const tradingConfig = {
+  coinbaseProductId: process.env.COINBASE_PRODUCT_ID?.trim() || "BTC-USD",
+  lookbackCandles: Math.max(120, Math.min(350, parseNumber(process.env.BOT_LOOKBACK_CANDLES, 350))),
+  stakeDollars: Math.max(1, parseNumber(process.env.BOT_FIXED_STAKE_DOLLARS, 10)),
+  confidenceThreshold: Math.max(50, Math.min(95, parseNumber(process.env.BOT_CONFIDENCE_THRESHOLD, 68))),
+  lateWindowConfidenceThreshold: Math.max(
+    70,
+    Math.min(99, parseNumber(process.env.BOT_LATE_WINDOW_CONFIDENCE_THRESHOLD, 82)),
+  ),
+  lateWindowDeterministicEdge: Math.max(
+    0.25,
+    Math.min(3, parseNumber(process.env.BOT_LATE_WINDOW_MIN_EDGE, 0.9)),
+  ),
+  timeZone: process.env.BOT_TIME_ZONE?.trim() || DEFAULT_TIME_ZONE,
+  kalshiBaseUrl: process.env.KALSHI_API_BASE_URL?.trim() || "https://api.elections.kalshi.com/trade-api/v2",
+  kalshiApiKeyId: process.env.KALSHI_API_KEY_ID?.trim() || "",
+  kalshiPrivateKeyPem:
+    process.env.KALSHI_PRIVATE_KEY_PEM?.replace(/\\n/g, "\n").trim() || "",
+  openAiModel: process.env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL,
+  autoTradeEnabled: parseBoolean(process.env.KALSHI_ENABLE_AUTO_TRADE, true),
+};
+
+export function hasOpenAiKey() {
+  return Boolean(process.env.OPENAI_API_KEY?.trim());
+}
+
+export function hasKalshiTradingCredentials() {
+  return Boolean(tradingConfig.kalshiApiKeyId && tradingConfig.kalshiPrivateKeyPem);
+}
