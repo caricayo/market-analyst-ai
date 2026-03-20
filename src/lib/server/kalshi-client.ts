@@ -17,10 +17,10 @@ type KalshiMarketApi = {
   no_sub_title?: string | null;
   event_ticker?: string | null;
   strike_type?: string | null;
-  floor_strike?: string | null;
-  cap_strike?: string | null;
-  custom_strike?: string | null;
-  functional_strike?: string | null;
+  floor_strike?: string | number | null;
+  cap_strike?: string | number | null;
+  custom_strike?: string | number | null;
+  functional_strike?: string | number | null;
 };
 
 type MarketsResponse = {
@@ -51,9 +51,13 @@ function parsePrice(value: string | null | undefined) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function parseStrike(value: string | null | undefined) {
-  if (!value) {
+function parseStrike(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") {
     return null;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
   }
 
   const numeric = value.replace(/[^0-9.]/g, "");
