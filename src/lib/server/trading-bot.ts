@@ -105,6 +105,19 @@ function buildBotClientOrderId(setupType: Exclude<SetupType, "none">, action: "b
   return `btcbot-${setupType}-${action}-${crypto.randomUUID()}`;
 }
 
+function buildEntryAttempt(baseClientOrderId: string, limitPriceCents: number) {
+  const limitPriceDollars = limitPriceCents / 100;
+  const contracts = Math.max(1, Math.floor(tradingConfig.stakeDollars / limitPriceDollars));
+  const maxCostDollars = round(contracts * limitPriceDollars, 2);
+  return {
+    clientOrderId: `${baseClientOrderId}-p${limitPriceCents}`,
+    limitPriceCents,
+    limitPriceDollars,
+    contracts,
+    maxCostDollars,
+  };
+}
+
 function getManagedTradeSettings(setupType: Exclude<SetupType, "none">, entryPriceDollars: number, closeTime: string | null) {
   const profitTargetCents =
     setupType === "trend"
@@ -189,11 +202,15 @@ async function maybeSubmitTrade(input: {
   }
 
   const limitPriceCents = Math.max(1, Math.min(99, Math.round(price * 100)));
-  const limitPriceDollars = limitPriceCents / 100;
-  const contracts = Math.max(1, Math.floor(tradingConfig.stakeDollars / limitPriceDollars));
-  const maxCostDollars = round(contracts * limitPriceDollars, 2);
   const setupType = input.decision.setupType === "none" ? "trend" : input.decision.setupType;
-  const clientOrderId = buildBotClientOrderId(setupType, "buy");
+  const baseClientOrderId = buildBotClientOrderId(setupType, "buy");
+  const entryAttempts = Array.from({ length: tradingConfig.entryRetryAttempts }, (_, index) =>
+    buildEntryAttempt(
+      baseClientOrderId,
+      Math.max(1, Math.min(99, limitPriceCents + index * tradingConfig.entryRetryStepCents)),
+    ),
+  ).filter((attempt, index, attempts) => attempts.findIndex((candidate) => candidate.limitPriceCents === attempt.limitPriceCents) === index);
+  const firstAttempt = entryAttempts[0];
   const [balance, livePositions] = await Promise.all([
     getKalshiBalance(),
     listKalshiPositions().catch(() => []),
@@ -206,9 +223,9 @@ async function maybeSubmitTrade(input: {
       side,
       outcome: input.decision.derivedOutcome,
       contracts: null,
-      maxCostDollars,
+      maxCostDollars: firstAttempt.maxCostDollars,
       orderId: null,
-      clientOrderId,
+      clientOrderId: baseClientOrderId,
       managedTradeId: null,
       entryPriceDollars: null,
       targetPriceDollars: null,
@@ -219,20 +236,20 @@ async function maybeSubmitTrade(input: {
 
   if (
     balance.availableBalanceDollars !== null &&
-    maxCostDollars !== null &&
-    balance.availableBalanceDollars + 0.001 < maxCostDollars
+    firstAttempt.maxCostDollars !== null &&
+    balance.availableBalanceDollars + 0.001 < firstAttempt.maxCostDollars
   ) {
     haltFunding(
-      `Kalshi balance pre-check failed. Available balance ${balance.availableBalanceDollars.toFixed(2)} is below required max cost ${maxCostDollars.toFixed(2)}.`,
+      `Kalshi balance pre-check failed. Available balance ${balance.availableBalanceDollars.toFixed(2)} is below required max cost ${firstAttempt.maxCostDollars.toFixed(2)}.`,
     );
     return {
       status: "disabled",
       side,
       outcome: input.decision.derivedOutcome,
-      contracts,
-      maxCostDollars,
+      contracts: firstAttempt.contracts,
+      maxCostDollars: firstAttempt.maxCostDollars,
       orderId: null,
-      clientOrderId,
+      clientOrderId: baseClientOrderId,
       managedTradeId: null,
       entryPriceDollars: null,
       targetPriceDollars: null,
@@ -241,115 +258,131 @@ async function maybeSubmitTrade(input: {
     } satisfies TradeExecution;
   }
 
-  try {
-    const response = await submitKalshiOrder({
-      action: "buy",
-      ticker: input.market.ticker,
-      side,
-      contracts,
-      limitPriceCents,
-      clientOrderId,
-    });
+  let lastLiquidityMessage: string | null = null;
 
-    const entryPriceDollars =
-      (side === "yes"
-        ? Number(response.order?.yes_price_dollars ?? response.order?.yes_price)
-        : Number(response.order?.no_price_dollars ?? response.order?.no_price)) || limitPriceDollars;
-    const managedSettings = getManagedTradeSettings(setupType, entryPriceDollars, input.market.closeTime);
-    const managedTrade = createManagedTrade({
-      marketTicker: input.market.ticker,
-      marketTitle: input.market.title,
-      closeTime: input.market.closeTime,
-      setupType,
-      entrySide: side,
-      entryOutcome: input.decision.derivedOutcome,
-      contracts,
-      entryOrderId: response.order?.order_id ?? null,
-      entryClientOrderId: response.order?.client_order_id ?? clientOrderId,
-      entryPriceDollars,
-      targetPriceDollars: managedSettings.targetPriceDollars,
-      stopPriceDollars: managedSettings.stopPriceDollars,
-      forcedExitAt: managedSettings.forcedExitAt,
-      status: "open",
-      exitReason: null,
-      exitOrderId: null,
-      exitClientOrderId: null,
-      exitPriceDollars: null,
-      realizedPnlDollars: null,
-      lastSeenBidDollars: null,
-      peakPriceDollars: entryPriceDollars,
-      lastCheckedAt: null,
-      lastExitAttemptAt: null,
-      stopArmedAt: null,
-      errorMessage: null,
-    });
+  for (let index = 0; index < entryAttempts.length; index += 1) {
+    const attempt = entryAttempts[index];
 
-    return {
-      status: "submitted",
-      side,
-      outcome: input.decision.derivedOutcome,
-      contracts,
-      maxCostDollars,
-      orderId: response.order?.order_id ?? null,
-      clientOrderId: response.order?.client_order_id ?? clientOrderId,
-      managedTradeId: managedTrade?.id ?? null,
-      entryPriceDollars,
-      targetPriceDollars: managedTrade?.targetPriceDollars ?? null,
-      stopPriceDollars: managedTrade?.stopPriceDollars ?? null,
-      message: `Submitted ${contracts} contract${contracts === 1 ? "" : "s"} on ${side.toUpperCase()} and started managed ${setupType} exits.`,
-    } satisfies TradeExecution;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Kalshi order submission failed.";
-    if (isLiquidityErrorMessage(message)) {
+    try {
+      const response = await submitKalshiOrder({
+        action: "buy",
+        ticker: input.market.ticker,
+        side,
+        contracts: attempt.contracts,
+        limitPriceCents: attempt.limitPriceCents,
+        clientOrderId: attempt.clientOrderId,
+      });
+
+      const entryPriceDollars =
+        (side === "yes"
+          ? Number(response.order?.yes_price_dollars ?? response.order?.yes_price)
+          : Number(response.order?.no_price_dollars ?? response.order?.no_price)) || attempt.limitPriceDollars;
+      const managedSettings = getManagedTradeSettings(setupType, entryPriceDollars, input.market.closeTime);
+      const managedTrade = createManagedTrade({
+        marketTicker: input.market.ticker,
+        marketTitle: input.market.title,
+        closeTime: input.market.closeTime,
+        setupType,
+        entrySide: side,
+        entryOutcome: input.decision.derivedOutcome,
+        contracts: attempt.contracts,
+        entryOrderId: response.order?.order_id ?? null,
+        entryClientOrderId: response.order?.client_order_id ?? attempt.clientOrderId,
+        entryPriceDollars,
+        targetPriceDollars: managedSettings.targetPriceDollars,
+        stopPriceDollars: managedSettings.stopPriceDollars,
+        forcedExitAt: managedSettings.forcedExitAt,
+        status: "open",
+        exitReason: null,
+        exitOrderId: null,
+        exitClientOrderId: null,
+        exitPriceDollars: null,
+        realizedPnlDollars: null,
+        lastSeenBidDollars: null,
+        peakPriceDollars: entryPriceDollars,
+        lastCheckedAt: null,
+        lastExitAttemptAt: null,
+        stopArmedAt: null,
+        errorMessage: null,
+      });
+
       return {
-        status: "skipped",
+        status: "submitted",
         side,
         outcome: input.decision.derivedOutcome,
-        contracts,
-        maxCostDollars,
+        contracts: attempt.contracts,
+        maxCostDollars: attempt.maxCostDollars,
+        orderId: response.order?.order_id ?? null,
+        clientOrderId: response.order?.client_order_id ?? attempt.clientOrderId,
+        managedTradeId: managedTrade?.id ?? null,
+        entryPriceDollars,
+        targetPriceDollars: managedTrade?.targetPriceDollars ?? null,
+        stopPriceDollars: managedTrade?.stopPriceDollars ?? null,
+        message:
+          index === 0
+            ? `Submitted ${attempt.contracts} contract${attempt.contracts === 1 ? "" : "s"} on ${side.toUpperCase()} and started managed ${setupType} exits.`
+            : `Submitted ${attempt.contracts} contract${attempt.contracts === 1 ? "" : "s"} on ${side.toUpperCase()} after ${index + 1} ladder attempts and started managed ${setupType} exits.`,
+      } satisfies TradeExecution;
+    } catch (error) {
+
+      const message = error instanceof Error ? error.message : "Kalshi order submission failed.";
+      if (isLiquidityErrorMessage(message)) {
+        lastLiquidityMessage = message;
+        continue;
+      }
+
+      if (isFundingErrorMessage(message)) {
+        haltFunding(`Kalshi rejected a buy order for insufficient funds. ${message}`);
+        return {
+          status: "disabled",
+          side,
+          outcome: input.decision.derivedOutcome,
+          contracts: attempt.contracts,
+          maxCostDollars: attempt.maxCostDollars,
+          orderId: null,
+          clientOrderId: attempt.clientOrderId,
+          managedTradeId: null,
+          entryPriceDollars: null,
+          targetPriceDollars: null,
+          stopPriceDollars: null,
+          message: "Bot halted after Kalshi reported insufficient funding. Refill the account, then manually resume once.",
+        } satisfies TradeExecution;
+      }
+
+      return {
+        status: "error",
+        side,
+        outcome: input.decision.derivedOutcome,
+        contracts: attempt.contracts,
+        maxCostDollars: attempt.maxCostDollars,
         orderId: null,
-        clientOrderId,
+        clientOrderId: attempt.clientOrderId,
         managedTradeId: null,
         entryPriceDollars: null,
         targetPriceDollars: null,
         stopPriceDollars: null,
-        message: "Trade skipped because there was not enough resting liquidity to fill the full order at the quoted price.",
+        message,
       } satisfies TradeExecution;
     }
-
-    if (isFundingErrorMessage(message)) {
-      haltFunding(`Kalshi rejected a buy order for insufficient funds. ${message}`);
-      return {
-        status: "disabled",
-        side,
-        outcome: input.decision.derivedOutcome,
-        contracts,
-        maxCostDollars,
-        orderId: null,
-        clientOrderId,
-        managedTradeId: null,
-        entryPriceDollars: null,
-        targetPriceDollars: null,
-        stopPriceDollars: null,
-        message: "Bot halted after Kalshi reported insufficient funding. Refill the account, then manually resume once.",
-      } satisfies TradeExecution;
-    }
-
-    return {
-      status: "error",
-      side,
-      outcome: input.decision.derivedOutcome,
-      contracts,
-      maxCostDollars,
-      orderId: null,
-      clientOrderId,
-      managedTradeId: null,
-      entryPriceDollars: null,
-      targetPriceDollars: null,
-      stopPriceDollars: null,
-      message,
-    } satisfies TradeExecution;
   }
+
+  return {
+    status: "skipped",
+    side,
+    outcome: input.decision.derivedOutcome,
+    contracts: firstAttempt.contracts,
+    maxCostDollars: firstAttempt.maxCostDollars,
+    orderId: null,
+    clientOrderId: baseClientOrderId,
+    managedTradeId: null,
+    entryPriceDollars: null,
+    targetPriceDollars: null,
+    stopPriceDollars: null,
+    message:
+      entryAttempts.length > 1
+        ? `Trade skipped after ${entryAttempts.length} entry ladder attempts because there was not enough resting liquidity to fill the full order.`
+        : `Trade skipped because there was not enough resting liquidity to fill the full order at the quoted price.${lastLiquidityMessage ? ` ${lastLiquidityMessage}` : ""}`,
+  } satisfies TradeExecution;
 }
 
 function buildLogEntry(input: {

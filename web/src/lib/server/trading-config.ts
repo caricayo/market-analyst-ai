@@ -75,6 +75,14 @@ export const tradingConfig = {
     0.25,
     Math.min(3, parseNumber(process.env.BOT_LATE_WINDOW_MIN_EDGE, 0.9)),
   ),
+  entryRetryAttempts: Math.max(
+    1,
+    Math.min(4, Math.round(parseNumber(process.env.BOT_ENTRY_RETRY_ATTEMPTS, 3))),
+  ),
+  entryRetryStepCents: Math.max(
+    1,
+    Math.min(5, Math.round(parseNumber(process.env.BOT_ENTRY_REPRICE_CENTS, 1))),
+  ),
   timeZone: process.env.BOT_TIME_ZONE?.trim() || DEFAULT_TIME_ZONE,
   kalshiBaseUrl: process.env.KALSHI_API_BASE_URL?.trim() || "https://api.elections.kalshi.com/trade-api/v2",
   kalshiApiKeyId: process.env.KALSHI_API_KEY_ID?.trim() || "",
