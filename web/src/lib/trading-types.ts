@@ -121,6 +121,66 @@ export type LivePositionSnapshot = {
   trackedByManagedTrade: boolean;
 };
 
+export type PolicyEvaluationStatus = "pending" | "resolved" | "skipped";
+
+export type ResearchPolicyResult = {
+  policySlug: string;
+  policyName: string;
+  isChampion: boolean;
+  setupType: SetupType;
+  call: TradeCall;
+  candidateSide: "above" | "below" | null;
+  shouldTrade: boolean;
+  confidence: number;
+  entrySide: "yes" | "no" | null;
+  entryPriceDollars: number | null;
+  contracts: number | null;
+  maxCostDollars: number | null;
+  gateReasons: string[];
+  blockers: string[];
+  status: PolicyEvaluationStatus;
+  resolutionOutcome: "above" | "below" | null;
+  settlementPriceDollars: number | null;
+  paperPnlDollars: number | null;
+  createdAt: string;
+  resolvedAt: string | null;
+};
+
+export type ResearchWindowSnapshot = {
+  id: string;
+  marketTicker: string;
+  closeTime: string | null;
+  observedAt: string;
+  minuteInWindow: number;
+  strikePrice: number | null;
+  currentPrice: number | null;
+  resolutionOutcome: "above" | "below" | null;
+  settlementPriceDollars: number | null;
+  status: "pending" | "resolved";
+  championPolicySlug: string;
+  policyResults: ResearchPolicyResult[];
+};
+
+export type PolicyLeaderboardEntry = {
+  policySlug: string;
+  policyName: string;
+  isChampion: boolean;
+  windows: number;
+  trades: number;
+  wins: number;
+  losses: number;
+  hitRate: number;
+  totalPaperPnlDollars: number;
+  avgPaperPnlDollars: number;
+};
+
+export type ResearchSnapshot = {
+  pendingWindows: number;
+  resolvedWindows: number;
+  latestWindow: ResearchWindowSnapshot | null;
+  leaderboard: PolicyLeaderboardEntry[];
+};
+
 export type BotLogEntry = {
   id: string;
   createdAt: string;
@@ -178,4 +238,5 @@ export type BotStatusSnapshot = {
   livePositions: LivePositionSnapshot[];
   activeManagedTrades: ManagedTrade[];
   log: BotLogEntry[];
+  research: ResearchSnapshot | null;
 };

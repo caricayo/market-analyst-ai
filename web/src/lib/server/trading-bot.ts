@@ -19,6 +19,7 @@ import {
   syncManagedTradesWithPositions,
 } from "@/lib/server/managed-trade-manager";
 import { createManagedTrade } from "@/lib/server/managed-trade-store";
+import { getResearchSnapshot, recordResearchWindow, resolveResearchWindows } from "@/lib/server/policy-research";
 import { tradingConfig, hasKalshiTradingCredentials } from "@/lib/server/trading-config";
 import { appendTradingLog, listTradingLog } from "@/lib/server/trading-log";
 import type { BotLogEntry, BotStatusSnapshot, SetupType, TradeExecution } from "@/lib/trading-types";
@@ -669,6 +670,15 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
     decision,
   });
 
+  await recordResearchWindow({
+    market,
+    indicators,
+    minuteInWindow,
+    timingRisk,
+  }).catch(() => undefined);
+  await resolveResearchWindows().catch(() => undefined);
+  const research = await getResearchSnapshot().catch(() => null);
+
   if (
     options?.executeTrade &&
     shouldAppendLog(source, execution, Boolean(options?.logRun), decision.shouldTrade)
@@ -711,6 +721,7 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
     livePositions: exposure.livePositions,
     activeManagedTrades: exposure.activeManagedTrades,
     log: listTradingLog(),
+    research,
   } satisfies BotStatusSnapshot;
 }
 

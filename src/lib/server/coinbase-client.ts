@@ -55,6 +55,10 @@ async function fetchChunk(start: Date, end: Date) {
     .sort((left, right) => left.start - right.start);
 }
 
+export async function fetchCoinbaseCandlesInRange(start: Date, end: Date) {
+  return fetchChunk(start, end);
+}
+
 export async function fetchCoinbaseCandles() {
   const now = new Date();
   const end = new Date(now.getTime() + 60_000);
