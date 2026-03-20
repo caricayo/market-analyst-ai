@@ -161,7 +161,7 @@ function toSnapshot(market: KalshiMarketApi): KalshiMarketSnapshot {
 }
 
 async function fetchMarketPage(status: string | null, cursor?: string | null) {
-  const params = new URLSearchParams({ limit: "200" });
+  const params = new URLSearchParams({ limit: "100" });
   if (status) {
     params.set("status", status);
   }
@@ -185,7 +185,7 @@ async function fetchMarketPage(status: string | null, cursor?: string | null) {
 }
 
 export async function discoverActiveBtcMarket(now = new Date()) {
-  const statuses: Array<string | null> = ["open", "active", null];
+  const statuses: Array<string | null> = ["open", null];
 
   for (const status of statuses) {
     let cursor: string | null | undefined = undefined;
