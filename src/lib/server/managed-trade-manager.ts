@@ -7,6 +7,7 @@ import {
 import {
   createManagedTrade,
   closeManagedTrade,
+  hydrateManagedTradesFromPersistence,
   listOpenManagedTrades,
   patchManagedTrade,
 } from "@/lib/server/managed-trade-store";
@@ -131,13 +132,13 @@ function getTrackedContractsForTicker(ticker: string) {
     .reduce((sum, trade) => sum + Math.max(0, trade.contracts), 0);
 }
 
-function closeStaleManagedTrades(liveTickers: Set<string>) {
+async function closeStaleManagedTrades(liveTickers: Set<string>) {
   for (const trade of listOpenManagedTrades()) {
     if (liveTickers.has(trade.marketTicker)) {
       continue;
     }
 
-    closeManagedTrade({
+    await closeManagedTrade({
       id: trade.id,
       exitReason: trade.exitReason ?? "manual-sync",
       exitPriceDollars: trade.exitPriceDollars,
@@ -195,7 +196,7 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
     const entryPriceDollars = roundPrice(weightedPrice, 2) ?? 0.5;
     const settings = getManagedTradeSettings(setupType, entryPriceDollars, market?.closeTime ?? null);
 
-    createManagedTrade({
+    await createManagedTrade({
       marketTicker: position.ticker,
       marketTitle: market?.title ?? null,
       closeTime: market?.closeTime ?? null,
@@ -231,11 +232,12 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
 }
 
 export async function syncManagedTradesWithPositions() {
+  await hydrateManagedTradesFromPersistence();
   const positions = await listKalshiPositions().catch(() => []);
   const openPositions = positions.filter((position) => Math.abs(position.contracts) >= 0.01);
   const liveTickers = new Set(openPositions.map((position) => position.ticker));
 
-  closeStaleManagedTrades(liveTickers);
+  await closeStaleManagedTrades(liveTickers);
   const driftWarnings = await recoverManagedTradesFromPositions(openPositions);
   const activeManagedTrades = listOpenManagedTrades();
   const livePositions: LivePositionSnapshot[] = openPositions.map((position) => {
@@ -321,7 +323,7 @@ async function processTrade(trade: ManagedTrade) {
   const now = new Date();
 
   if (liveContracts < 0.01) {
-    closeManagedTrade({
+    await closeManagedTrade({
       id: trade.id,
       exitReason: trade.exitReason ?? "manual-sync",
       exitPriceDollars: trade.exitPriceDollars,
@@ -334,7 +336,7 @@ async function processTrade(trade: ManagedTrade) {
 
   const closeTimeTs = trade.closeTime ? Date.parse(trade.closeTime) : Number.NaN;
   if (Number.isFinite(closeTimeTs) && now.getTime() >= closeTimeTs) {
-    closeManagedTrade({
+    await closeManagedTrade({
       id: trade.id,
       status: "error",
       exitReason: "expired",
@@ -350,7 +352,7 @@ async function processTrade(trade: ManagedTrade) {
   const market = await fetchKalshiMarketByTicker(trade.marketTicker).catch(() => null);
   const bidPrice = market ? getSideBidPrice(trade, market.yesBidPrice, market.noBidPrice) : null;
   const exitState = getManagedExitState(trade, now, bidPrice);
-  patchManagedTrade(trade.id, {
+  await patchManagedTrade(trade.id, {
     lastCheckedAt: now.toISOString(),
     lastSeenBidDollars: bidPrice,
     peakPriceDollars: exitState.peakPriceDollars,
@@ -381,7 +383,7 @@ async function processTrade(trade: ManagedTrade) {
   }
 
   if (bidPrice === null || bidPrice <= 0) {
-    patchManagedTrade(trade.id, {
+    await patchManagedTrade(trade.id, {
       errorMessage: "Managed exit trigger fired but no usable bid price was available.",
       lastExitAttemptAt: now.toISOString(),
     });
@@ -390,7 +392,7 @@ async function processTrade(trade: ManagedTrade) {
 
   const contractsToExit = Math.max(1, Math.min(trade.contracts, Math.round(liveContracts)));
   if (contractsToExit !== trade.contracts) {
-    patchManagedTrade(trade.id, {
+    await patchManagedTrade(trade.id, {
       contracts: contractsToExit,
     });
   }
@@ -409,7 +411,7 @@ async function processTrade(trade: ManagedTrade) {
       reduceOnly: true,
     });
 
-    patchManagedTrade(trade.id, {
+    await patchManagedTrade(trade.id, {
       status: "exit-submitted",
       exitReason,
       exitOrderId: response.order?.order_id ?? null,
@@ -420,7 +422,7 @@ async function processTrade(trade: ManagedTrade) {
       errorMessage: null,
     });
   } catch (error) {
-    patchManagedTrade(trade.id, {
+    await patchManagedTrade(trade.id, {
       lastExitAttemptAt: now.toISOString(),
       errorMessage: error instanceof Error ? error.message : "Managed exit submission failed.",
     });

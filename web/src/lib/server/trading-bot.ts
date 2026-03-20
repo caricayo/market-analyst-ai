@@ -391,7 +391,7 @@ async function maybeSubmitTrade(input: {
           ? Number(response.order?.yes_price_dollars ?? response.order?.yes_price)
           : Number(response.order?.no_price_dollars ?? response.order?.no_price)) || attempt.limitPriceDollars;
       const managedSettings = getManagedTradeSettings(setupType, entryPriceDollars, input.market.closeTime);
-      const managedTrade = createManagedTrade({
+      const managedTrade = await createManagedTrade({
         marketTicker: input.market.ticker,
         marketTitle: input.market.title,
         closeTime: input.market.closeTime,
