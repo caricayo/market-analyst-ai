@@ -113,6 +113,14 @@ export type ManagedTrade = {
   errorMessage: string | null;
 };
 
+export type LivePositionSnapshot = {
+  ticker: string;
+  contracts: number;
+  realizedPnlDollars: number | null;
+  trackedContracts: number;
+  trackedByManagedTrade: boolean;
+};
+
 export type BotLogEntry = {
   id: string;
   createdAt: string;
@@ -155,6 +163,7 @@ export type BotStatusSnapshot = {
   decision: TradingDecision | null;
   tradingEnabled: boolean;
   warnings: string[];
+  livePositions: LivePositionSnapshot[];
   activeManagedTrades: ManagedTrade[];
   log: BotLogEntry[];
 };

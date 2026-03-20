@@ -44,7 +44,9 @@ type PositionsResponse = {
 
 type BalanceResponse = {
   balance?: number | null;
+  balance_dollars?: string | null;
   portfolio_value?: number | null;
+  portfolio_value_dollars?: string | null;
   updated_ts?: number | null;
 };
 
@@ -114,6 +116,11 @@ const cacheStore = globalThis as typeof globalThis & {
 };
 
 function parsePrice(value: string | null | undefined) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseNumberish(value: number | string | null | undefined) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -396,14 +403,18 @@ export async function getKalshiBalance() {
   }
 
   const payload = (await response.json()) as BalanceResponse;
+  const balanceDollars =
+    parsePrice(payload.balance_dollars) ??
+    (typeof payload.balance === "number" ? Number((payload.balance / 100).toFixed(2)) : null);
+  const portfolioValueDollars =
+    parsePrice(payload.portfolio_value_dollars) ??
+    (typeof payload.portfolio_value === "number"
+      ? Number((payload.portfolio_value / 100).toFixed(2))
+      : null);
   return {
-    availableBalanceDollars:
-      typeof payload.balance === "number" ? Number((payload.balance / 100).toFixed(2)) : null,
-    portfolioValueDollars:
-      typeof payload.portfolio_value === "number"
-        ? Number((payload.portfolio_value / 100).toFixed(2))
-        : null,
-    updatedAtUnix: typeof payload.updated_ts === "number" ? payload.updated_ts : null,
+    availableBalanceDollars: balanceDollars,
+    portfolioValueDollars: portfolioValueDollars,
+    updatedAtUnix: parseNumberish(payload.updated_ts),
   } satisfies KalshiBalanceSnapshot;
 }
 

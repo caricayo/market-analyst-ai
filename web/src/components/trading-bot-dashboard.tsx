@@ -265,6 +265,38 @@ export function TradingBotDashboard() {
           </div>
 
           <div className="mt-5 grid gap-3">
+            {snapshot?.livePositions.length ? (
+              snapshot.livePositions.map((position) => (
+                <div key={position.ticker} className="rounded-[22px] border border-white/10 bg-[#0c1420] p-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-lg font-semibold text-white">{position.ticker}</p>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
+                          Live {formatNumber(position.contracts)} contracts
+                        </span>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs ${position.trackedByManagedTrade ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-50" : "border-amber-300/30 bg-amber-300/12 text-amber-50"}`}
+                        >
+                          {position.trackedByManagedTrade ? "tracked" : "recovery needed"}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-400">
+                        Tracker coverage {formatNumber(position.trackedContracts)} / {formatNumber(position.contracts)} |
+                        realized PnL {formatMoney(position.realizedPnlDollars)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-[22px] border border-dashed border-white/12 bg-white/5 px-5 py-6 text-sm text-slate-400">
+                No live Kalshi positions are currently open.
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5 grid gap-3">
             {snapshot?.activeManagedTrades.length ? (
               snapshot.activeManagedTrades.map((trade) => (
                 <div key={trade.id} className="rounded-[22px] border border-white/10 bg-[#0c1420] p-4">
@@ -291,6 +323,9 @@ export function TradingBotDashboard() {
                         Stop {trade.stopArmedAt ? "armed" : "waiting"} | armed at{" "}
                         {formatTimestamp(trade.stopArmedAt, snapshot.timeZone)}
                       </p>
+                      {trade.errorMessage ? (
+                        <p className="mt-2 text-sm text-amber-100">{trade.errorMessage}</p>
+                      ) : null}
                     </div>
                     <div className="rounded-[18px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
                       Status: {trade.status}
@@ -300,7 +335,7 @@ export function TradingBotDashboard() {
               ))
             ) : (
               <div className="rounded-[22px] border border-dashed border-white/12 bg-white/5 px-5 py-6 text-sm text-slate-400">
-                No active managed trades.
+                No active managed exit trackers.
               </div>
             )}
           </div>

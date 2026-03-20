@@ -12,11 +12,13 @@ import { buildIndicatorSnapshot, classifyTimingRisk, getMinuteInWindow } from "@
 import {
   discoverActiveBtcMarket,
   getKalshiBalance,
-  listKalshiPositions,
   submitKalshiOrder,
 } from "@/lib/server/kalshi-client";
-import { ensureManagedTradeManagerStarted } from "@/lib/server/managed-trade-manager";
-import { createManagedTrade, listOpenManagedTrades } from "@/lib/server/managed-trade-store";
+import {
+  ensureManagedTradeManagerStarted,
+  syncManagedTradesWithPositions,
+} from "@/lib/server/managed-trade-manager";
+import { createManagedTrade } from "@/lib/server/managed-trade-store";
 import { tradingConfig, hasKalshiTradingCredentials } from "@/lib/server/trading-config";
 import { appendTradingLog, listTradingLog } from "@/lib/server/trading-log";
 import type { BotLogEntry, BotStatusSnapshot, SetupType, TradeExecution } from "@/lib/trading-types";
@@ -217,13 +219,17 @@ async function maybeSubmitTrade(input: {
     ),
   ).filter((attempt, index, attempts) => attempts.findIndex((candidate) => candidate.limitPriceCents === attempt.limitPriceCents) === index);
   const firstAttempt = entryAttempts[0];
-  const [balance, livePositions] = await Promise.all([
+  const [balance, exposure] = await Promise.all([
     getKalshiBalance(),
-    listKalshiPositions().catch(() => []),
+    syncManagedTradesWithPositions().catch(() => ({
+      activeManagedTrades: [],
+      driftWarnings: [],
+      livePositions: [],
+    })),
   ]);
-  const hasLivePosition = livePositions.some((position) => Math.abs(position.contracts) >= 0.01);
+  const hasLivePosition = exposure.livePositions.length > 0;
 
-  if (hasLivePosition || listOpenManagedTrades().length > 0) {
+  if (hasLivePosition || exposure.activeManagedTrades.length > 0) {
     return {
       status: "skipped",
       side,
@@ -459,7 +465,7 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
     clearFundingHalt();
   }
 
-  const [marketResult, candles, balance] = await Promise.all([
+  const [marketResult, candles, balance, exposure] = await Promise.all([
     discoverActiveBtcMarket(now).catch((error) => {
       warnings.push(
         error instanceof Error
@@ -474,6 +480,11 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
       portfolioValueDollars: null,
       updatedAtUnix: null,
     })),
+    syncManagedTradesWithPositions().catch(() => ({
+      activeManagedTrades: [],
+      driftWarnings: ["Live position sync warning: unable to reconcile managed trades with Kalshi positions."],
+      livePositions: [],
+    })),
   ]);
   const market = marketResult;
   if (!market) {
@@ -484,6 +495,13 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
   }
   if (isFundingHalted()) {
     warnings.push(`Bot auto-entry halted for funding: ${getFundingHaltReason() ?? "insufficient funds reported by Kalshi."}`);
+  }
+  warnings.push(...exposure.driftWarnings);
+  if (exposure.livePositions.length > 0 && exposure.activeManagedTrades.length === 0) {
+    warnings.push("Live Kalshi exposure exists, but the managed exit tracker is still rebuilding from exchange state.");
+  }
+  if (exposure.livePositions.some((position) => !position.trackedByManagedTrade)) {
+    warnings.push("One or more live positions are not fully tracked by local managed-trade state yet.");
   }
 
   const indicators = buildIndicatorSnapshot(candles, market?.strikePrice ?? null);
@@ -538,7 +556,8 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
       hasKalshiTradingCredentials() &&
       !isFundingHalted(),
     warnings,
-    activeManagedTrades: listOpenManagedTrades(),
+    livePositions: exposure.livePositions,
+    activeManagedTrades: exposure.activeManagedTrades,
     log: listTradingLog(),
   } satisfies BotStatusSnapshot;
 }

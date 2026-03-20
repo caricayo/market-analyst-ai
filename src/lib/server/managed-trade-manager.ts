@@ -11,7 +11,7 @@ import {
   patchManagedTrade,
 } from "@/lib/server/managed-trade-store";
 import { tradingConfig, hasKalshiTradingCredentials } from "@/lib/server/trading-config";
-import type { ExitReason, ManagedTrade } from "@/lib/trading-types";
+import type { ExitReason, LivePositionSnapshot, ManagedTrade } from "@/lib/trading-types";
 import { getMinuteInWindow } from "@/lib/server/indicator-engine";
 
 const managerState = globalThis as typeof globalThis & {
@@ -131,8 +131,25 @@ function getTrackedContractsForTicker(ticker: string) {
     .reduce((sum, trade) => sum + Math.max(0, trade.contracts), 0);
 }
 
-async function recoverManagedTradesFromPositions() {
-  const positions = await listKalshiPositions().catch(() => []);
+function closeStaleManagedTrades(liveTickers: Set<string>) {
+  for (const trade of listOpenManagedTrades()) {
+    if (liveTickers.has(trade.marketTicker)) {
+      continue;
+    }
+
+    closeManagedTrade({
+      id: trade.id,
+      exitReason: trade.exitReason ?? "manual-sync",
+      exitPriceDollars: trade.exitPriceDollars,
+      realizedPnlDollars: trade.realizedPnlDollars ?? getRealizedPnl(trade, trade.exitPriceDollars),
+      exitOrderId: trade.exitOrderId,
+      exitClientOrderId: trade.exitClientOrderId,
+    });
+  }
+}
+
+async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<typeof listKalshiPositions>>) {
+  const driftWarnings: string[] = [];
 
   for (const position of positions) {
     const liveContracts = Math.abs(position.contracts);
@@ -154,6 +171,9 @@ async function recoverManagedTradesFromPositions() {
 
     const latestBotFill = botBuyFills[0];
     if (!latestBotFill) {
+      driftWarnings.push(
+        `Live position ${position.ticker} is open on Kalshi but no bot buy fill was available to rebuild managed exits.`,
+      );
       continue;
     }
 
@@ -206,6 +226,37 @@ async function recoverManagedTradesFromPositions() {
           : "Recovered managed trade from live Kalshi fills after local tracker reset.",
     });
   }
+
+  return driftWarnings;
+}
+
+export async function syncManagedTradesWithPositions() {
+  const positions = await listKalshiPositions().catch(() => []);
+  const openPositions = positions.filter((position) => Math.abs(position.contracts) >= 0.01);
+  const liveTickers = new Set(openPositions.map((position) => position.ticker));
+
+  closeStaleManagedTrades(liveTickers);
+  const driftWarnings = await recoverManagedTradesFromPositions(openPositions);
+  const activeManagedTrades = listOpenManagedTrades();
+  const livePositions: LivePositionSnapshot[] = openPositions.map((position) => {
+    const trackedContracts = activeManagedTrades
+      .filter((trade) => trade.marketTicker === position.ticker)
+      .reduce((sum, trade) => sum + Math.max(0, trade.contracts), 0);
+
+    return {
+      ticker: position.ticker,
+      contracts: Math.abs(position.contracts),
+      realizedPnlDollars: position.realizedPnlDollars,
+      trackedContracts,
+      trackedByManagedTrade: trackedContracts >= Math.abs(position.contracts) - 0.01,
+    };
+  });
+
+  return {
+    activeManagedTrades,
+    driftWarnings,
+    livePositions,
+  };
 }
 
 function getSideBidPrice(trade: ManagedTrade, yesBidPrice: number | null, noBidPrice: number | null) {
@@ -383,8 +434,8 @@ export async function processManagedTrades() {
 
   managerState.__btcManagedTradeManagerRunning = true;
   try {
-    await recoverManagedTradesFromPositions();
-    const trades = listOpenManagedTrades();
+    const { activeManagedTrades } = await syncManagedTradesWithPositions();
+    const trades = activeManagedTrades;
     for (const trade of trades) {
       await processTrade(trade);
     }
