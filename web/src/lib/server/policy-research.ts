@@ -516,6 +516,96 @@ function buildLeaderboard(policyRows: PolicyEvaluationRow[], activePolicySlug: s
     });
 }
 
+async function resolveWindowEvaluations(
+  supabase: NonNullable<ReturnType<typeof createAdminSupabaseClient>>,
+  row: ResearchWindowRow,
+  resolvedAtOverride?: string,
+) {
+  if (!row.close_time) {
+    return;
+  }
+
+  const candlePath = await fetchCoinbaseCandlesInRange(
+    new Date(Date.parse(row.observed_at) - 60_000),
+    new Date(Date.parse(row.close_time) + 2 * 60_000),
+  ).catch(() => []);
+  const settlementPriceDollars = getSettlementPriceFromCandles(candlePath, row.close_time);
+  const resolutionOutcome = getResolutionOutcome(
+    settlementPriceDollars,
+    parseNumber(row.strike_price_dollars),
+  );
+  const resolvedAt = resolvedAtOverride ?? row.resolved_at ?? new Date().toISOString();
+
+  await supabase
+    .from("bot_research_windows")
+    .update({
+      status: "resolved",
+      settlement_price_dollars: settlementPriceDollars,
+      resolution_outcome: resolutionOutcome,
+      resolved_at: resolvedAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", row.id);
+
+  const { data: evals } = await supabase
+    .from("bot_policy_evaluations")
+    .select("*")
+    .eq("window_id", row.id);
+
+  for (const evalRow of ((evals ?? []) as PolicyEvaluationRow[])) {
+    const result = {
+      policySlug: evalRow.policy_slug,
+      policyName: evalRow.policy_name,
+      isChampion: evalRow.is_champion,
+      setupType: evalRow.setup_type as ResearchPolicyResult["setupType"],
+      call: evalRow.call as ResearchPolicyResult["call"],
+      candidateSide: evalRow.candidate_side,
+      shouldTrade: evalRow.should_trade,
+      confidence: evalRow.confidence,
+      entrySide: evalRow.entry_side,
+      entryPriceDollars: parseNumber(evalRow.entry_price_dollars),
+      contracts: parseNumber(evalRow.contracts),
+      maxCostDollars: parseNumber(evalRow.max_cost_dollars),
+      gateReasons: evalRow.gate_reasons ?? [],
+      blockers: evalRow.blockers ?? [],
+      status: evalRow.status,
+      resolutionOutcome: null,
+      settlementPriceDollars: null,
+      paperPnlDollars: null,
+      replayMode: "resolution",
+      exitReason: null,
+      exitPriceDollars: null,
+      exitAt: null,
+      createdAt: evalRow.created_at,
+      resolvedAt: null,
+    } satisfies ResearchPolicyResult;
+
+    const replay = replayPolicyEvaluation({
+      result,
+      window: row,
+      candles: candlePath,
+      settlementPriceDollars,
+      resolutionOutcome,
+    });
+
+    await supabase
+      .from("bot_policy_evaluations")
+      .update({
+        status: result.shouldTrade ? "resolved" : "skipped",
+        resolution_outcome: resolutionOutcome,
+        settlement_price_dollars: settlementPriceDollars,
+        paper_pnl_dollars: replay.paperPnlDollars,
+        replay_mode: replay.replayMode,
+        exit_reason: replay.exitReason,
+        exit_price_dollars: replay.exitPriceDollars,
+        exit_at: replay.exitAt,
+        resolved_at: resolvedAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", evalRow.id);
+  }
+}
+
 async function maybePromoteBestPolicy(policyRows: PolicyEvaluationRow[]) {
   if (!tradingConfig.researchAutoPromoteEnabled) {
     return null;
@@ -679,88 +769,26 @@ export async function resolveResearchWindows() {
   }
 
   for (const row of (windows ?? []) as ResearchWindowRow[]) {
-    if (!row.close_time) {
-      continue;
-    }
-
-    const candlePath = await fetchCoinbaseCandlesInRange(
-      new Date(Date.parse(row.observed_at) - 60_000),
-      new Date(Date.parse(row.close_time) + 2 * 60_000),
-    ).catch(() => []);
-    const settlementPriceDollars = getSettlementPriceFromCandles(candlePath, row.close_time);
-    const resolutionOutcome = getResolutionOutcome(
-      settlementPriceDollars,
-      parseNumber(row.strike_price_dollars),
-    );
     const resolvedAt = new Date().toISOString();
+    await resolveWindowEvaluations(supabase, row, resolvedAt);
+  }
 
-    await supabase
-      .from("bot_research_windows")
-      .update({
-        status: "resolved",
-        settlement_price_dollars: settlementPriceDollars,
-        resolution_outcome: resolutionOutcome,
-        resolved_at: resolvedAt,
-        updated_at: resolvedAt,
-      })
-      .eq("id", row.id);
+  const { data: backfillWindows } = await supabase
+    .from("bot_research_windows")
+    .select("*")
+    .eq("status", "resolved")
+    .order("close_time", { ascending: false })
+    .limit(20);
 
-    const { data: evals } = await supabase
+  for (const row of (backfillWindows ?? []) as ResearchWindowRow[]) {
+    const { count } = await supabase
       .from("bot_policy_evaluations")
-      .select("*")
-      .eq("window_id", row.id);
+      .select("*", { count: "exact", head: true })
+      .eq("window_id", row.id)
+      .or("replay_mode.is.null,replay_mode.eq.resolution");
 
-    for (const evalRow of ((evals ?? []) as PolicyEvaluationRow[])) {
-      const result = {
-        policySlug: evalRow.policy_slug,
-        policyName: evalRow.policy_name,
-        isChampion: evalRow.is_champion,
-        setupType: evalRow.setup_type as ResearchPolicyResult["setupType"],
-        call: evalRow.call as ResearchPolicyResult["call"],
-        candidateSide: evalRow.candidate_side,
-        shouldTrade: evalRow.should_trade,
-        confidence: evalRow.confidence,
-        entrySide: evalRow.entry_side,
-        entryPriceDollars: parseNumber(evalRow.entry_price_dollars),
-        contracts: parseNumber(evalRow.contracts),
-        maxCostDollars: parseNumber(evalRow.max_cost_dollars),
-        gateReasons: evalRow.gate_reasons ?? [],
-        blockers: evalRow.blockers ?? [],
-        status: evalRow.status,
-        resolutionOutcome: null,
-        settlementPriceDollars: null,
-        paperPnlDollars: null,
-        replayMode: "resolution",
-        exitReason: null,
-        exitPriceDollars: null,
-        exitAt: null,
-        createdAt: evalRow.created_at,
-        resolvedAt: null,
-      } satisfies ResearchPolicyResult;
-
-      const replay = replayPolicyEvaluation({
-        result,
-        window: row,
-        candles: candlePath,
-        settlementPriceDollars,
-        resolutionOutcome,
-      });
-
-      await supabase
-        .from("bot_policy_evaluations")
-        .update({
-          status: result.shouldTrade ? "resolved" : "skipped",
-          resolution_outcome: resolutionOutcome,
-          settlement_price_dollars: settlementPriceDollars,
-          paper_pnl_dollars: replay.paperPnlDollars,
-          replay_mode: replay.replayMode,
-          exit_reason: replay.exitReason,
-          exit_price_dollars: replay.exitPriceDollars,
-          exit_at: replay.exitAt,
-          resolved_at: resolvedAt,
-          updated_at: resolvedAt,
-        })
-        .eq("id", evalRow.id);
+    if ((count ?? 0) > 0) {
+      await resolveWindowEvaluations(supabase, row, row.resolved_at ?? undefined);
     }
   }
 
