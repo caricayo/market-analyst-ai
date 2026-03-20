@@ -81,7 +81,7 @@ Optional runtime knobs:
 - Kalshi fills, positions, and user-order events are also watched over WebSockets so tracker drift resolves faster than REST polling alone.
 - Entry quality checks now use estimated Kalshi taker fees, with a lighter upside buffer and net-profit floor so strong trend setups are rejected less often.
 - Same-market re-entry is paused for longer after a stop-out to reduce churn in choppy windows.
-- Trend and scalp now use preferred max entry prices based on the recent win distribution, instead of hard daily or consecutive-stop halts. Trend is slightly looser than scalp so strong continuation setups are rejected less often.
+- Trend Core v3 is intentionally more active: lower trend/scalp confirmation thresholds, wider preferred entry ranges, lighter payoff gates, 30-second flat-account scans, and a shorter post-stop cooldown while keeping live reversals disabled.
 - Shadow tuners can be paused completely with `BOT_RESEARCH_ENABLED=false`.
 
 ## Notes

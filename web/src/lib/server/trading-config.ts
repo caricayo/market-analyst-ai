@@ -65,7 +65,7 @@ export const tradingConfig = {
     1,
     Math.min(20, parseNumber(process.env.BOT_REVERSAL_TRAIL_OFFSET_CENTS, 4)),
   ),
-  trendProfitTargetCents: Math.max(4, Math.min(40, parseNumber(process.env.BOT_TREND_TARGET_CENTS, 14))),
+  trendProfitTargetCents: Math.max(4, Math.min(40, parseNumber(process.env.BOT_TREND_TARGET_CENTS, 13))),
   trendStopLossCents: Math.max(2, Math.min(25, parseNumber(process.env.BOT_TREND_STOP_CENTS, 8))),
   trendStopArmSeconds: Math.max(
     5,
@@ -105,13 +105,13 @@ export const tradingConfig = {
   ),
   postStopCooldownSeconds: Math.max(
     0,
-    Math.min(900, Math.round(parseNumber(process.env.BOT_POST_STOP_COOLDOWN_SECONDS, 180))),
+    Math.min(900, Math.round(parseNumber(process.env.BOT_POST_STOP_COOLDOWN_SECONDS, 60))),
   ),
   autoEntryEnabled: parseBoolean(process.env.BOT_AUTO_ENTRY_ENABLED, true),
   researchEnabled: parseBoolean(process.env.BOT_RESEARCH_ENABLED, false),
   autoEntryPollIntervalMs: Math.max(
     5_000,
-    Math.min(60_000, parseNumber(process.env.BOT_AUTO_ENTRY_POLL_INTERVAL_MS, 5_000)),
+    Math.min(60_000, parseNumber(process.env.BOT_AUTO_ENTRY_POLL_INTERVAL_MS, 30_000)),
   ),
   confidenceThreshold: Math.max(50, Math.min(95, parseNumber(process.env.BOT_CONFIDENCE_THRESHOLD, 68))),
   reversalPrimaryDistanceFloor: Math.max(
@@ -160,23 +160,23 @@ export const tradingConfig = {
   ),
   entryMinUpsideBufferCents: Math.max(
     0,
-    Math.min(20, Math.round(parseNumber(process.env.BOT_ENTRY_MIN_UPSIDE_BUFFER_CENTS, 2))),
+    Math.min(20, Math.round(parseNumber(process.env.BOT_ENTRY_MIN_UPSIDE_BUFFER_CENTS, 1))),
   ),
   entryMinRewardRiskRatio: Math.max(
     1,
-    Math.min(4, parseNumber(process.env.BOT_ENTRY_MIN_REWARD_RISK_RATIO, 1.5)),
+    Math.min(4, parseNumber(process.env.BOT_ENTRY_MIN_REWARD_RISK_RATIO, 1.25)),
   ),
   entryMinNetTargetProfitDollars: Math.max(
     0,
-    Math.min(10, roundMoney(parseNumber(process.env.BOT_ENTRY_MIN_NET_TARGET_PROFIT_DOLLARS, 0.35))),
+    Math.min(10, roundMoney(parseNumber(process.env.BOT_ENTRY_MIN_NET_TARGET_PROFIT_DOLLARS, 0.2))),
   ),
   trendPreferredMaxEntryPriceDollars: Math.max(
     0.4,
-    Math.min(0.95, parseNumber(process.env.BOT_TREND_PREFERRED_MAX_ENTRY_PRICE_DOLLARS, 0.74)),
+    Math.min(0.95, parseNumber(process.env.BOT_TREND_PREFERRED_MAX_ENTRY_PRICE_DOLLARS, 0.82)),
   ),
   scalpPreferredMaxEntryPriceDollars: Math.max(
     0.4,
-    Math.min(0.95, parseNumber(process.env.BOT_SCALP_PREFERRED_MAX_ENTRY_PRICE_DOLLARS, 0.7)),
+    Math.min(0.95, parseNumber(process.env.BOT_SCALP_PREFERRED_MAX_ENTRY_PRICE_DOLLARS, 0.76)),
   ),
   researchAutoPromoteEnabled: parseBoolean(process.env.BOT_RESEARCH_AUTO_PROMOTE_ENABLED, true),
   researchPromotionMinWindows: Math.max(
