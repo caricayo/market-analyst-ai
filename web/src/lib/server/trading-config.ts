@@ -45,20 +45,8 @@ export const tradingConfig = {
   openWindowStopLossCents: Math.max(1, Math.min(10, parseNumber(process.env.BOT_OPEN_WINDOW_STOP_CENTS, 1))),
   reversalProfitTargetCents: Math.max(4, Math.min(30, parseNumber(process.env.BOT_REVERSAL_TARGET_CENTS, 14))),
   reversalStopLossCents: Math.max(2, Math.min(20, parseNumber(process.env.BOT_REVERSAL_STOP_CENTS, 4))),
-  reversalMaxEntryPriceCents: Math.max(
-    20,
-    Math.min(95, Math.round(parseNumber(process.env.BOT_REVERSAL_MAX_ENTRY_PRICE_CENTS, 78))),
-  ),
   trendProfitTargetCents: Math.max(4, Math.min(40, parseNumber(process.env.BOT_TREND_TARGET_CENTS, 18))),
   trendStopLossCents: Math.max(2, Math.min(25, parseNumber(process.env.BOT_TREND_STOP_CENTS, 10))),
-  trendMaxEntryPriceCents: Math.max(
-    20,
-    Math.min(95, Math.round(parseNumber(process.env.BOT_TREND_MAX_ENTRY_PRICE_CENTS, 84))),
-  ),
-  scalpMaxEntryPriceCents: Math.max(
-    20,
-    Math.min(95, Math.round(parseNumber(process.env.BOT_SCALP_MAX_ENTRY_PRICE_CENTS, 80))),
-  ),
   trendStopArmSeconds: Math.max(
     5,
     Math.min(180, parseNumber(process.env.BOT_TREND_STOP_ARM_SECONDS, 45)),
@@ -136,6 +124,27 @@ export const tradingConfig = {
   entryMinRewardRiskRatio: Math.max(
     1,
     Math.min(4, parseNumber(process.env.BOT_ENTRY_MIN_REWARD_RISK_RATIO, 1.5)),
+  ),
+  researchAutoPromoteEnabled: parseBoolean(process.env.BOT_RESEARCH_AUTO_PROMOTE_ENABLED, true),
+  researchPromotionMinWindows: Math.max(
+    5,
+    Math.min(200, Math.round(parseNumber(process.env.BOT_RESEARCH_PROMOTION_MIN_WINDOWS, 20))),
+  ),
+  researchPromotionMinTrades: Math.max(
+    3,
+    Math.min(100, Math.round(parseNumber(process.env.BOT_RESEARCH_PROMOTION_MIN_TRADES, 8))),
+  ),
+  researchPromotionMinPnlLiftDollars: Math.max(
+    0,
+    Math.min(100, parseNumber(process.env.BOT_RESEARCH_PROMOTION_MIN_PNL_LIFT_DOLLARS, 5)),
+  ),
+  researchPromotionMaxHitRateRegression: Math.max(
+    0,
+    Math.min(0.5, parseNumber(process.env.BOT_RESEARCH_PROMOTION_MAX_HITRATE_REGRESSION, 0.08)),
+  ),
+  researchLeaderboardResolvedLimit: Math.max(
+    20,
+    Math.min(500, Math.round(parseNumber(process.env.BOT_RESEARCH_LEADERBOARD_RESOLVED_LIMIT, 200))),
   ),
   timeZone: process.env.BOT_TIME_ZONE?.trim() || DEFAULT_TIME_ZONE,
   kalshiBaseUrl: process.env.KALSHI_API_BASE_URL?.trim() || "https://api.elections.kalshi.com/trade-api/v2",

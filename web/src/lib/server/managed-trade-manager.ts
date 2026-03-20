@@ -195,6 +195,10 @@ function getTrackedContractsForTicker(ticker: string) {
     .reduce((sum, trade) => sum + Math.max(0, trade.contracts), 0);
 }
 
+function inferSideFromPositionContracts(contracts: number) {
+  return contracts >= 0 ? "yes" : "no";
+}
+
 async function closeStaleManagedTrades(liveTickers: Set<string>) {
   for (const trade of listOpenManagedTrades()) {
     if (liveTickers.has(trade.marketTicker)) {
@@ -235,8 +239,53 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
 
     const latestBotFill = botBuyFills[0];
     if (!latestBotFill) {
+      const market = await fetchKalshiMarketByTicker(position.ticker).catch(() => null);
+      const entrySide = inferSideFromPositionContracts(position.contracts);
+      const entryPriceDollars =
+        roundPrice(
+          entrySide === "yes"
+            ? market?.yesAskPrice ?? market?.yesBidPrice ?? 0.5
+            : market?.noAskPrice ?? market?.noBidPrice ?? 0.5,
+          2,
+        ) ?? 0.5;
+      const setupType = "trend" as const;
+      const settings = getManagedTradeSettings(
+        setupType,
+        entryPriceDollars,
+        market?.closeTime ?? null,
+        new Date().toISOString(),
+      );
+
+      await createManagedTrade({
+        marketTicker: position.ticker,
+        marketTitle: market?.title ?? null,
+        closeTime: market?.closeTime ?? null,
+        setupType,
+        entrySide,
+        entryOutcome: entrySide === (market?.mapping.aboveSide ?? "yes") ? "above" : "below",
+        contracts: missingContracts,
+        entryOrderId: null,
+        entryClientOrderId: null,
+        entryPriceDollars,
+        targetPriceDollars: settings.targetPriceDollars,
+        stopPriceDollars: settings.stopPriceDollars,
+        forcedExitAt: settings.forcedExitAt,
+        status: "open",
+        exitReason: null,
+        exitOrderId: null,
+        exitClientOrderId: null,
+        exitPriceDollars: null,
+        realizedPnlDollars: null,
+        lastSeenBidDollars: null,
+        peakPriceDollars: entryPriceDollars,
+        lastCheckedAt: null,
+        lastExitAttemptAt: null,
+        stopArmedAt: null,
+        errorMessage:
+          "Recovered managed trade from the live Kalshi position without a bot fill; entry price was estimated from current market quotes.",
+      });
       driftWarnings.push(
-        `Live position ${position.ticker} is open on Kalshi but no bot buy fill was available to rebuild managed exits.`,
+        `Recovered ${position.ticker} from the live Kalshi position after fills were unavailable; entry price is estimated.`,
       );
       continue;
     }

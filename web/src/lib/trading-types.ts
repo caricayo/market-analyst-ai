@@ -142,6 +142,10 @@ export type ResearchPolicyResult = {
   resolutionOutcome: "above" | "below" | null;
   settlementPriceDollars: number | null;
   paperPnlDollars: number | null;
+  replayMode: "resolution" | "candle_replay";
+  exitReason: ExitReason | null;
+  exitPriceDollars: number | null;
+  exitAt: string | null;
   createdAt: string;
   resolvedAt: string | null;
 };
@@ -174,9 +178,30 @@ export type PolicyLeaderboardEntry = {
   avgPaperPnlDollars: number;
 };
 
+export type StrategyStateSnapshot = {
+  activePolicySlug: string;
+  activePolicyName: string;
+  changedAt: string;
+  source: "default" | "auto-promotion" | "manual";
+  notes: string | null;
+};
+
+export type TunerChangeRecord = {
+  id: string;
+  fromPolicySlug: string | null;
+  fromPolicyName: string | null;
+  toPolicySlug: string;
+  toPolicyName: string;
+  source: "auto-promotion" | "manual";
+  reason: string | null;
+  promotedAt: string;
+};
+
 export type ResearchSnapshot = {
   pendingWindows: number;
   resolvedWindows: number;
+  activeTuner: StrategyStateSnapshot;
+  recentChanges: TunerChangeRecord[];
   latestWindow: ResearchWindowSnapshot | null;
   leaderboard: PolicyLeaderboardEntry[];
 };

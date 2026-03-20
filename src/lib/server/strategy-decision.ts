@@ -1,5 +1,5 @@
 import { tradingConfig } from "@/lib/server/trading-config";
-import { getChampionStrategyProfile, type StrategyProfile } from "@/lib/server/strategy-profiles";
+import { getActiveStrategyProfile, type StrategyProfile } from "@/lib/server/strategy-profiles";
 import type {
   IndicatorSnapshot,
   KalshiMarketSnapshot,
@@ -609,8 +609,9 @@ export async function buildChampionTradingDecision(input: {
   timingRisk: TimingRiskLevel;
   warnings: string[];
 }) {
+  const profile = await getActiveStrategyProfile();
   return buildTradingDecisionForProfile({
     ...input,
-    profile: getChampionStrategyProfile(),
+    profile,
   });
 }

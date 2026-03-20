@@ -487,11 +487,23 @@ export function TradingBotDashboard() {
               <h2 className="mt-2 text-2xl font-semibold text-white">Shadow policy leaderboard</h2>
             </div>
             <p className="text-sm text-slate-400">
-              One observation is recorded per market window. Challenger policies are paper-scored after close.
+              One observation is recorded per market window. Challengers are replayed against the candle path and promotion history is tracked.
             </p>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-4">
+            <div className="rounded-[20px] border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Active Tuner</p>
+              <p className="mt-2 text-sm font-medium text-white">
+                {snapshot?.research?.activeTuner?.activePolicyName ?? "--"}
+              </p>
+              <p className="mt-2 text-sm text-slate-400">
+                {snapshot?.research?.activeTuner?.source ?? "--"} since{" "}
+                {snapshot?.research?.activeTuner?.changedAt
+                  ? formatTimestamp(snapshot.research.activeTuner.changedAt, snapshot.timeZone)
+                  : "--"}
+              </p>
+            </div>
             <div className="rounded-[20px] border border-white/10 bg-white/5 p-4">
               <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Pending Windows</p>
               <p className="mt-2 text-2xl font-semibold text-white">{snapshot?.research?.pendingWindows ?? "--"}</p>
@@ -506,12 +518,28 @@ export function TradingBotDashboard() {
                 {snapshot?.research?.latestWindow?.marketTicker ?? "No recorded research windows yet"}
               </p>
               <p className="mt-2 text-sm text-slate-400">
+                Champion then {snapshot?.research?.latestWindow?.championPolicySlug ?? "--"}.
+              </p>
+              <p className="mt-2 text-sm text-slate-400">
                 Settlement {formatMoney(snapshot?.research?.latestWindow?.settlementPriceDollars)}
               </p>
             </div>
           </div>
 
           <div className="mt-5 grid gap-3">
+            {snapshot?.research?.recentChanges?.length ? (
+              <div className="rounded-[22px] border border-white/10 bg-[#0c1420] p-4">
+                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Recent Tuner Changes</p>
+                <div className="mt-3 grid gap-2 text-sm text-slate-300">
+                  {snapshot.research.recentChanges.map((change) => (
+                    <p key={change.id}>
+                      {change.fromPolicyName ?? "none"} {"->"} {change.toPolicyName} ({change.source}) at{" "}
+                      {formatTimestamp(change.promotedAt, snapshot.timeZone)}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {snapshot?.research?.leaderboard?.length ? (
               snapshot.research.leaderboard.map((entry) => (
                 <div key={entry.policySlug} className="rounded-[22px] border border-white/10 bg-[#0c1420] p-4">
