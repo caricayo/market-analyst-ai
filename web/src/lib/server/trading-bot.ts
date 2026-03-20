@@ -1,5 +1,15 @@
 import { fetchCoinbaseCandles } from "@/lib/server/coinbase-client";
 import { buildTradingDecision } from "@/lib/server/decision-engine";
+import {
+  clearFundingHalt,
+  getFundingHaltReason,
+  getLastExecutionAt,
+  haltFunding,
+  hasExecutedMarketTicker,
+  isFundingHalted,
+  markExecutedMarketTicker,
+  setLastExecutionAt,
+} from "@/lib/server/execution-state";
 import { buildIndicatorSnapshot, classifyTimingRisk, getMinuteInWindow } from "@/lib/server/indicator-engine";
 import { discoverActiveBtcMarket, submitKalshiOrder } from "@/lib/server/kalshi-client";
 import { ensureManagedTradeManagerStarted } from "@/lib/server/managed-trade-manager";
@@ -11,6 +21,15 @@ import {
 import { tradingConfig, hasKalshiTradingCredentials } from "@/lib/server/trading-config";
 import { appendTradingLog, listTradingLog } from "@/lib/server/trading-log";
 import type { BotLogEntry, BotStatusSnapshot, TradeExecution } from "@/lib/trading-types";
+
+type ExecutionSource = "manual" | "auto";
+
+type SnapshotOptions = {
+  executeTrade?: boolean;
+  source?: ExecutionSource;
+  logRun?: boolean;
+  allowFundingResume?: boolean;
+};
 
 function formatWindowLabel(date: Date, timeZone: string) {
   return date.toLocaleString("en-US", {
@@ -27,6 +46,20 @@ function round(value: number | null, decimals = 2) {
     return null;
   }
   return Number(value.toFixed(decimals));
+}
+
+function isFundingErrorMessage(message: string) {
+  const normalized = message.toLowerCase();
+  return [
+    "insufficient",
+    "not enough",
+    "available balance",
+    "insufficient balance",
+    "buy_max_cost",
+    "funding",
+    "out of funds",
+    "out of funding",
+  ].some((term) => normalized.includes(term));
 }
 
 function getLimitPrice(outcome: "above" | "below", market: NonNullable<BotStatusSnapshot["market"]>) {
@@ -69,6 +102,11 @@ async function maybeSubmitTrade(input: {
     return buildExecutionDisabled("Kalshi trading credentials are incomplete, so execution is disabled.");
   }
 
+  if (isFundingHalted()) {
+    const reason = getFundingHaltReason() ?? "Funding halt is active.";
+    return buildExecutionDisabled(`Funding halt active. ${reason}`);
+  }
+
   if (!input.market || !input.decision.shouldTrade || !input.decision.derivedOutcome) {
     return {
       status: "skipped",
@@ -83,6 +121,23 @@ async function maybeSubmitTrade(input: {
       targetPriceDollars: null,
       stopPriceDollars: null,
       message: "Trade skipped because the signal did not pass execution gates.",
+    } satisfies TradeExecution;
+  }
+
+  if (hasExecutedMarketTicker(input.market.ticker)) {
+    return {
+      status: "skipped",
+      side: input.decision.derivedSide,
+      outcome: input.decision.derivedOutcome,
+      contracts: null,
+      maxCostDollars: null,
+      orderId: null,
+      clientOrderId: null,
+      managedTradeId: null,
+      entryPriceDollars: null,
+      targetPriceDollars: null,
+      stopPriceDollars: null,
+      message: "Trade skipped because this market already executed during the current session.",
     } satisfies TradeExecution;
   }
 
@@ -201,6 +256,25 @@ async function maybeSubmitTrade(input: {
           : `Submitted ${contracts} contract${contracts === 1 ? "" : "s"} on ${side.toUpperCase()}.`,
     } satisfies TradeExecution;
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Kalshi order submission failed.";
+    if (isFundingErrorMessage(message)) {
+      haltFunding(`Kalshi rejected a buy order for insufficient funds. ${message}`);
+      return {
+        status: "disabled",
+        side,
+        outcome: input.decision.derivedOutcome,
+        contracts,
+        maxCostDollars,
+        orderId: null,
+        clientOrderId,
+        managedTradeId: null,
+        entryPriceDollars: null,
+        targetPriceDollars: null,
+        stopPriceDollars: null,
+        message: "Bot halted after Kalshi reported insufficient funding. Refill the account, then manually resume once.",
+      } satisfies TradeExecution;
+    }
+
     return {
       status: "error",
       side,
@@ -213,12 +287,13 @@ async function maybeSubmitTrade(input: {
       entryPriceDollars: null,
       targetPriceDollars: null,
       stopPriceDollars: null,
-      message: error instanceof Error ? error.message : "Kalshi order submission failed.",
+      message,
     } satisfies TradeExecution;
   }
 }
 
 function buildLogEntry(input: {
+  source: ExecutionSource;
   market: BotStatusSnapshot["market"];
   minuteInWindow: number;
   decision: NonNullable<BotStatusSnapshot["decision"]>;
@@ -228,6 +303,7 @@ function buildLogEntry(input: {
   return {
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
+    source: input.source,
     marketTicker: input.market?.ticker ?? null,
     marketTitle: input.market?.title ?? null,
     strikePrice: input.market?.strikePrice ?? null,
@@ -249,12 +325,30 @@ function buildLogEntry(input: {
   };
 }
 
-export async function getTradingBotSnapshot(options?: { executeTrade?: boolean }) {
+function shouldAppendLog(source: ExecutionSource, execution: TradeExecution, explicitLogRun: boolean) {
+  if (explicitLogRun || source === "manual") {
+    return true;
+  }
+
+  return (
+    execution.status === "submitted" ||
+    execution.status === "error" ||
+    (execution.status === "disabled" &&
+      execution.message.toLowerCase().startsWith("bot halted after kalshi reported insufficient funding"))
+  );
+}
+
+export async function getTradingBotSnapshot(options?: SnapshotOptions) {
   ensureManagedTradeManagerStarted();
   const warnings: string[] = [];
   const now = new Date();
   const minuteInWindow = getMinuteInWindow(now);
   const timingRisk = classifyTimingRisk(minuteInWindow);
+  const source = options?.source ?? "manual";
+
+  if (options?.allowFundingResume && isFundingHalted()) {
+    clearFundingHalt();
+  }
 
   const [marketResult, candles] = await Promise.all([
     discoverActiveBtcMarket(now).catch((error) => {
@@ -274,6 +368,9 @@ export async function getTradingBotSnapshot(options?: { executeTrade?: boolean }
   if (!hasKalshiTradingCredentials()) {
     warnings.push("Kalshi trading credentials are not fully configured; analysis works but execution is disabled.");
   }
+  if (isFundingHalted()) {
+    warnings.push(`Bot auto-entry halted for funding: ${getFundingHaltReason() ?? "insufficient funds reported by Kalshi."}`);
+  }
 
   const indicators = buildIndicatorSnapshot(candles, market?.strikePrice ?? null);
   const decision = await buildTradingDecision({
@@ -290,9 +387,17 @@ export async function getTradingBotSnapshot(options?: { executeTrade?: boolean }
     decision,
   });
 
-  if (options?.executeTrade) {
+  if (execution.status === "submitted" && market) {
+    markExecutedMarketTicker(market.ticker);
+  }
+
+  if (
+    options?.executeTrade &&
+    shouldAppendLog(source, execution, Boolean(options?.logRun))
+  ) {
     appendTradingLog(
       buildLogEntry({
+        source,
         market,
         minuteInWindow,
         decision,
@@ -310,12 +415,34 @@ export async function getTradingBotSnapshot(options?: { executeTrade?: boolean }
     timingRisk,
     stakeDollars: tradingConfig.stakeDollars,
     confidenceThreshold: tradingConfig.confidenceThreshold,
+    autoEntryEnabled: tradingConfig.autoEntryEnabled,
+    fundingHalted: isFundingHalted(),
+    fundingHaltReason: getFundingHaltReason(),
     market,
     indicators,
     decision,
-    tradingEnabled: tradingConfig.autoTradeEnabled && hasKalshiTradingCredentials(),
+    tradingEnabled:
+      tradingConfig.autoTradeEnabled &&
+      hasKalshiTradingCredentials() &&
+      !isFundingHalted(),
     warnings,
     activeManagedTrades: listOpenManagedTrades(),
     log: listTradingLog(),
   } satisfies BotStatusSnapshot;
+}
+
+export async function runTradingBotExecution(source: ExecutionSource) {
+  const now = Date.now();
+  const lastExecutionAt = getLastExecutionAt();
+  if (now - lastExecutionAt < 10_000) {
+    throw new Error("Trading is rate-limited for 10 seconds to reduce duplicate order submissions.");
+  }
+
+  setLastExecutionAt(now);
+  return getTradingBotSnapshot({
+    executeTrade: true,
+    source,
+    logRun: source === "manual",
+    allowFundingResume: source === "manual",
+  });
 }

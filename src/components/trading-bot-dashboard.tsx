@@ -170,7 +170,7 @@ export function TradingBotDashboard() {
                 disabled={state.loading || state.running}
                 className="rounded-full border border-emerald-400/25 bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {state.running ? "Running and trading..." : "Analyze and trade"}
+                {state.running ? "Running and trading..." : "Run once now"}
               </button>
             </div>
           </div>
@@ -200,6 +200,27 @@ export function TradingBotDashboard() {
               <p className="mt-2 text-sm text-slate-400">
                 Fixed stake {formatMoney(snapshot?.stakeDollars)} per eligible order.
               </p>
+            </div>
+            <div className="rounded-[24px] border border-white/10 bg-white/5 p-4 lg:col-span-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Automation</p>
+                  <p className="mt-2 text-lg font-semibold text-white">
+                    {snapshot?.autoEntryEnabled ? "Auto-entry polling active" : "Auto-entry disabled"}
+                  </p>
+                </div>
+                <div className="text-sm text-slate-300">
+                  {snapshot?.fundingHalted ? (
+                    <span className="rounded-full border border-rose-400/30 bg-rose-400/12 px-3 py-2 text-rose-100">
+                      Funding halt: {snapshot.fundingHaltReason ?? "Kalshi reported insufficient funds."}
+                    </span>
+                  ) : (
+                    <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-2 text-emerald-50">
+                      New windows are scanned automatically without pressing the button.
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -439,6 +460,9 @@ export function TradingBotDashboard() {
                           {entry.setupType}
                         </span>
                         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
+                          {entry.source}
+                        </span>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
                           {entry.confidence} confidence
                         </span>
                       </div>
@@ -495,7 +519,7 @@ export function TradingBotDashboard() {
               ))
             ) : (
               <div className="rounded-[22px] border border-dashed border-white/12 bg-white/5 px-5 py-6 text-sm text-slate-400">
-                No same-day runs yet. Use "Analyze and trade" to generate the first bot entry.
+                No same-day runs yet. Auto-entry will populate this once the bot finds an eligible market.
               </div>
             )}
           </div>

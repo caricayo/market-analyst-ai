@@ -114,6 +114,7 @@ export type ManagedTrade = {
 export type BotLogEntry = {
   id: string;
   createdAt: string;
+  source: "manual" | "auto";
   marketTicker: string | null;
   marketTitle: string | null;
   strikePrice: number | null;
@@ -142,6 +143,9 @@ export type BotStatusSnapshot = {
   timingRisk: TimingRiskLevel;
   stakeDollars: number;
   confidenceThreshold: number;
+  autoEntryEnabled: boolean;
+  fundingHalted: boolean;
+  fundingHaltReason: string | null;
   market: KalshiMarketSnapshot | null;
   indicators: IndicatorSnapshot | null;
   decision: TradingDecision | null;

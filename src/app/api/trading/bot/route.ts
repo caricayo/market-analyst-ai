@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
-import { getTradingBotSnapshot } from "@/lib/server/trading-bot";
+import { ensureAutoEntryManagerStarted } from "@/lib/server/auto-entry-manager";
+import { getTradingBotSnapshot, runTradingBotExecution } from "@/lib/server/trading-bot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const executionState = globalThis as typeof globalThis & {
-  __btcKalshiLastExecutionAt?: number;
-};
-
 export async function GET() {
   try {
+    ensureAutoEntryManagerStarted();
     const payload = await getTradingBotSnapshot();
     return NextResponse.json(payload);
   } catch (error) {
@@ -24,26 +22,19 @@ export async function GET() {
 
 export async function POST() {
   try {
-    const now = Date.now();
-    const lastExecutionAt = executionState.__btcKalshiLastExecutionAt ?? 0;
-    if (now - lastExecutionAt < 10_000) {
-      return NextResponse.json(
-        {
-          error: "Trading is rate-limited for 10 seconds to reduce duplicate order submissions.",
-        },
-        { status: 429 },
-      );
-    }
-
-    executionState.__btcKalshiLastExecutionAt = now;
-    const payload = await getTradingBotSnapshot({ executeTrade: true });
+    ensureAutoEntryManagerStarted();
+    const payload = await runTradingBotExecution("manual");
     return NextResponse.json(payload);
   } catch (error) {
+    const status =
+      error instanceof Error && error.message.includes("rate-limited")
+        ? 429
+        : 500;
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Unable to run the trading bot.",
       },
-      { status: 500 },
+      { status },
     );
   }
 }

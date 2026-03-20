@@ -35,6 +35,11 @@ export const tradingConfig = {
     30,
     Math.min(300, parseNumber(process.env.BOT_SCALP_FORCE_EXIT_LEAD_SECONDS, 90)),
   ),
+  autoEntryEnabled: parseBoolean(process.env.BOT_AUTO_ENTRY_ENABLED, true),
+  autoEntryPollIntervalMs: Math.max(
+    5_000,
+    Math.min(60_000, parseNumber(process.env.BOT_AUTO_ENTRY_POLL_INTERVAL_MS, 15_000)),
+  ),
   confidenceThreshold: Math.max(50, Math.min(95, parseNumber(process.env.BOT_CONFIDENCE_THRESHOLD, 68))),
   lateWindowConfidenceThreshold: Math.max(
     70,
