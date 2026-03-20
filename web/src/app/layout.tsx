@@ -1,21 +1,10 @@
 import type { Metadata } from "next";
-import { Manrope, Syne } from "next/font/google";
 import "./globals.css";
 
-const bodyFont = Manrope({
-  subsets: ["latin"],
-  variable: "--font-body",
-});
-
-const displayFont = Syne({
-  subsets: ["latin"],
-  variable: "--font-display",
-});
-
 export const metadata: Metadata = {
-  title: "Arfor",
+  title: "BTC 15-Minute Kalshi Bot",
   description:
-    "A glassy daily command center for news, markets, calendar flow, weather, and play.",
+    "A Bitcoin 15-minute Kalshi trading console with Coinbase one-minute candles, timing-risk gates, AI synthesis, and optional server-side execution.",
 };
 
 export default function RootLayout({
@@ -25,9 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${bodyFont.variable} ${displayFont.variable} antialiased`}>
-        {children}
-      </body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }
