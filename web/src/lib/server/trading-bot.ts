@@ -5,19 +5,13 @@ import {
   getFundingHaltReason,
   getLastExecutionAt,
   haltFunding,
-  hasExecutedMarketTicker,
   isFundingHalted,
-  markExecutedMarketTicker,
   setLastExecutionAt,
 } from "@/lib/server/execution-state";
 import { buildIndicatorSnapshot, classifyTimingRisk, getMinuteInWindow } from "@/lib/server/indicator-engine";
 import { discoverActiveBtcMarket, submitKalshiOrder } from "@/lib/server/kalshi-client";
 import { ensureManagedTradeManagerStarted } from "@/lib/server/managed-trade-manager";
-import {
-  createManagedTrade,
-  findOpenManagedTradeByTicker,
-  listOpenManagedTrades,
-} from "@/lib/server/managed-trade-store";
+import { createManagedTrade, listOpenManagedTrades } from "@/lib/server/managed-trade-store";
 import { tradingConfig, hasKalshiTradingCredentials } from "@/lib/server/trading-config";
 import { appendTradingLog, listTradingLog } from "@/lib/server/trading-log";
 import type { BotLogEntry, BotStatusSnapshot, SetupType, TradeExecution } from "@/lib/trading-types";
@@ -168,40 +162,6 @@ async function maybeSubmitTrade(input: {
       targetPriceDollars: null,
       stopPriceDollars: null,
       message: "Trade skipped because the signal did not pass execution gates.",
-    } satisfies TradeExecution;
-  }
-
-  if (hasExecutedMarketTicker(input.market.ticker)) {
-    return {
-      status: "skipped",
-      side: input.decision.derivedSide,
-      outcome: input.decision.derivedOutcome,
-      contracts: null,
-      maxCostDollars: null,
-      orderId: null,
-      clientOrderId: null,
-      managedTradeId: null,
-      entryPriceDollars: null,
-      targetPriceDollars: null,
-      stopPriceDollars: null,
-      message: "Trade skipped because this market already executed during the current session.",
-    } satisfies TradeExecution;
-  }
-
-  if (findOpenManagedTradeByTicker(input.market.ticker)) {
-    return {
-      status: "skipped",
-      side: input.decision.derivedSide,
-      outcome: input.decision.derivedOutcome,
-      contracts: null,
-      maxCostDollars: null,
-      orderId: null,
-      clientOrderId: null,
-      managedTradeId: null,
-      entryPriceDollars: null,
-      targetPriceDollars: null,
-      stopPriceDollars: null,
-      message: "Trade skipped because a managed trade is already open for this market.",
     } satisfies TradeExecution;
   }
 
@@ -372,7 +332,12 @@ function buildLogEntry(input: {
   };
 }
 
-function shouldAppendLog(source: ExecutionSource, execution: TradeExecution, explicitLogRun: boolean) {
+function shouldAppendLog(
+  source: ExecutionSource,
+  execution: TradeExecution,
+  explicitLogRun: boolean,
+  shouldTrade: boolean,
+) {
   if (explicitLogRun || source === "manual") {
     return true;
   }
@@ -380,6 +345,7 @@ function shouldAppendLog(source: ExecutionSource, execution: TradeExecution, exp
   return (
     execution.status === "submitted" ||
     execution.status === "error" ||
+    (execution.status === "skipped" && shouldTrade) ||
     (execution.status === "disabled" &&
       execution.message.toLowerCase().startsWith("bot halted after kalshi reported insufficient funding"))
   );
@@ -438,13 +404,9 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
     decision,
   });
 
-  if (execution.status === "submitted" && market) {
-    markExecutedMarketTicker(market.ticker);
-  }
-
   if (
     options?.executeTrade &&
-    shouldAppendLog(source, execution, Boolean(options?.logRun))
+    shouldAppendLog(source, execution, Boolean(options?.logRun), decision.shouldTrade)
   ) {
     appendTradingLog(
       buildLogEntry({

@@ -7,7 +7,6 @@ import {
 import {
   createManagedTrade,
   closeManagedTrade,
-  findOpenManagedTradeByTicker,
   listOpenManagedTrades,
   patchManagedTrade,
 } from "@/lib/server/managed-trade-store";
@@ -90,14 +89,27 @@ function inferSetupTypeFromClientOrderId(clientOrderId: string | null, createdAt
   return "trend" as const;
 }
 
+function getTrackedContractsForTicker(ticker: string) {
+  return listOpenManagedTrades()
+    .filter((trade) => trade.marketTicker === ticker)
+    .reduce((sum, trade) => sum + Math.max(0, trade.contracts), 0);
+}
+
 async function recoverManagedTradesFromPositions() {
   const positions = await listKalshiPositions().catch(() => []);
 
   for (const position of positions) {
     const liveContracts = Math.abs(position.contracts);
-    if (liveContracts < 0.01 || findOpenManagedTradeByTicker(position.ticker)) {
+    if (liveContracts < 0.01) {
       continue;
     }
+
+    const trackedContracts = getTrackedContractsForTicker(position.ticker);
+    if (trackedContracts >= liveContracts - 0.01) {
+      continue;
+    }
+
+    const missingContracts = Math.max(1, Math.round(liveContracts - trackedContracts));
 
     const fills = await listKalshiFills(position.ticker, 100).catch(() => []);
     const botBuyFills = fills
@@ -134,7 +146,7 @@ async function recoverManagedTradesFromPositions() {
       setupType,
       entrySide: latestBotFill.side,
       entryOutcome: latestBotFill.side === (market?.mapping.aboveSide ?? "yes") ? "above" : "below",
-      contracts: Math.max(1, Math.round(liveContracts)),
+      contracts: missingContracts,
       entryOrderId: latestBotFill.orderId,
       entryClientOrderId: latestBotFill.clientOrderId,
       entryPriceDollars,
@@ -150,7 +162,10 @@ async function recoverManagedTradesFromPositions() {
       lastSeenBidDollars: null,
       lastCheckedAt: null,
       lastExitAttemptAt: null,
-      errorMessage: "Recovered managed trade from live Kalshi fills after local tracker reset.",
+      errorMessage:
+        trackedContracts > 0
+          ? "Recovered additional live contracts for this ticker after local tracker drift."
+          : "Recovered managed trade from live Kalshi fills after local tracker reset.",
     });
   }
 }
@@ -251,6 +266,13 @@ async function processTrade(trade: ManagedTrade) {
     return;
   }
 
+  const contractsToExit = Math.max(1, Math.min(trade.contracts, Math.round(liveContracts)));
+  if (contractsToExit !== trade.contracts) {
+    patchManagedTrade(trade.id, {
+      contracts: contractsToExit,
+    });
+  }
+
   const limitPriceCents = Math.max(1, Math.min(99, Math.round(bidPrice * 100)));
   const clientOrderId = buildBotClientOrderId(trade.setupType, "sell");
 
@@ -259,7 +281,7 @@ async function processTrade(trade: ManagedTrade) {
       action: "sell",
       ticker: trade.marketTicker,
       side: trade.entrySide,
-      contracts: trade.contracts,
+      contracts: contractsToExit,
       limitPriceCents,
       clientOrderId,
       reduceOnly: true,
@@ -271,7 +293,7 @@ async function processTrade(trade: ManagedTrade) {
       exitOrderId: response.order?.order_id ?? null,
       exitClientOrderId: response.order?.client_order_id ?? clientOrderId,
       exitPriceDollars: limitPriceCents / 100,
-      realizedPnlDollars: getRealizedPnl(trade, limitPriceCents / 100),
+      realizedPnlDollars: roundMoney((limitPriceCents / 100 - trade.entryPriceDollars) * contractsToExit),
       lastExitAttemptAt: now.toISOString(),
       errorMessage: null,
     });
