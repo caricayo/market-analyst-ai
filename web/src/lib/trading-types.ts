@@ -132,6 +132,18 @@ export type BotLogEntry = {
   minuteInWindow: number;
   timingRisk: TimingRiskLevel;
   currentPrice: number | null;
+  availableBalanceDollars: number | null;
+  portfolioValueDollars: number | null;
+  yesAskPrice: number | null;
+  noAskPrice: number | null;
+  yesBidPrice: number | null;
+  noBidPrice: number | null;
+  distanceToStrike: number | null;
+  atr14: number | null;
+  rsi14: number | null;
+  momentum5: number | null;
+  momentum15: number | null;
+  deterministicEdge: number | null;
   confidence: number;
   deterministicConfidence: number;
   call: TradeCall;

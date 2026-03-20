@@ -529,6 +529,8 @@ function buildLogEntry(input: {
   decision: NonNullable<BotStatusSnapshot["decision"]>;
   indicators: BotStatusSnapshot["indicators"];
   execution: TradeExecution;
+  availableBalanceDollars: number | null;
+  portfolioValueDollars: number | null;
 }): BotLogEntry {
   return {
     id: crypto.randomUUID(),
@@ -541,6 +543,18 @@ function buildLogEntry(input: {
     minuteInWindow: input.minuteInWindow,
     timingRisk: input.decision.timingRisk,
     currentPrice: input.indicators?.currentPrice ?? null,
+    availableBalanceDollars: input.availableBalanceDollars,
+    portfolioValueDollars: input.portfolioValueDollars,
+    yesAskPrice: input.market?.yesAskPrice ?? null,
+    noAskPrice: input.market?.noAskPrice ?? null,
+    yesBidPrice: input.market?.yesBidPrice ?? null,
+    noBidPrice: input.market?.noBidPrice ?? null,
+    distanceToStrike: input.indicators?.distanceToStrike ?? null,
+    atr14: input.indicators?.atr14 ?? null,
+    rsi14: input.indicators?.rsi14 ?? null,
+    momentum5: input.indicators?.momentum5 ?? null,
+    momentum15: input.indicators?.momentum15 ?? null,
+    deterministicEdge: input.indicators?.deterministicEdge ?? null,
     confidence: input.decision.confidence,
     deterministicConfidence: input.decision.deterministicConfidence,
     call: input.decision.call,
@@ -656,6 +670,8 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
         decision,
         indicators,
         execution,
+        availableBalanceDollars: balance.availableBalanceDollars,
+        portfolioValueDollars: balance.portfolioValueDollars,
       }),
     );
   }

@@ -39,7 +39,6 @@ Optional runtime knobs:
 - `BOT_FIXED_STAKE_DOLLARS`
 - `BOT_REVERSAL_TARGET_CENTS`
 - `BOT_REVERSAL_STOP_CENTS`
-- `BOT_OPEN_WINDOW_STOP_CENTS`
 - `BOT_REVERSAL_MAX_ENTRY_PRICE_CENTS`
 - `BOT_REVERSAL_FORCE_EXIT_LEAD_SECONDS`
 - `BOT_REVERSAL_PRIMARY_DISTANCE_FLOOR`
@@ -62,8 +61,10 @@ Optional runtime knobs:
 - `POST /api/trading/bot` forces one immediate analysis cycle and, if eligible, submits the order.
 - Background automation starts on server boot and keeps scanning new windows without the button.
 - When the account is flat, automation scans once per minute by default. When live exposure exists, both scanning and managed-trade watching tighten to 10-second cadence.
-- Reversal is the primary entry playbook in minutes `1-12`, with trend and scalp used as fallbacks when no reversal qualifies.
-- Minutes `1-3` are tradable, but any entry opened there uses the tighter open-window stop setting.
+- Minutes `1-3` and `13-15` are blocked for new entries.
+- Trend is the primary entry playbook in minutes `4-8`.
+- Reversal is a stricter secondary playbook in minutes `4-12`.
+- Scalp remains a continuation fallback in minutes `4-12`.
 
 ## Notes
 

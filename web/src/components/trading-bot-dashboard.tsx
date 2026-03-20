@@ -152,8 +152,8 @@ export function TradingBotDashboard() {
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300">
                 The bot watches the active Bitcoin 15-minute above/below contract, prioritizes
-                reversal trades on the one-minute tape, and falls back to trend or scalp entries
-                only when the snapback playbook does not qualify.
+                trend continuation in the core trade window, and uses stricter reversal or scalp
+                entries only when the tape still supports them.
               </p>
             </div>
 
@@ -477,10 +477,9 @@ export function TradingBotDashboard() {
             <div className="mt-4 rounded-[24px] border border-emerald-400/20 bg-emerald-400/10 p-4">
               <p className="text-xs uppercase tracking-[0.22em] text-emerald-50/70">Timing Rule</p>
               <p className="mt-2 text-sm leading-6 text-emerald-50">
-                Minutes 1-3 are now tradable with tighter open-window stops. Minutes 4-12
-                prioritize reversal entries, trend remains a fallback in minutes 1-8, scalp remains
-                a continuation fallback in minutes 1-12, and minutes 13-15 are blocked for new
-                entries.
+                Minutes 1-3 are blocked. Trend is primary in minutes 4-8, reversal is a stricter
+                secondary playbook in minutes 4-12, scalp remains a continuation fallback in
+                minutes 4-12, and minutes 13-15 are blocked for new entries.
               </p>
             </div>
           </section>
@@ -523,6 +522,10 @@ export function TradingBotDashboard() {
                         {entry.marketTicker ?? "No market"} | strike {formatMoney(entry.strikePrice)} |
                         spot {formatMoney(entry.currentPrice)} | minute {entry.minuteInWindow}
                       </p>
+                      <p className="mt-2 text-sm text-slate-400">
+                        YES ask {formatMoney(entry.yesAskPrice)} | NO ask {formatMoney(entry.noAskPrice)} |
+                        edge {formatNumber(entry.deterministicEdge, 3)}
+                      </p>
                     </div>
                     <div className="rounded-[18px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
                       {formatTimestamp(entry.createdAt, snapshot.timeZone)}
@@ -546,6 +549,20 @@ export function TradingBotDashboard() {
                         ) : (
                           <p>No gate reasons recorded.</p>
                         )}
+                      </div>
+                    </div>
+                    <div className="rounded-[18px] border border-white/10 bg-white/5 p-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Market Snapshot</p>
+                      <div className="mt-3 grid gap-2 text-sm text-slate-300">
+                        <p>Balance: {formatMoney(entry.availableBalanceDollars)}</p>
+                        <p>Portfolio: {formatMoney(entry.portfolioValueDollars)}</p>
+                        <p>Distance: {formatNumber(entry.distanceToStrike)}</p>
+                        <p>ATR14: {formatNumber(entry.atr14)}</p>
+                        <p>RSI14: {formatNumber(entry.rsi14)}</p>
+                        <p>Momentum 5m: {formatNumber(entry.momentum5)}</p>
+                        <p>Momentum 15m: {formatNumber(entry.momentum15)}</p>
+                        <p>YES bid/ask: {formatMoney(entry.yesBidPrice)} / {formatMoney(entry.yesAskPrice)}</p>
+                        <p>NO bid/ask: {formatMoney(entry.noBidPrice)} / {formatMoney(entry.noAskPrice)}</p>
                       </div>
                     </div>
                     <div className="rounded-[18px] border border-white/10 bg-white/5 p-4">
