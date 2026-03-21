@@ -239,6 +239,13 @@ export function listOpenManagedTrades() {
   return listManagedTrades().filter((trade) => trade.status === "open" || trade.status === "exit-submitted");
 }
 
+export function listRecentClosedManagedTrades(limit = 12) {
+  return listManagedTrades()
+    .filter((trade) => trade.status === "closed" || trade.status === "error")
+    .sort((left, right) => (right.updatedAt || right.createdAt).localeCompare(left.updatedAt || left.createdAt))
+    .slice(0, limit);
+}
+
 export function findOpenManagedTradeByTicker(ticker: string) {
   return listOpenManagedTrades().find((trade) => trade.marketTicker === ticker) ?? null;
 }

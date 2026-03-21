@@ -28,8 +28,10 @@ import {
 import {
   createManagedTrade,
   findLatestClosedManagedTradeByTicker,
+  listRecentClosedManagedTrades,
 } from "@/lib/server/managed-trade-store";
 import { getResearchSnapshot, recordResearchWindow, resolveResearchWindows } from "@/lib/server/policy-research";
+import { buildTradeReviews } from "@/lib/server/trade-review";
 import { tradingConfig, hasKalshiTradingCredentials } from "@/lib/server/trading-config";
 import { appendTradingLog, listTradingLog } from "@/lib/server/trading-log";
 import type { BotLogEntry, BotStatusSnapshot, SetupType, TradeExecution } from "@/lib/trading-types";
@@ -969,6 +971,7 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
   const research = tradingConfig.researchEnabled
     ? await getResearchSnapshot().catch(() => null)
     : null;
+  const recentTradeReviews = buildTradeReviews(listRecentClosedManagedTrades());
 
   if (
     options?.executeTrade &&
@@ -1011,6 +1014,7 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
     warnings,
     livePositions: exposure.livePositions,
     activeManagedTrades: exposure.activeManagedTrades,
+    recentTradeReviews,
     log: listTradingLog(),
     research,
   } satisfies BotStatusSnapshot;

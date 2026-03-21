@@ -144,6 +144,28 @@ export type LivePositionSnapshot = {
   trackedByManagedTrade: boolean;
 };
 
+export type TradeReview = {
+  id: string;
+  marketTicker: string;
+  marketTitle: string | null;
+  setupType: Exclude<SetupType, "none">;
+  entryOutcome: "above" | "below";
+  createdAt: string;
+  closedAt: string;
+  contracts: number;
+  entryPriceDollars: number;
+  exitPriceDollars: number | null;
+  targetPriceDollars: number;
+  stopPriceDollars: number;
+  peakPriceDollars: number | null;
+  realizedPnlDollars: number | null;
+  exitReason: ExitReason | null;
+  result: "win" | "loss" | "flat";
+  summary: string;
+  happened: string[];
+  takeaways: string[];
+};
+
 export type PolicyEvaluationStatus = "pending" | "resolved" | "skipped";
 
 export type ResearchPolicyResult = {
@@ -285,6 +307,7 @@ export type BotStatusSnapshot = {
   warnings: string[];
   livePositions: LivePositionSnapshot[];
   activeManagedTrades: ManagedTrade[];
+  recentTradeReviews: TradeReview[];
   log: BotLogEntry[];
   research: ResearchSnapshot | null;
 };

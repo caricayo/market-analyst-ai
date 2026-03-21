@@ -80,6 +80,17 @@ function setupTone(setupType: SetupType | undefined) {
   }
 }
 
+function reviewTone(result: "win" | "loss" | "flat") {
+  switch (result) {
+    case "win":
+      return "border-emerald-400/25 bg-emerald-400/10 text-emerald-50";
+    case "loss":
+      return "border-rose-400/30 bg-rose-400/12 text-rose-100";
+    default:
+      return "border-white/10 bg-white/5 text-slate-300";
+  }
+}
+
 async function parseResponse(response: Response) {
   const payload = (await response.json()) as BotStatusSnapshot | { error?: string };
   if (!response.ok) {
@@ -590,6 +601,75 @@ export function TradingBotDashboard() {
               Shadow tuners are temporarily paused. The live bot is trading only the active champion profile.
             </div>
           )}
+        </section>
+
+        <section className="mt-5 rounded-[28px] border border-white/10 bg-[rgba(9,15,24,0.78)] p-5 backdrop-blur xl:p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Trade Reviews</p>
+              <h2 className="mt-2 text-2xl font-semibold text-white">Why trades won or lost</h2>
+            </div>
+            <p className="text-sm text-slate-400">
+              Closed managed trades are summarized so losers and winners leave a usable trail.
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-3">
+            {snapshot?.recentTradeReviews.length ? (
+              snapshot.recentTradeReviews.map((review) => (
+                <div key={review.id} className="rounded-[22px] border border-white/10 bg-[#0c1420] p-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-lg font-semibold text-white">{review.marketTicker}</p>
+                        <span className={`rounded-full border px-3 py-1 text-xs ${setupTone(review.setupType)}`}>
+                          {review.setupType}
+                        </span>
+                        <span className={`rounded-full border px-3 py-1 text-xs ${reviewTone(review.result)}`}>
+                          {review.result}
+                        </span>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
+                          {review.exitReason ?? "unknown"} exit
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-300">{review.summary}</p>
+                      <p className="mt-2 text-sm text-slate-400">
+                        {review.entryOutcome.toUpperCase()} | entry {formatMoney(review.entryPriceDollars)} | exit{" "}
+                        {formatMoney(review.exitPriceDollars)} | peak {formatMoney(review.peakPriceDollars)} | PnL{" "}
+                        {formatMoney(review.realizedPnlDollars)}
+                      </p>
+                    </div>
+                    <div className="rounded-[18px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
+                      {formatTimestamp(review.closedAt, snapshot.timeZone)}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                    <div className="rounded-[18px] border border-white/10 bg-white/5 p-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">What Happened</p>
+                      <div className="mt-3 grid gap-2 text-sm text-slate-300">
+                        {review.happened.map((item) => (
+                          <p key={`${review.id}-happened-${item}`}>{item}</p>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-[18px] border border-white/10 bg-white/5 p-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">What To Learn From It</p>
+                      <div className="mt-3 grid gap-2 text-sm text-slate-300">
+                        {review.takeaways.map((item) => (
+                          <p key={`${review.id}-takeaway-${item}`}>{item}</p>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-[22px] border border-dashed border-white/12 bg-white/5 px-5 py-6 text-sm text-slate-400">
+                No closed managed trades are available for same-day review yet.
+              </div>
+            )}
+          </div>
         </section>
 
         <section className="mt-5 rounded-[28px] border border-white/10 bg-[rgba(9,15,24,0.78)] p-5 backdrop-blur xl:p-6">
