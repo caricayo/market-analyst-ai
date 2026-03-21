@@ -9,9 +9,14 @@ export type TierExecutionPlan = {
   confidenceBand: ConfidenceBand;
 };
 
-const ENTRY_TIERS = [0.6, 0.65, 0.7, 0.8] as const;
 const ALL_TIERS = [0.6, 0.65, 0.7, 0.8, 0.9] as const;
-const ENTRY_TIER_TOLERANCE_DOLLARS = 0.01;
+const ENTRY_RANGES = [
+  { min: 0.55, max: 0.64, tier: 0.6 },
+  { min: 0.65, max: 0.69, tier: 0.65 },
+  { min: 0.7, max: 0.79, tier: 0.7 },
+  { min: 0.8, max: 0.89, tier: 0.8 },
+] as const;
+const ENTRY_TIERS = ENTRY_RANGES.map((range) => range.tier);
 
 export function isTierManagedSetup(setupType: SetupType) {
   return setupType === "trend" || setupType === "scalp";
@@ -30,9 +35,9 @@ export function getTierConfidenceBand(confidence: number): ConfidenceBand {
 }
 
 export function getEligibleEntryTier(entryPriceDollars: number) {
-  return (
-    ENTRY_TIERS.find((tier) => Math.abs(entryPriceDollars - tier) <= ENTRY_TIER_TOLERANCE_DOLLARS + 0.0001) ?? null
-  );
+  return ENTRY_RANGES.find(
+    (range) => entryPriceDollars + 0.0001 >= range.min && entryPriceDollars - 0.0001 <= range.max,
+  )?.tier ?? null;
 }
 
 function getMappedTargetTier(entryTierDollars: number, confidenceBand: ConfidenceBand) {
@@ -140,5 +145,5 @@ export function getTieredStopFloor(
 }
 
 export function describeTierTrigger(entryPriceDollars: number) {
-  return `allowed tiers 0.60 / 0.65 / 0.70 / 0.80 with +/-${ENTRY_TIER_TOLERANCE_DOLLARS.toFixed(2)} tolerance; current ask was ${entryPriceDollars.toFixed(2)}.`;
+  return `allowed ranges are 0.55-0.64, 0.65-0.69, 0.70-0.79, and 0.80-0.89; current ask was ${entryPriceDollars.toFixed(2)}.`;
 }
