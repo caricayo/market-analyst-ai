@@ -159,23 +159,31 @@ function parseStrike(value: string | number | null | undefined) {
 }
 
 function parseStrikeFromText(...values: Array<string | null | undefined>) {
+  const candidates: number[] = [];
+
   for (const value of values) {
     if (!value) {
       continue;
     }
 
-    const match = value.match(/([0-9]{2,3}(?:,[0-9]{3})*(?:\.[0-9]+)?)/);
-    if (!match) {
-      continue;
-    }
-
-    const parsed = Number(match[1].replace(/,/g, ""));
-    if (Number.isFinite(parsed)) {
-      return parsed;
+    const matches = value.match(/([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|[0-9]{4,}(?:\.[0-9]+)?)/g) ?? [];
+    for (const match of matches) {
+      const parsed = Number(match.replace(/,/g, ""));
+      if (Number.isFinite(parsed)) {
+        candidates.push(parsed);
+      }
     }
   }
 
-  return null;
+  if (!candidates.length) {
+    return null;
+  }
+
+  return candidates.sort((left, right) => right - left)[0] ?? null;
+}
+
+function hasUsableStrike(strikePrice: number | null) {
+  return strikePrice !== null && strikePrice >= 1_000;
 }
 
 function inferMapping(market: KalshiMarketApi) {
@@ -328,6 +336,9 @@ export async function discoverActiveBtcMarket(now = new Date()) {
         })[0];
 
       const snapshot = toSnapshot(selected);
+      if (!hasUsableStrike(snapshot.strikePrice)) {
+        continue;
+      }
       setCachedMarket(snapshot);
       return snapshot;
     }
