@@ -69,7 +69,12 @@ function subscribe(socket: WebSocket) {
 
 async function connectKalshiRealtime() {
   const state = getState();
-  if (!state.started || !tradingConfig.autoTradeEnabled || !hasKalshiTradingCredentials()) {
+  if (
+    !state.started ||
+    tradingConfig.signalMonitorMode ||
+    !tradingConfig.autoTradeEnabled ||
+    !hasKalshiTradingCredentials()
+  ) {
     return;
   }
 
@@ -114,7 +119,12 @@ async function connectKalshiRealtime() {
 
 export function ensureKalshiRealtimeManagerStarted() {
   const state = getState();
-  if (state.started || !tradingConfig.autoTradeEnabled || !hasKalshiTradingCredentials()) {
+  if (
+    state.started ||
+    tradingConfig.signalMonitorMode ||
+    !tradingConfig.autoTradeEnabled ||
+    !hasKalshiTradingCredentials()
+  ) {
     return;
   }
 

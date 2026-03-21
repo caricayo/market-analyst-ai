@@ -231,6 +231,10 @@ async function maybeSubmitTrade(input: {
   market: NonNullable<BotStatusSnapshot["market"]> | null;
   decision: NonNullable<BotStatusSnapshot["decision"]>;
 }) {
+  if (tradingConfig.signalMonitorMode) {
+    return buildExecutionDisabled("Signal monitor mode is enabled. No orders are ever sent.");
+  }
+
   if (!input.executeTrade) {
     return buildExecutionDisabled("Analysis completed. No order was requested.");
   }
@@ -780,7 +784,9 @@ function shouldAppendLog(
 }
 
 export async function getTradingBotSnapshot(options?: SnapshotOptions) {
-  ensureManagedTradeManagerStarted();
+  if (!tradingConfig.signalMonitorMode) {
+    ensureManagedTradeManagerStarted();
+  }
   const warnings: string[] = [];
   const now = new Date();
   const minuteInWindow = getMinuteInWindow(now);
@@ -893,16 +899,13 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
     availableBalanceDollars: balance.availableBalanceDollars,
     portfolioValueDollars: balance.portfolioValueDollars,
     confidenceThreshold: tradingConfig.confidenceThreshold,
-    autoEntryEnabled: tradingConfig.autoEntryEnabled,
-    fundingHalted: isFundingHalted(),
-    fundingHaltReason: getFundingHaltReason(),
+    autoEntryEnabled: false,
+    fundingHalted: false,
+    fundingHaltReason: null,
     market,
     indicators,
     decision,
-    tradingEnabled:
-      tradingConfig.autoTradeEnabled &&
-      hasKalshiTradingCredentials() &&
-      !isFundingHalted(),
+    tradingEnabled: false,
     warnings,
     livePositions: exposure.livePositions,
     activeManagedTrades: exposure.activeManagedTrades,
@@ -913,6 +916,15 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
 }
 
 export async function runTradingBotExecution(source: ExecutionSource) {
+  if (tradingConfig.signalMonitorMode) {
+    return getTradingBotSnapshot({
+      executeTrade: false,
+      source,
+      logRun: false,
+      allowFundingResume: false,
+    });
+  }
+
   const now = Date.now();
   const lastExecutionAt = getLastExecutionAt();
   if (now - lastExecutionAt < 5_000) {

@@ -19,6 +19,10 @@ function scheduleNextAutoEntry(delayMs: number) {
 }
 
 export async function processAutoEntryCycle() {
+  if (tradingConfig.signalMonitorMode) {
+    return;
+  }
+
   if (managerState.__btcAutoEntryManagerRunning) {
     return;
   }
@@ -46,6 +50,7 @@ export async function processAutoEntryCycle() {
 export function ensureAutoEntryManagerStarted() {
   if (
     managerState.__btcAutoEntryManagerStarted ||
+    tradingConfig.signalMonitorMode ||
     !tradingConfig.autoEntryEnabled ||
     !tradingConfig.autoTradeEnabled ||
     !hasKalshiTradingCredentials()

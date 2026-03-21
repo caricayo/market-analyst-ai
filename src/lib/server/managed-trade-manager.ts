@@ -687,6 +687,10 @@ async function processTrade(trade: ManagedTrade) {
 }
 
 export async function processManagedTrades() {
+  if (tradingConfig.signalMonitorMode) {
+    return;
+  }
+
   if (managerState.__btcManagedTradeManagerRunning) {
     return;
   }
@@ -711,6 +715,7 @@ export async function processManagedTrades() {
 export function ensureManagedTradeManagerStarted() {
   if (
     managerState.__btcManagedTradeManagerStarted ||
+    tradingConfig.signalMonitorMode ||
     !tradingConfig.autoTradeEnabled ||
     !hasKalshiTradingCredentials()
   ) {

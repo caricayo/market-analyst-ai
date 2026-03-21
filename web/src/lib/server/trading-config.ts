@@ -25,6 +25,7 @@ function roundMoney(value: number) {
 }
 
 export const tradingConfig = {
+  signalMonitorMode: true,
   coinbaseProductId: process.env.COINBASE_PRODUCT_ID?.trim() || "BTC-USD",
   lookbackCandles: Math.max(120, Math.min(350, parseNumber(process.env.BOT_LOOKBACK_CANDLES, 350))),
   stakeDollars: Math.max(1, parseNumber(process.env.BOT_FIXED_STAKE_DOLLARS, 10)),
