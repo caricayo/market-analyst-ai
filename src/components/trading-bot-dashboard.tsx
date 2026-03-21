@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BotStatusSnapshot } from "@/lib/trading-types";
 
 type LoadState = {
@@ -121,8 +121,15 @@ export function TradingBotDashboard() {
     loading: true,
     error: null,
   });
+  const [pollingActive, setPollingActive] = useState(true);
+  const requestInFlightRef = useRef(false);
 
   async function loadSnapshot() {
+    if (requestInFlightRef.current) {
+      return;
+    }
+
+    requestInFlightRef.current = true;
     try {
       const response = await fetch("/api/trading/bot", { cache: "no-store" });
       const data = await parseResponse(response);
@@ -137,16 +144,25 @@ export function TradingBotDashboard() {
         loading: false,
         error: error instanceof Error ? error.message : "Unable to load the signal monitor.",
       }));
+    } finally {
+      requestInFlightRef.current = false;
     }
   }
 
   useEffect(() => {
     void loadSnapshot();
+  }, []);
+
+  useEffect(() => {
+    if (!pollingActive) {
+      return;
+    }
+
     const timer = window.setInterval(() => {
       void loadSnapshot();
     }, 1_000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [pollingActive]);
 
   const snapshot = state.data;
   const signal = snapshot?.decision?.call ?? "no_trade";
@@ -208,10 +224,30 @@ export function TradingBotDashboard() {
               </p>
             </div>
 
-            <div className="rounded-[28px] border border-white/10 bg-black/20 px-5 py-4 text-sm text-white/80">
-              <p>Last refresh: {formatTimestamp(snapshot?.generatedAt, snapshot?.timeZone ?? "Pacific/Honolulu")}</p>
-              <p className="mt-1">Market: {snapshot?.market?.ticker ?? "loading"}</p>
-              <p className="mt-1">Window: {snapshot?.currentWindowLabel ?? "loading"}</p>
+            <div className="flex flex-col gap-3">
+              <div className="rounded-[28px] border border-white/10 bg-black/20 px-5 py-4 text-sm text-white/80">
+                <p>Last refresh: {formatTimestamp(snapshot?.generatedAt, snapshot?.timeZone ?? "Pacific/Honolulu")}</p>
+                <p className="mt-1">Market: {snapshot?.market?.ticker ?? "loading"}</p>
+                <p className="mt-1">Window: {snapshot?.currentWindowLabel ?? "loading"}</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPollingActive(true)}
+                  disabled={pollingActive}
+                  className="rounded-full border border-emerald-300/30 bg-emerald-400/15 px-5 py-3 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Go
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPollingActive(false)}
+                  disabled={!pollingActive}
+                  className="rounded-full border border-rose-300/30 bg-rose-400/15 px-5 py-3 text-sm font-semibold text-rose-50 transition hover:bg-rose-400/25 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Stop
+                </button>
+              </div>
             </div>
           </div>
 
