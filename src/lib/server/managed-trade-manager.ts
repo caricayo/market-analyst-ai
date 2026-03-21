@@ -5,7 +5,6 @@ import {
   submitKalshiOrder,
 } from "@/lib/server/kalshi-client";
 import {
-  buildRecoveredTierExecutionPlan,
   getTieredStopFloor,
   isTierManagedSetup,
 } from "@/lib/server/price-tier-model";
@@ -109,26 +108,12 @@ function getManagedTradeSettings(
 }
 
 function inferSetupTypeFromClientOrderId(clientOrderId: string | null, createdAt: string | null) {
-  if (clientOrderId?.includes("-reversal-")) {
-    return "reversal" as const;
-  }
-
   if (clientOrderId?.includes("-scalp-")) {
     return "scalp" as const;
   }
 
-  if (clientOrderId?.includes("-trend-")) {
-    return "trend" as const;
-  }
-
-  if (createdAt) {
-    const minuteInWindow = getMinuteInWindow(new Date(createdAt));
-    if (minuteInWindow >= 9 && minuteInWindow <= 12) {
-      return "scalp" as const;
-    }
-  }
-
-  return "trend" as const;
+  void createdAt;
+  return "scalp" as const;
 }
 
 function clampPrice(value: number) {
@@ -315,15 +300,14 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
             : market?.noAskPrice ?? market?.noBidPrice ?? 0.5,
           2,
         ) ?? 0.5;
-      const setupType = "trend" as const;
+      const setupType = "scalp" as const;
       const settings = getManagedTradeSettings(
         setupType,
         entryPriceDollars,
         market?.closeTime ?? null,
         new Date().toISOString(),
-        buildRecoveredTierExecutionPlan(setupType, entryPriceDollars)?.targetTierDollars ?? null,
+        null,
       );
-      const tierPlan = buildRecoveredTierExecutionPlan(setupType, entryPriceDollars);
 
       await createManagedTrade({
         marketTicker: position.ticker,
@@ -338,10 +322,10 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
         entryPriceDollars,
         targetPriceDollars: settings.targetPriceDollars,
         stopPriceDollars: settings.stopPriceDollars,
-        entryTierDollars: tierPlan?.entryTierDollars ?? null,
-        targetTierDollars: tierPlan?.targetTierDollars ?? null,
-        stopTierDollars: tierPlan?.stopTierDollars ?? null,
-        confidenceBand: tierPlan?.confidenceBand ?? null,
+        entryTierDollars: null,
+        targetTierDollars: null,
+        stopTierDollars: null,
+        confidenceBand: null,
         forcedExitAt: settings.forcedExitAt,
         status: "open",
         exitReason: null,
@@ -379,13 +363,12 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
     const market = await fetchKalshiMarketByTicker(position.ticker).catch(() => null);
     const setupType = inferSetupTypeFromClientOrderId(latestBotFill.clientOrderId, latestBotFill.createdAt);
     const entryPriceDollars = roundPrice(weightedPrice, 2) ?? 0.5;
-    const tierPlan = buildRecoveredTierExecutionPlan(setupType, entryPriceDollars);
     const settings = getManagedTradeSettings(
       setupType,
       entryPriceDollars,
       market?.closeTime ?? null,
       latestBotFill.createdAt,
-      tierPlan?.targetTierDollars ?? null,
+      null,
     );
 
     await createManagedTrade({
@@ -401,10 +384,10 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
       entryPriceDollars,
       targetPriceDollars: settings.targetPriceDollars,
       stopPriceDollars: settings.stopPriceDollars,
-      entryTierDollars: tierPlan?.entryTierDollars ?? null,
-      targetTierDollars: tierPlan?.targetTierDollars ?? null,
-      stopTierDollars: tierPlan?.stopTierDollars ?? null,
-      confidenceBand: tierPlan?.confidenceBand ?? null,
+      entryTierDollars: null,
+      targetTierDollars: null,
+      stopTierDollars: null,
+      confidenceBand: null,
       forcedExitAt: settings.forcedExitAt,
       status: "open",
       exitReason: null,

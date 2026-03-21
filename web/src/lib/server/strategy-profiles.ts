@@ -60,7 +60,7 @@ function buildStrategyCatalog(): StrategyProfileRecord[] {
   return [
     {
       slug: "champion-live",
-      name: "Trend Core v3",
+      name: "Scalp Tape v1",
       allowReversal: false,
       blockHighRiskOpen: true,
       blockCloseWindow: true,

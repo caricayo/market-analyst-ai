@@ -3,25 +3,9 @@ import { getActiveStrategyProfile, type StrategyProfile } from "@/lib/server/str
 import type {
   IndicatorSnapshot,
   KalshiMarketSnapshot,
-  SetupType,
   TimingRiskLevel,
-  TradeCall,
   TradingDecision,
 } from "@/lib/trading-types";
-
-type DeterministicCandidate = {
-  setupType: Exclude<SetupType, "none">;
-  call: Exclude<TradeCall, "no_trade">;
-  confidence: number;
-  summary: string;
-  reasoning: string[];
-  gateReasons: string[];
-};
-
-type DeterministicResult = {
-  candidate: DeterministicCandidate | null;
-  blockers: string[];
-};
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -31,10 +15,7 @@ function uniqueStrings(values: string[]) {
   return [...new Set(values)];
 }
 
-function deriveOutcomeMapping(
-  market: KalshiMarketSnapshot | null,
-  call: "above" | "below" | "no_trade",
-) {
+function deriveOutcomeMapping(market: KalshiMarketSnapshot | null, call: TradingDecision["call"]) {
   if (!market || call === "no_trade") {
     return {
       derivedSide: null,
@@ -48,491 +29,100 @@ function deriveOutcomeMapping(
   };
 }
 
-function getScalpDistanceThreshold(
-  atr14: number | null,
-  timingRisk: TimingRiskLevel,
-  profile: StrategyProfile,
-) {
-  const atrComponent =
-    (atr14 ?? 0) *
-    (timingRisk === "late-window" ? profile.scalpLateAtrMultiplier : profile.scalpPrimaryAtrMultiplier);
-  const hardFloor = timingRisk === "late-window" ? profile.scalpLateDistanceFloor : profile.scalpPrimaryDistanceFloor;
-  return Math.max(hardFloor, atrComponent);
+function describeTimingContext(timingRisk: TimingRiskLevel) {
+  switch (timingRisk) {
+    case "high-risk-open":
+      return "Open-window tape is being used as context only, not as a hard trade blocker.";
+    case "late-window":
+      return "Late-window tape is being handled like a fast intraday scalp, not a no-trade zone.";
+    case "blocked-close":
+      return "Very late tape is still being scored, but confidence must carry the decision.";
+    default:
+      return "Core trade-window tape is being scored as a short intraday scalp.";
+  }
 }
 
-function getScalpConfidenceThreshold(timingRisk: TimingRiskLevel, profile: StrategyProfile) {
-  return timingRisk === "late-window" ? profile.scalpLateConfidenceThreshold : profile.scalpConfidenceThreshold;
-}
-
-function getReversalDistanceThreshold(
-  atr14: number | null,
-  timingRisk: TimingRiskLevel,
-  profile: StrategyProfile,
-) {
-  const atrComponent =
-    (atr14 ?? 0) *
-    (timingRisk === "late-window"
-      ? profile.reversalLateAtrMultiplier
-      : profile.reversalPrimaryAtrMultiplier);
-  const hardFloor =
-    timingRisk === "late-window"
-      ? profile.reversalLateDistanceFloor
-      : profile.reversalPrimaryDistanceFloor;
-  return Math.max(hardFloor, atrComponent);
-}
-
-function getReversalConfidenceThreshold(timingRisk: TimingRiskLevel, profile: StrategyProfile) {
-  return timingRisk === "late-window"
-    ? profile.reversalLateConfidenceThreshold
-    : profile.reversalConfidenceThreshold;
-}
-
-function getTrendDirection(indicators: IndicatorSnapshot, profile: StrategyProfile) {
-  if (Math.abs(indicators.deterministicEdge) < profile.trendEdgeThreshold) {
-    return null;
-  }
-
-  return indicators.deterministicEdge > 0 ? "above" : "below";
-}
-
-function getEmaTurnBand(atr14: number | null) {
-  return Math.max(8, (atr14 ?? 0) * 0.15);
-}
-
-function evaluateReversalCandidate(
-  side: "above" | "below",
-  market: KalshiMarketSnapshot | null,
-  indicators: IndicatorSnapshot,
-  timingRisk: TimingRiskLevel,
-  profile: StrategyProfile,
-): DeterministicResult {
-  const blockers: string[] = [];
-  const directionLabel = side.toUpperCase();
-
-  if (!profile.allowReversal) {
-    blockers.push(`Reversal ${directionLabel} is disabled for this strategy profile.`);
-    return { candidate: null, blockers };
-  }
-
-  if (timingRisk !== "trade-window" && timingRisk !== "late-window") {
-    blockers.push(`Reversal ${directionLabel} is only allowed in minutes 4-12.`);
-    return { candidate: null, blockers };
-  }
-
-  if (market?.closeTime) {
-    const secondsToClose = (Date.parse(market.closeTime) - Date.now()) / 1000;
-    if (Number.isFinite(secondsToClose) && secondsToClose < tradingConfig.reversalMinTimeToCloseSeconds) {
-      blockers.push(
-        `Reversal ${directionLabel} needs at least ${tradingConfig.reversalMinTimeToCloseSeconds} seconds before close; only ${Math.max(0, Math.round(secondsToClose))} remain.`,
-      );
-      return { candidate: null, blockers };
-    }
-  }
-
-  if (
-    indicators.strikePrice === null ||
-    indicators.distanceToStrike === null ||
-    indicators.atr14 === null
-  ) {
-    blockers.push(`Reversal ${directionLabel} requires strike price and ATR data.`);
-    return { candidate: null, blockers };
-  }
-
-  const threshold = getReversalDistanceThreshold(indicators.atr14, timingRisk, profile);
-  const distance = indicators.distanceToStrike;
-  const ema9 = indicators.ema9;
-  const rsi14 = indicators.rsi14 ?? 50;
-  const momentum5 = indicators.momentum5 ?? 0;
-  const momentum15 = indicators.momentum15 ?? 0;
-  const momentum30 = indicators.momentum30 ?? 0;
-  const turnBand = getEmaTurnBand(indicators.atr14);
-  const reclaimingEma =
-    ema9 === null
-      ? true
-      : side === "above"
-        ? indicators.currentPrice >= ema9 - turnBand
-        : indicators.currentPrice <= ema9 + turnBand;
-  const turningMomentum =
-    side === "above"
-      ? momentum5 >= 1 || momentum5 - momentum15 >= 4
-      : momentum5 <= -1 || momentum5 - momentum15 <= -4;
-  const exhaustionPresent =
-    side === "above"
-      ? rsi14 <= 43 || momentum15 <= -4 || momentum30 <= -6
-      : rsi14 >= 57 || momentum15 >= 4 || momentum30 >= 6;
-  const stillAcceleratingAgainstReversal =
-    side === "above"
-      ? momentum5 <= -4 && momentum15 <= -2
-      : momentum5 >= 4 && momentum15 >= 2;
-
-  if (side === "above" && distance > -threshold) {
-    blockers.push(
-      `Reversal ABOVE needs at least ${threshold.toFixed(2)} dollars below strike; current distance is ${distance.toFixed(2)}.`,
-    );
-  }
-
-  if (side === "below" && distance < threshold) {
-    blockers.push(
-      `Reversal BELOW needs at least ${threshold.toFixed(2)} dollars above strike; current distance is ${distance.toFixed(2)}.`,
-    );
-  }
-
-  if (!exhaustionPresent) {
-    blockers.push(`Reversal ${directionLabel} needs exhaustion context before the snapback entry.`);
-  }
-
-  if (!turningMomentum) {
-    blockers.push(`Reversal ${directionLabel} needs a short-momentum turn back toward the strike.`);
-  }
-
-  if (!reclaimingEma) {
-    blockers.push(`Reversal ${directionLabel} needs price to turn back toward EMA9.`);
-  }
-
-  if (stillAcceleratingAgainstReversal) {
-    blockers.push(`Reversal ${directionLabel} blocked because momentum is still accelerating the wrong way.`);
-  }
-
-  if (blockers.length) {
-    return { candidate: null, blockers };
-  }
-
-  const extension = Math.max(0, Math.abs(distance) - threshold);
-  const atrScale = Math.max(indicators.atr14, 20);
-  const momentumTurnStrength =
-    side === "above"
-      ? Math.max(0, momentum5 - Math.min(momentum15, 0))
-      : Math.max(0, Math.max(momentum15, 0) - momentum5);
-  const confidence = clamp(
-    Math.round(
-      getReversalConfidenceThreshold(timingRisk, profile) +
-        (extension / atrScale) * 10 +
-        Math.min(6, momentumTurnStrength) +
-        (reclaimingEma ? 3 : 0),
-    ),
-    getReversalConfidenceThreshold(timingRisk, profile),
-    95,
-  );
+function buildScalpScore(indicators: IndicatorSnapshot) {
+  const distanceScore =
+    indicators.distanceToStrike !== null
+      ? clamp(
+          (indicators.distanceToStrike / Math.max(indicators.atr14 ?? 40, 25)) * 18,
+          -22,
+          22,
+        )
+      : 0;
+  const momentumComposite =
+    (indicators.momentum5 ?? 0) * 0.55 +
+    (indicators.momentum15 ?? 0) * 0.35 +
+    (indicators.momentum30 ?? 0) * 0.1;
+  const momentumScore = clamp(momentumComposite / 2.6, -18, 18);
+  const emaScore =
+    (indicators.ema9 !== null
+      ? indicators.currentPrice >= indicators.ema9
+        ? 4
+        : -4
+      : 0) +
+    (indicators.ema9 !== null && indicators.ema21 !== null
+      ? indicators.ema9 >= indicators.ema21
+        ? 4
+        : -4
+      : 0) +
+    (indicators.ema21 !== null && indicators.ema55 !== null
+      ? indicators.ema21 >= indicators.ema55
+        ? 3
+        : -3
+      : 0);
+  const vwapScore =
+    indicators.vwap === null ? 0 : indicators.currentPrice >= indicators.vwap ? 3 : -3;
+  const rsiScore =
+    indicators.rsi14 === null ? 0 : clamp((indicators.rsi14 - 50) / 2.4, -10, 10);
+  const edgeScore = clamp(indicators.deterministicEdge * 18, -24, 24);
 
   return {
-    candidate: {
-      setupType: "reversal",
-      call: side,
-      confidence,
-      summary: `Reversal ${directionLabel} setup detected after an overshoot away from the strike and a short-momentum turn.`,
-      reasoning: [
-        `Price is ${Math.abs(distance).toFixed(2)} dollars ${side === "above" ? "below" : "above"} strike, beyond the reversal threshold of ${threshold.toFixed(2)}.`,
-        `Short momentum has started turning back toward the strike while the broader move still shows exhaustion.`,
-        `Price is rotating back toward EMA9 instead of continuing to accelerate away from the strike.`,
-      ],
-      gateReasons: [
-        `Reversal ${directionLabel} displacement threshold passed.`,
-        `Reversal ${directionLabel} exhaustion condition passed.`,
-        `Reversal ${directionLabel} momentum-turn condition passed.`,
-        timingRisk === "late-window"
-          ? "Late-window reversal thresholds were satisfied."
-          : "Primary reversal window thresholds were satisfied.",
-      ],
-    },
-    blockers: [],
+    rawScore: distanceScore + momentumScore + emaScore + vwapScore + rsiScore + edgeScore,
+    distanceScore,
+    momentumScore,
+    emaScore,
+    vwapScore,
+    rsiScore,
+    edgeScore,
   };
 }
 
-function evaluateScalpCandidate(
-  side: "above" | "below",
+function buildReasoning(
   indicators: IndicatorSnapshot,
+  call: "above" | "below",
   timingRisk: TimingRiskLevel,
-  profile: StrategyProfile,
-): DeterministicResult {
-  const blockers: string[] = [];
-  const directionLabel = side.toUpperCase();
-
-  if (timingRisk !== "trade-window" && timingRisk !== "late-window") {
-    blockers.push(`Scalp ${directionLabel} is only allowed in minutes 4-12.`);
-    return { candidate: null, blockers };
-  }
-
-  if (
-    indicators.strikePrice === null ||
-    indicators.distanceToStrike === null ||
-    indicators.atr14 === null
-  ) {
-    blockers.push(`Scalp ${directionLabel} requires strike price and ATR data.`);
-    return { candidate: null, blockers };
-  }
-
-  const threshold = getScalpDistanceThreshold(indicators.atr14, timingRisk, profile);
-  const distance = indicators.distanceToStrike;
-  const ema9 = indicators.ema9;
-  const ema21 = indicators.ema21;
-  const rsi14 = indicators.rsi14 ?? 50;
-  const momentum5 = indicators.momentum5 ?? 0;
-  const momentum15 = indicators.momentum15 ?? 0;
-  const trendAligned =
-    side === "above"
-      ? indicators.trendBias === "bullish" || (ema9 !== null && ema21 !== null && ema9 >= ema21)
-      : indicators.trendBias === "bearish" || (ema9 !== null && ema21 !== null && ema9 <= ema21);
-  const priceAligned =
-    ema9 === null
-      ? true
-      : side === "above"
-        ? indicators.currentPrice >= ema9
-        : indicators.currentPrice <= ema9;
-
-  if (side === "above" && distance < threshold) {
-    blockers.push(
-      `Scalp ABOVE needs at least ${threshold.toFixed(2)} dollars above strike; current distance is ${distance.toFixed(2)}.`,
-    );
-  }
-
-  if (side === "below" && distance > -threshold) {
-    blockers.push(
-      `Scalp BELOW needs at least ${threshold.toFixed(2)} dollars below strike; current distance is ${distance.toFixed(2)}.`,
-    );
-  }
-
-  if (side === "above" && (momentum5 < -8 || momentum15 < -6)) {
-    blockers.push("Scalp ABOVE blocked because short momentum is reversing down too hard.");
-  }
-
-  if (side === "below" && (momentum5 > 8 || momentum15 > 6)) {
-    blockers.push("Scalp BELOW blocked because short momentum is reversing up too hard.");
-  }
-
-  if (side === "above" && ema9 !== null && indicators.currentPrice < ema9 && rsi14 <= 45) {
-    blockers.push("Scalp ABOVE blocked because price is below EMA9 with weak RSI.");
-  }
-
-  if (side === "below" && ema9 !== null && indicators.currentPrice > ema9 && rsi14 >= 55) {
-    blockers.push("Scalp BELOW blocked because price is above EMA9 with strong RSI.");
-  }
-
-  if (!trendAligned && !priceAligned) {
-    blockers.push(`Scalp ${directionLabel} lacks EMA or trend alignment.`);
-  }
-
-  if (blockers.length) {
-    return { candidate: null, blockers };
-  }
-
-  const extension = Math.max(0, Math.abs(distance) - threshold);
-  const atrScale = Math.max(indicators.atr14, 25);
-  const confidence = clamp(
-    Math.round(
-      getScalpConfidenceThreshold(timingRisk, profile) +
-        (extension / atrScale) * 12 +
-        (trendAligned ? 4 : 0) +
-        (priceAligned ? 3 : 0),
-    ),
-    getScalpConfidenceThreshold(timingRisk, profile),
-    94,
-  );
-
-  return {
-    candidate: {
-      setupType: "scalp",
-      call: side,
-      confidence,
-      summary: `Scalp ${directionLabel} setup passed strike-distance and continuation filters.`,
-      reasoning: [
-        `Price is ${Math.abs(distance).toFixed(2)} dollars ${side === "above" ? "above" : "below"} strike.`,
-        `Scalp threshold for this window is ${threshold.toFixed(2)} dollars.`,
-        `Short momentum and EMA context still support continuation instead of a reversal.`,
-      ],
-      gateReasons: [
-        `Scalp ${directionLabel} distance threshold passed.`,
-        trendAligned ? "Trend context supports the scalp side." : "Price is aligned even without full trend support.",
-        timingRisk === "late-window"
-          ? "Late-window scalp thresholds were satisfied."
-          : "Primary scalp window thresholds were satisfied.",
-      ],
-    },
-    blockers: [],
-  };
-}
-
-function evaluateTrendCandidate(
-  indicators: IndicatorSnapshot,
-  timingRisk: TimingRiskLevel,
-  profile: StrategyProfile,
-): DeterministicResult {
-  const blockers: string[] = [];
-
-  if (timingRisk !== "trade-window") {
-    blockers.push("Trend setups are only allowed in minutes 4-8.");
-    return { candidate: null, blockers };
-  }
-
-  const direction = getTrendDirection(indicators, profile);
-  if (!direction) {
-    blockers.push(
-      `Trend setup requires |deterministic edge| >= ${profile.trendEdgeThreshold}; current edge is ${indicators.deterministicEdge}.`,
-    );
-    return { candidate: null, blockers };
-  }
-
-  const momentum5 = indicators.momentum5 ?? 0;
-  const momentum15 = indicators.momentum15 ?? 0;
-  const momentum30 = indicators.momentum30 ?? 0;
-  const ema9 = indicators.ema9;
-  const trendAligned =
-    direction === "above" ? indicators.trendBias === "bullish" : indicators.trendBias === "bearish";
-  const priceAligned =
-    ema9 === null
-      ? true
-      : direction === "above"
-        ? indicators.currentPrice >= ema9
-        : indicators.currentPrice <= ema9;
-  const momentumAligned =
-    direction === "above"
-      ? momentum5 >= 2 && momentum15 >= 3
-      : momentum5 <= -2 && momentum15 <= -3;
-
-  if (!trendAligned) {
-    blockers.push(`Trend ${direction.toUpperCase()} blocked because trend bias does not align.`);
-  }
-
-  if (!momentumAligned) {
-    blockers.push(`Trend ${direction.toUpperCase()} blocked because 5m/15m momentum does not align.`);
-  }
-
-  if (!priceAligned) {
-    blockers.push(`Trend ${direction.toUpperCase()} blocked because price is on the wrong side of EMA9.`);
-  }
-
-  if (blockers.length) {
-    return { candidate: null, blockers };
-  }
-
-  const confidence = clamp(
-    Math.round(
-      60 +
-        Math.abs(indicators.deterministicEdge) * 14 +
-        (Math.abs(momentum30) >= 8 ? 4 : 0) +
-        (priceAligned ? 2 : 0),
-    ),
-    profile.trendConfidenceThreshold,
-    93,
-  );
-
-  return {
-    candidate: {
-      setupType: "trend",
-      call: direction,
-      confidence,
-      summary: `Trend ${direction.toUpperCase()} setup passed edge, momentum, and EMA alignment checks.`,
-      reasoning: [
-        `Deterministic edge is ${indicators.deterministicEdge}.`,
-        `Momentum alignment supports ${direction.toUpperCase()} on 5m and 15m windows.`,
-        `Price is on the correct side of EMA9 with ${indicators.trendBias} tape context.`,
-      ],
-      gateReasons: [
-        "Trend edge threshold passed.",
-        "Trend momentum alignment passed.",
-        "EMA alignment passed.",
-      ],
-    },
-    blockers: [],
-  };
-}
-
-function rankFallbackCandidates(candidates: DeterministicCandidate[]) {
-  return candidates.sort((left, right) => {
-    if (left.confidence !== right.confidence) {
-      return right.confidence - left.confidence;
-    }
-
-    if (left.setupType !== right.setupType) {
-      if (left.setupType === "scalp") {
-        return -1;
-      }
-      if (right.setupType === "scalp") {
-        return 1;
-      }
-    }
-
-    return 0;
-  });
-}
-
-function buildDeterministicDecision(
-  market: KalshiMarketSnapshot | null,
-  indicators: IndicatorSnapshot,
-  timingRisk: TimingRiskLevel,
-  warnings: string[],
-  profile: StrategyProfile,
+  score: ReturnType<typeof buildScalpScore>,
 ) {
-  const blockers = [...warnings];
-
-  if (timingRisk === "high-risk-open" && profile.blockHighRiskOpen) {
-    blockers.push("Minutes 1-3 are hard-blocked as a high-risk open.");
-    return {
-      candidate: null,
-      blockers,
-    };
-  }
-
-  if (timingRisk === "blocked-close" && profile.blockCloseWindow) {
-    blockers.push("Minutes 13-15 are blocked for new entries.");
-    return {
-      candidate: null,
-      blockers,
-    };
-  }
-
-  if (market?.strikePrice === null) {
-    blockers.push("The active Kalshi market did not expose a usable strike price.");
-  }
-
-  const trendEvaluation = evaluateTrendCandidate(indicators, timingRisk, profile);
-  if (trendEvaluation.candidate) {
-    return {
-      candidate: trendEvaluation.candidate,
-      blockers: uniqueStrings(blockers),
-    };
-  }
-
-  const reversalEvaluations = [
-    evaluateReversalCandidate("below", market, indicators, timingRisk, profile),
-    evaluateReversalCandidate("above", market, indicators, timingRisk, profile),
+  const directionLabel = call.toUpperCase();
+  const reasoning: string[] = [
+    `Scalp ${directionLabel} is driven by a composite intraday score of ${score.rawScore.toFixed(2)} built from distance-to-strike, momentum, EMA structure, VWAP, RSI, and deterministic edge.`,
+    `Distance to strike is ${indicators.distanceToStrike?.toFixed(2) ?? "n/a"} with ATR14 at ${indicators.atr14?.toFixed(2) ?? "n/a"}, which gives the move context relative to current volatility.`,
+    `Momentum stack is 5m ${indicators.momentum5?.toFixed(2) ?? "n/a"}, 15m ${indicators.momentum15?.toFixed(2) ?? "n/a"}, 30m ${indicators.momentum30?.toFixed(2) ?? "n/a"}.`,
+    `EMA / VWAP structure is being treated as tape confirmation, with EMA9 ${indicators.ema9?.toFixed(2) ?? "n/a"}, EMA21 ${indicators.ema21?.toFixed(2) ?? "n/a"}, EMA55 ${indicators.ema55?.toFixed(2) ?? "n/a"}, and VWAP ${indicators.vwap?.toFixed(2) ?? "n/a"}.`,
+    describeTimingContext(timingRisk),
   ];
-  const reversalCandidates = reversalEvaluations
-    .map((evaluation) => evaluation.candidate)
-    .filter((candidate): candidate is DeterministicCandidate => candidate !== null)
-    .sort((left, right) => right.confidence - left.confidence);
 
-  if (reversalCandidates.length) {
-    return {
-      candidate: reversalCandidates[0],
-      blockers: uniqueStrings(blockers),
-    };
-  }
-
-  const scalpEvaluations = [
-    evaluateScalpCandidate("below", indicators, timingRisk, profile),
-    evaluateScalpCandidate("above", indicators, timingRisk, profile),
+  const gateReasons = [
+    score.distanceScore >= 0 === (call === "above")
+      ? `Distance-to-strike pressure favors ${directionLabel}.`
+      : `Distance-to-strike pressure is mixed, but the rest of the tape still favors ${directionLabel}.`,
+    score.momentumScore >= 0 === (call === "above")
+      ? `Short momentum stack favors ${directionLabel}.`
+      : `Short momentum is mixed, but price structure still leans ${directionLabel}.`,
+    score.emaScore >= 0 === (call === "above")
+      ? `EMA structure favors ${directionLabel}.`
+      : `EMA structure is mixed, but the composite score still favors ${directionLabel}.`,
+    score.vwapScore >= 0 === (call === "above")
+      ? `Price vs VWAP favors ${directionLabel}.`
+      : `VWAP is not fully aligned, but it was not strong enough to flip the direction.`,
+    `Deterministic edge is ${indicators.deterministicEdge.toFixed(3)} and contributes to the ${directionLabel} read.`,
   ];
-  const scalpCandidates = rankFallbackCandidates(
-    scalpEvaluations
-      .map((evaluation) => evaluation.candidate)
-      .filter((candidate): candidate is DeterministicCandidate => candidate !== null),
-  );
-
-  if (!scalpCandidates.length) {
-    const evaluationBlockers = [
-      ...trendEvaluation.blockers,
-      ...reversalEvaluations.flatMap((evaluation) => evaluation.blockers),
-      ...scalpEvaluations.flatMap((evaluation) => evaluation.blockers),
-    ];
-    return {
-      candidate: null,
-      blockers: uniqueStrings([...blockers, ...evaluationBlockers]),
-    };
-  }
 
   return {
-    candidate: scalpCandidates[0],
-    blockers: uniqueStrings(blockers),
+    reasoning,
+    gateReasons: uniqueStrings(gateReasons),
   };
 }
 
@@ -544,71 +134,73 @@ export async function buildTradingDecisionForProfile(input: {
   warnings: string[];
   profile: StrategyProfile;
 }) {
-  const deterministic = buildDeterministicDecision(
-    input.market,
-    input.indicators,
-    input.timingRisk,
-    input.warnings,
-    input.profile,
-  );
-  const candidate = deterministic.candidate;
-  const blockers = [...deterministic.blockers];
-  const gateReasons = candidate ? [...candidate.gateReasons] : [];
-  let call: TradingDecision["call"] = candidate?.call ?? "no_trade";
-  const confidence = candidate?.confidence ?? 50;
-  const deterministicConfidence = candidate?.confidence ?? 50;
-  const setupType: TradingDecision["setupType"] = candidate?.setupType ?? "none";
-  const candidateSide: TradingDecision["candidateSide"] = candidate?.call ?? null;
-  const aiVetoed = false;
+  const blockers = [...input.warnings];
 
-  const requiredConfidence =
-    candidate?.setupType === "reversal"
-      ? getReversalConfidenceThreshold(input.timingRisk, input.profile)
-      : candidate?.setupType === "scalp"
-        ? getScalpConfidenceThreshold(input.timingRisk, input.profile)
-        : candidate?.setupType === "trend"
-          ? input.profile.trendConfidenceThreshold
-          : tradingConfig.confidenceThreshold;
-  const meetsConfidence = candidate ? confidence >= requiredConfidence : false;
-
-  if (candidate && !meetsConfidence) {
-    blockers.push(
-      `${candidate.setupType.toUpperCase()} confidence ${confidence} is below the required threshold of ${requiredConfidence}.`,
-    );
-    call = "no_trade";
+  if (!input.market) {
+    blockers.push("No active Kalshi BTC market is available.");
   }
 
-  const mapping = deriveOutcomeMapping(input.market, call);
-  const defaultSummary = candidate
-    ? candidate.summary
-    : "No deterministic reversal, trend, or scalp setup passed the current timing and tape filters.";
-  const defaultReasoning = candidate
-    ? candidate.reasoning
-    : [
-        `Timing risk is ${input.timingRisk}.`,
-        `Deterministic edge is ${input.indicators.deterministicEdge}.`,
-        "No reversal, scalp, or trend candidate satisfied the active gate thresholds.",
-      ];
+  if (input.market?.strikePrice === null) {
+    blockers.push("The active Kalshi market did not expose a usable strike price.");
+  }
+
+  if (input.indicators.currentPrice <= 0) {
+    blockers.push("Coinbase did not return a usable BTC price.");
+  }
+
+  if (blockers.length) {
+    const mapping = deriveOutcomeMapping(input.market, "no_trade");
+    return {
+      call: "no_trade",
+      confidence: 50,
+      deterministicConfidence: 50,
+      summary: "No trade because core market data was missing.",
+      reasoning: [
+        "The bot now trades a single scalp playbook from confidence direction only.",
+        "This cycle was skipped because a required market or price input was missing.",
+      ],
+      setupType: "none",
+      candidateSide: null,
+      timingRisk: input.timingRisk,
+      shouldTrade: false,
+      aiVetoed: false,
+      derivedSide: mapping.derivedSide,
+      derivedOutcome: mapping.derivedOutcome,
+      gateReasons: [],
+      blockers: uniqueStrings(blockers),
+    } satisfies TradingDecision;
+  }
+
+  const score = buildScalpScore(input.indicators);
+  const call: "above" | "below" = score.rawScore >= 0 ? "above" : "below";
+  const confidence = clamp(Math.round(52 + Math.abs(score.rawScore) * 0.9), 52, 95);
+  const requiredConfidence = Math.min(tradingConfig.confidenceThreshold, 58);
+  const meetsConfidence = confidence >= requiredConfidence;
+  const mapping = deriveOutcomeMapping(input.market, meetsConfidence ? call : "no_trade");
+  const { reasoning, gateReasons } = buildReasoning(input.indicators, call, input.timingRisk, score);
+
+  if (!meetsConfidence) {
+    blockers.push(
+      `Scalp confidence ${confidence} is below the live trigger threshold of ${requiredConfidence}.`,
+    );
+  }
 
   return {
-    call,
+    call: meetsConfidence ? call : "no_trade",
     confidence,
-    deterministicConfidence,
-    summary: defaultSummary,
-    reasoning: defaultReasoning,
-    setupType,
-    candidateSide,
+    deterministicConfidence: confidence,
+    summary: meetsConfidence
+      ? `Scalp ${call.toUpperCase()} setup based on intraday tape pressure and short-term directional confidence.`
+      : `No trade because the intraday scalp confidence only reached ${confidence}.`,
+    reasoning,
+    setupType: meetsConfidence ? "scalp" : "none",
+    candidateSide: call,
     timingRisk: input.timingRisk,
-    shouldTrade:
-      Boolean(candidate) &&
-      call !== "no_trade" &&
-      meetsConfidence &&
-      !aiVetoed &&
-      Boolean(mapping.derivedSide),
-    aiVetoed,
+    shouldTrade: meetsConfidence && Boolean(mapping.derivedSide),
+    aiVetoed: false,
     derivedSide: mapping.derivedSide,
     derivedOutcome: mapping.derivedOutcome,
-    gateReasons: uniqueStrings(gateReasons),
+    gateReasons,
     blockers: uniqueStrings(blockers),
   } satisfies TradingDecision;
 }

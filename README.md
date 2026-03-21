@@ -72,16 +72,12 @@ Optional runtime knobs:
 - `POST /api/trading/bot` forces one immediate analysis cycle and, if eligible, submits the order.
 - Background automation starts on server boot and keeps scanning new windows without the button.
 - When the account is flat, automation scans once per minute by default. When live exposure exists, both scanning and managed-trade watching tighten to 10-second cadence.
-- Minutes `1-3` and `13-15` are blocked for new entries.
-- Trend is the primary live entry playbook in minutes `4-8`.
-- Live reversals are disabled in the current champion profile while they are evaluated off-line.
-- Scalp remains a continuation fallback in minutes `4-12`.
-- Trend stops arm quickly by default (`8s`) instead of waiting through most of the move.
+- The live bot now uses a single scalp playbook driven by deterministic directional confidence.
+- There are no hard timing gates; window timing is only used as context in the confidence model.
+- New entries use adaptive scalp exits with a fixed target, fixed base stop, breakeven promotion, and trailing profit protection.
 - Buy retries now use IOC with short delays and can size off displayed orderbook depth instead of repeatedly sending full-size FoK orders.
 - Kalshi fills, positions, and user-order events are also watched over WebSockets so tracker drift resolves faster than REST polling alone.
-- Entry quality checks now use estimated Kalshi taker fees, with a lighter upside buffer and net-profit floor so strong trend setups are rejected less often.
-- Same-market re-entry is paused for longer after a stop-out to reduce churn in choppy windows.
-- Trend Core v3 is intentionally more active: lower trend/scalp confirmation thresholds, wider preferred entry ranges, lighter payoff gates, 30-second flat-account scans, and a shorter post-stop cooldown while keeping live reversals disabled.
+- The live champion policy is `Scalp Tape v1`.
 - Shadow tuners can be paused completely with `BOT_RESEARCH_ENABLED=false`.
 
 ## Notes

@@ -1,12 +1,6 @@
 import { fetchCoinbaseCandles } from "@/lib/server/coinbase-client";
 import { buildTradingDecision } from "@/lib/server/decision-engine";
 import {
-  buildTierExecutionPlan,
-  describeTierTrigger,
-  isTierManagedSetup,
-  type TierExecutionPlan,
-} from "@/lib/server/price-tier-model";
-import {
   clearFundingHalt,
   getFundingHaltReason,
   getLastExecutionAt,
@@ -27,7 +21,6 @@ import {
 } from "@/lib/server/managed-trade-manager";
 import {
   createManagedTrade,
-  findLatestClosedManagedTradeByTicker,
   listRecentClosedManagedTrades,
 } from "@/lib/server/managed-trade-store";
 import { getResearchSnapshot, recordResearchWindow, resolveResearchWindows } from "@/lib/server/policy-research";
@@ -60,15 +53,6 @@ function round(value: number | null, decimals = 2) {
     return null;
   }
   return Number(value.toFixed(decimals));
-}
-
-function ceilToCents(value: number) {
-  return Math.ceil(value * 100) / 100;
-}
-
-function estimateKalshiTakerFeesDollars(contracts: number, priceDollars: number) {
-  const boundedPrice = Math.max(0.01, Math.min(0.99, priceDollars));
-  return ceilToCents(0.07 * contracts * boundedPrice * (1 - boundedPrice));
 }
 
 function isFundingErrorMessage(message: string) {
@@ -205,48 +189,18 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function getCooldownSecondsRemaining(updatedAt: string, cooldownSeconds: number) {
-  const msRemaining = Date.parse(updatedAt) + cooldownSeconds * 1_000 - Date.now();
-  return Math.max(0, Math.ceil(msRemaining / 1_000));
-}
-
-function isHighRiskOpenMinute(minuteInWindow: number) {
-  return minuteInWindow >= 1 && minuteInWindow <= 3;
-}
-
 function getManagedTradeSettings(
-  setupType: Exclude<SetupType, "none">,
+  _setupType: Exclude<SetupType, "none">,
   entryPriceDollars: number,
   closeTime: string | null,
-  minuteInWindow?: number | null,
-  tierPlan?: TierExecutionPlan | null,
+  _minuteInWindow?: number | null,
 ) {
-  const profitTargetCents =
-    setupType === "trend"
-      ? tradingConfig.trendProfitTargetCents
-      : setupType === "reversal"
-        ? tradingConfig.reversalProfitTargetCents
-        : tradingConfig.scalpProfitTargetCents;
-  const baseStopLossCents =
-    setupType === "trend"
-      ? tradingConfig.trendStopLossCents
-      : setupType === "reversal"
-        ? tradingConfig.reversalStopLossCents
-        : tradingConfig.scalpStopLossCents;
-  const stopLossCents =
-    minuteInWindow !== null && minuteInWindow !== undefined && isHighRiskOpenMinute(minuteInWindow)
-      ? Math.min(baseStopLossCents, tradingConfig.openWindowStopLossCents)
-      : baseStopLossCents;
-  const forcedExitLeadSeconds =
-    setupType === "trend"
-      ? tradingConfig.trendForcedExitLeadSeconds
-      : setupType === "reversal"
-        ? tradingConfig.reversalForcedExitLeadSeconds
-        : tradingConfig.scalpForcedExitLeadSeconds;
+  const profitTargetCents = tradingConfig.scalpProfitTargetCents;
+  const stopLossCents = tradingConfig.scalpStopLossCents;
+  const forcedExitLeadSeconds = tradingConfig.scalpForcedExitLeadSeconds;
 
   return {
-    targetPriceDollars:
-      tierPlan?.targetTierDollars ?? Math.min(0.99, round(entryPriceDollars + profitTargetCents / 100, 2) ?? 0.99),
+    targetPriceDollars: Math.min(0.99, round(entryPriceDollars + profitTargetCents / 100, 2) ?? 0.99),
     stopPriceDollars: Math.max(0.01, round(entryPriceDollars - stopLossCents / 100, 2) ?? 0.01),
     forcedExitAt: new Date(
       Math.max(
@@ -255,41 +209,6 @@ function getManagedTradeSettings(
       ),
     ).toISOString(),
   };
-}
-
-function getEntryPriceQualityBlocker(
-  setupType: Exclude<SetupType, "none">,
-  contracts: number,
-  entryPriceDollars: number,
-  managedSettings: ReturnType<typeof getManagedTradeSettings>,
-  tierPlan?: TierExecutionPlan | null,
-) {
-  const rewardDollars = Math.max(0, (managedSettings.targetPriceDollars - entryPriceDollars) * contracts);
-  const riskDollars = Math.max(0.01, (entryPriceDollars - managedSettings.stopPriceDollars) * contracts);
-  const remainingUpsideDollars = Math.max(0, 0.99 - entryPriceDollars);
-  const minUpsideRequired = Math.max(0, managedSettings.targetPriceDollars - entryPriceDollars) + tradingConfig.entryMinUpsideBufferCents / 100;
-  const entryFeesDollars = estimateKalshiTakerFeesDollars(contracts, entryPriceDollars);
-  const targetExitFeesDollars = estimateKalshiTakerFeesDollars(contracts, managedSettings.targetPriceDollars);
-  const stopExitFeesDollars = estimateKalshiTakerFeesDollars(contracts, managedSettings.stopPriceDollars);
-  const netTargetProfitDollars = rewardDollars - entryFeesDollars - targetExitFeesDollars;
-  const netStopLossDollars = riskDollars + entryFeesDollars + stopExitFeesDollars;
-  if (isTierManagedSetup(setupType) && !tierPlan) {
-    return `${setupType} entry skipped because the price never reached a valid tier trigger; ${describeTierTrigger(entryPriceDollars)}`;
-  }
-
-  if (remainingUpsideDollars + 0.0001 < minUpsideRequired) {
-    return `${setupType} entry skipped because only ${remainingUpsideDollars.toFixed(2)} of upside remains to 0.99, below the required ${minUpsideRequired.toFixed(2)}.`;
-  }
-
-  if (netTargetProfitDollars < tradingConfig.entryMinNetTargetProfitDollars) {
-    return `${setupType} entry skipped because estimated net target profit after Kalshi fees is only ${netTargetProfitDollars.toFixed(2)}, below the required ${tradingConfig.entryMinNetTargetProfitDollars.toFixed(2)}.`;
-  }
-
-  if (netTargetProfitDollars / netStopLossDollars < tradingConfig.entryMinRewardRiskRatio) {
-    return `${setupType} entry skipped because the fee-adjusted reward/risk ratio is ${(netTargetProfitDollars / netStopLossDollars).toFixed(2)}, below the required ${tradingConfig.entryMinRewardRiskRatio.toFixed(2)}.`;
-  }
-
-  return null;
 }
 
 async function maybeSubmitTrade(input: {
@@ -327,7 +246,7 @@ async function maybeSubmitTrade(input: {
       liquidityAvailableContracts: null,
       liquidityDepthLevels: null,
       attempts: [],
-      message: "Trade skipped because the signal did not pass execution gates.",
+      message: "Trade skipped because the scalp confidence direction did not clear the live trigger threshold.",
     } satisfies TradeExecution;
   }
 
@@ -355,7 +274,7 @@ async function maybeSubmitTrade(input: {
   }
 
   const limitPriceCents = Math.max(1, Math.min(99, Math.round(price * 100)));
-  const setupType = input.decision.setupType === "none" ? "trend" : input.decision.setupType;
+  const setupType = "scalp" as const;
   const baseClientOrderId = buildBotClientOrderId(setupType, "buy");
   const entryAttempts = Array.from({ length: tradingConfig.entryRetryAttempts }, (_, index) =>
     buildEntryAttempt(
@@ -407,38 +326,6 @@ async function maybeSubmitTrade(input: {
     } satisfies TradeExecution;
   }
 
-  if (tradingConfig.postStopCooldownSeconds > 0) {
-    const latestClosedTrade = await findLatestClosedManagedTradeByTicker(input.market.ticker);
-    if (latestClosedTrade?.exitReason === "stop") {
-      const cooldownSecondsRemaining = getCooldownSecondsRemaining(
-        latestClosedTrade.updatedAt || latestClosedTrade.createdAt,
-        tradingConfig.postStopCooldownSeconds,
-      );
-
-      if (cooldownSecondsRemaining > 0) {
-        return {
-          status: "skipped",
-          side,
-          outcome: input.decision.derivedOutcome,
-          contracts: null,
-          plannedContracts: firstAttempt.contracts,
-          maxCostDollars: firstAttempt.maxCostDollars,
-          plannedMaxCostDollars: firstAttempt.maxCostDollars,
-          orderId: null,
-          clientOrderId: baseClientOrderId,
-          managedTradeId: null,
-          entryPriceDollars: null,
-          targetPriceDollars: null,
-          stopPriceDollars: null,
-          liquidityAvailableContracts: null,
-          liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
-          attempts: executionAttempts,
-          message: `Trade skipped because ${input.market.ticker} stopped out recently. Cooldown active for ${cooldownSecondsRemaining}s before re-entry on the same market.`,
-        } satisfies TradeExecution;
-      }
-    }
-  }
-
   if (fundingHaltActive) {
     if (
       balance.availableBalanceDollars !== null &&
@@ -482,84 +369,12 @@ async function maybeSubmitTrade(input: {
     } satisfies TradeExecution;
   }
 
-  const firstManagedSettings = getManagedTradeSettings(
-    setupType,
-    firstAttempt.limitPriceDollars,
-    input.market.closeTime,
-    getMinuteInWindow(),
-    buildTierExecutionPlan(setupType, firstAttempt.limitPriceDollars, input.decision.confidence),
-  );
-  const tierPlan = buildTierExecutionPlan(setupType, firstAttempt.limitPriceDollars, input.decision.confidence);
-  const firstAttemptPriceBlocker = getEntryPriceQualityBlocker(
-    setupType,
-    firstAttempt.contracts,
-    firstAttempt.limitPriceDollars,
-    firstManagedSettings,
-    tierPlan,
-  );
-  if (firstAttemptPriceBlocker) {
-    return {
-      status: "skipped",
-      side,
-      outcome: input.decision.derivedOutcome,
-      contracts: firstAttempt.contracts,
-      plannedContracts: firstAttempt.contracts,
-      maxCostDollars: firstAttempt.maxCostDollars,
-      plannedMaxCostDollars: firstAttempt.maxCostDollars,
-      orderId: null,
-      clientOrderId: baseClientOrderId,
-      managedTradeId: null,
-      entryPriceDollars: null,
-      targetPriceDollars: null,
-      stopPriceDollars: null,
-      liquidityAvailableContracts: null,
-      liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
-      attempts: executionAttempts,
-      message: firstAttemptPriceBlocker,
-    } satisfies TradeExecution;
-  }
-
   let lastLiquidityMessage: string | null = null;
 
   for (let index = 0; index < entryAttempts.length; index += 1) {
     const baseAttempt = entryAttempts[index];
     let attempt = baseAttempt;
     let liquidityContracts: number | null = null;
-    const managedSettings = getManagedTradeSettings(
-      setupType,
-      attempt.limitPriceDollars,
-      input.market.closeTime,
-      getMinuteInWindow(),
-      tierPlan,
-    );
-    const entryPriceBlocker = getEntryPriceQualityBlocker(
-      setupType,
-      attempt.contracts,
-      attempt.limitPriceDollars,
-      managedSettings,
-      tierPlan,
-    );
-    if (entryPriceBlocker) {
-      return {
-        status: "skipped",
-        side,
-        outcome: input.decision.derivedOutcome,
-        contracts: attempt.contracts,
-        plannedContracts: attempt.contracts,
-        maxCostDollars: attempt.maxCostDollars,
-        plannedMaxCostDollars: attempt.maxCostDollars,
-        orderId: null,
-        clientOrderId: attempt.clientOrderId,
-        managedTradeId: null,
-        entryPriceDollars: null,
-        targetPriceDollars: null,
-        stopPriceDollars: null,
-        liquidityAvailableContracts: null,
-        liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
-        attempts: executionAttempts,
-        message: entryPriceBlocker,
-      } satisfies TradeExecution;
-    }
 
     try {
       const liquidity = await getKalshiAvailableLiquidityForBuy({
@@ -644,7 +459,6 @@ async function maybeSubmitTrade(input: {
         entryPriceDollars,
         input.market.closeTime,
         getMinuteInWindow(),
-        tierPlan,
       );
       const managedTrade = await createManagedTrade({
         marketTicker: input.market.ticker,
@@ -659,10 +473,10 @@ async function maybeSubmitTrade(input: {
         entryPriceDollars,
         targetPriceDollars: managedSettings.targetPriceDollars,
         stopPriceDollars: managedSettings.stopPriceDollars,
-        entryTierDollars: tierPlan?.entryTierDollars ?? null,
-        targetTierDollars: tierPlan?.targetTierDollars ?? null,
-        stopTierDollars: tierPlan?.stopTierDollars ?? null,
-        confidenceBand: tierPlan?.confidenceBand ?? null,
+        entryTierDollars: null,
+        targetTierDollars: null,
+        stopTierDollars: null,
+        confidenceBand: null,
         forcedExitAt: managedSettings.forcedExitAt,
         status: "open",
         exitReason: null,
@@ -692,10 +506,10 @@ async function maybeSubmitTrade(input: {
         entryPriceDollars,
         targetPriceDollars: managedTrade?.targetPriceDollars ?? null,
         stopPriceDollars: managedTrade?.stopPriceDollars ?? null,
-        entryTierDollars: managedTrade?.entryTierDollars ?? null,
-        targetTierDollars: managedTrade?.targetTierDollars ?? null,
-        stopTierDollars: managedTrade?.stopTierDollars ?? null,
-        confidenceBand: managedTrade?.confidenceBand ?? null,
+        entryTierDollars: null,
+        targetTierDollars: null,
+        stopTierDollars: null,
+        confidenceBand: null,
         liquidityAvailableContracts: liquidityContracts,
         liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
         attempts: [
@@ -716,8 +530,8 @@ async function maybeSubmitTrade(input: {
         ],
         message:
           index === 0
-            ? `Submitted ${filledContracts} contract${filledContracts === 1 ? "" : "s"} on ${side.toUpperCase()} via IOC and started managed ${setupType} exits.`
-            : `Submitted ${filledContracts} contract${filledContracts === 1 ? "" : "s"} on ${side.toUpperCase()} after ${index + 1} IOC ladder attempts and started managed ${setupType} exits.`,
+            ? `Submitted ${filledContracts} contract${filledContracts === 1 ? "" : "s"} on ${side.toUpperCase()} via IOC and started adaptive scalp exits.`
+            : `Submitted ${filledContracts} contract${filledContracts === 1 ? "" : "s"} on ${side.toUpperCase()} after ${index + 1} IOC ladder attempts and started adaptive scalp exits.`,
       } satisfies TradeExecution;
     } catch (error) {
 

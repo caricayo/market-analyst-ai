@@ -215,9 +215,9 @@ export function TradingBotDashboard() {
                 Kalshi execution with Coinbase tape and deterministic trade calls.
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300">
-                The bot watches the active Bitcoin 15-minute above/below contract, prioritizes
-                trend continuation in the core trade window, and uses stricter reversal or scalp
-                entries only when the tape still supports them.
+                The bot trades a single intraday scalp playbook on the active Bitcoin 15-minute
+                contract, using directional confidence from tape pressure, momentum, EMA
+                structure, VWAP, RSI, and strike displacement.
               </p>
             </div>
 
@@ -565,9 +565,8 @@ export function TradingBotDashboard() {
             <div className="mt-4 rounded-[24px] border border-emerald-400/20 bg-emerald-400/10 p-4">
               <p className="text-xs uppercase tracking-[0.22em] text-emerald-50/70">Timing Rule</p>
               <p className="mt-2 text-sm leading-6 text-emerald-50">
-                Minutes 1-3 are blocked. Trend is primary in minutes 4-8, reversal is a stricter
-                secondary playbook in minutes 4-12, scalp remains a continuation fallback in
-                minutes 4-12, and minutes 13-15 are blocked for new entries.
+                There are no hard timing gates. The bot always scores the current window and uses
+                timing only as context inside the scalp confidence model.
               </p>
             </div>
           </section>
