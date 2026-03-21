@@ -29,6 +29,18 @@ function deriveOutcomeMapping(market: KalshiMarketSnapshot | null, call: Trading
   };
 }
 
+function getDirectionalAskPrice(
+  market: KalshiMarketSnapshot | null,
+  call: "above" | "below",
+) {
+  if (!market) {
+    return null;
+  }
+
+  const side = call === "above" ? market.mapping.aboveSide : market.mapping.belowSide;
+  return side === "yes" ? market.yesAskPrice : market.noAskPrice;
+}
+
 function describeTimingContext(timingRisk: TimingRiskLevel) {
   switch (timingRisk) {
     case "high-risk-open":
@@ -173,11 +185,31 @@ export async function buildTradingDecisionForProfile(input: {
 
   const score = buildScalpScore(input.indicators);
   const call: "above" | "below" = score.rawScore >= 0 ? "above" : "below";
-  const confidence = clamp(Math.round(52 + Math.abs(score.rawScore) * 0.9), 52, 95);
+  const directionalAskPrice = getDirectionalAskPrice(input.market, call);
+  const openWindowConvictionTriggered =
+    input.minuteInWindow >= 1 &&
+    input.minuteInWindow <= 3 &&
+    directionalAskPrice !== null &&
+    directionalAskPrice >= 0.6 &&
+    Math.abs(score.rawScore) >= 10;
+  const confidence = clamp(
+    Math.round(52 + Math.abs(score.rawScore) * 0.9 + (openWindowConvictionTriggered ? 8 : 0)),
+    52,
+    95,
+  );
   const requiredConfidence = Math.min(tradingConfig.confidenceThreshold, 58);
   const meetsConfidence = confidence >= requiredConfidence;
   const mapping = deriveOutcomeMapping(input.market, meetsConfidence ? call : "no_trade");
   const { reasoning, gateReasons } = buildReasoning(input.indicators, call, input.timingRisk, score);
+
+  if (openWindowConvictionTriggered) {
+    reasoning.push(
+      `Open-window conviction trigger fired: minute ${input.minuteInWindow} is early, but the ${call.toUpperCase()} side is already trading ${directionalAskPrice?.toFixed(2)} with strong directional score support.`,
+    );
+    gateReasons.push(
+      `Open-window conviction rule passed because the chosen side is already priced at ${directionalAskPrice?.toFixed(2)} with strong directional support.`,
+    );
+  }
 
   if (!meetsConfidence) {
     blockers.push(
