@@ -265,12 +265,12 @@ export function TradingBotDashboard() {
             <div>
               <p className="text-xs uppercase tracking-[0.34em] text-white/65">BTC 15M Signal Monitor</p>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-5xl">
-                Confirmed tape on the left. Reactive prediction on the right.
+                Confirmed tape on the left. Minute-14 forecast on the right.
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-white/75 sm:text-base">
                 This page stays manual-only. It polls Kalshi and Coinbase every second, keeps the
-                existing confirmation-based signal, and now adds a faster predictive read for
-                likely direction changes over the next 2-3 minutes.
+                existing confirmation-based signal, and now adds a second read that forecasts how
+                this same 15-minute contract is likely to look near minute 14 of the window.
               </p>
             </div>
 
@@ -315,7 +315,7 @@ export function TradingBotDashboard() {
 
             <SignalPanel
               title="Predictive Signal"
-              subtitle="Early turn read for the next 2-3 minutes"
+              subtitle="Forecast for minute 14 of this window"
               signal={predictiveSignal}
               confidence={snapshot?.predictiveDecision?.confidence}
               tapePattern={formatTapePattern(snapshot?.predictiveDecision?.tapePattern)}
