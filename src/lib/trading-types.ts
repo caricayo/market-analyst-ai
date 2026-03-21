@@ -305,6 +305,7 @@ export type BotStatusSnapshot = {
   market: KalshiMarketSnapshot | null;
   indicators: IndicatorSnapshot | null;
   decision: TradingDecision | null;
+  predictiveDecision: TradingDecision | null;
   tradingEnabled: boolean;
   warnings: string[];
   livePositions: LivePositionSnapshot[];

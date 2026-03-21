@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { BotStatusSnapshot } from "@/lib/trading-types";
+import type { BotStatusSnapshot, TradingDecision } from "@/lib/trading-types";
 
 type LoadState = {
   data: BotStatusSnapshot | null;
@@ -115,6 +115,51 @@ function Metric({
   );
 }
 
+function formatTapePattern(value: TradingDecision["tapePattern"] | undefined) {
+  return (value ?? "n/a").replace("_", " ");
+}
+
+function SignalPanel({
+  title,
+  subtitle,
+  signal,
+  confidence,
+  tapePattern,
+  summary,
+}: {
+  title: string;
+  subtitle: string;
+  signal: "above" | "below" | "no_trade";
+  confidence: number | null | undefined;
+  tapePattern: string;
+  summary: string | null | undefined;
+}) {
+  const tone =
+    signal === "above" ? "text-emerald-100" : signal === "below" ? "text-rose-100" : "text-amber-100";
+
+  return (
+    <div className={`rounded-[30px] border px-5 py-6 text-center ${pulseClass(signal)}`}>
+      <p className="text-xs uppercase tracking-[0.34em] text-white/65">{title}</p>
+      <p className="mt-2 text-xs uppercase tracking-[0.24em] text-white/45">{subtitle}</p>
+      <p className={`mt-4 text-5xl font-black tracking-[0.18em] sm:text-7xl ${tone}`}>
+        {signal === "above" ? "GREEN" : signal === "below" ? "RED" : "WAIT"}
+      </p>
+      <p className="mt-3 text-base font-medium text-white/90">
+        {signal === "above"
+          ? "Bias is ABOVE"
+          : signal === "below"
+            ? "Bias is BELOW"
+            : "No trade-quality directional read"}
+      </p>
+      <div className="mt-4 grid grid-cols-2 gap-3 text-left">
+        <Metric label="Confidence" value={`${confidence ?? 0}`} tone={tone} />
+        <Metric label="Tape Pattern" value={tapePattern} />
+      </div>
+      <p className="mt-4 text-sm leading-6 text-white/75">{summary ?? "Loading current tape read..."}</p>
+    </div>
+  );
+}
+
 export function TradingBotDashboard() {
   const [state, setState] = useState<LoadState>({
     data: null,
@@ -166,6 +211,7 @@ export function TradingBotDashboard() {
 
   const snapshot = state.data;
   const signal = snapshot?.decision?.call ?? "no_trade";
+  const predictiveSignal = snapshot?.predictiveDecision?.call ?? "no_trade";
   const selectedAsk = useMemo(() => {
     if (!snapshot?.market || !snapshot?.decision?.derivedSide) {
       return null;
@@ -179,7 +225,10 @@ export function TradingBotDashboard() {
   const recommendation = useMemo(() => {
     const availableStake = Math.max(
       0,
-      Math.min(snapshot?.stakeDollars ?? 0, snapshot?.availableBalanceDollars ?? snapshot?.stakeDollars ?? 0),
+      Math.min(
+        snapshot?.stakeDollars ?? 0,
+        snapshot?.availableBalanceDollars ?? snapshot?.stakeDollars ?? 0,
+      ),
     );
 
     if (
@@ -208,7 +257,7 @@ export function TradingBotDashboard() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#060b12] px-4 py-4 text-slate-100 sm:px-6 lg:px-8">
       <div className={`pointer-events-none absolute inset-0 opacity-90 ${glowClass(signal)}`} />
-      <div className="relative mx-auto flex min-h-[calc(100vh-2rem)] max-w-6xl flex-col gap-4">
+      <div className="relative mx-auto flex min-h-[calc(100vh-2rem)] max-w-7xl flex-col gap-4">
         <section
           className={`rounded-[32px] border px-5 py-6 backdrop-blur-xl sm:px-8 sm:py-8 ${cardClass(signal)}`}
         >
@@ -216,17 +265,20 @@ export function TradingBotDashboard() {
             <div>
               <p className="text-xs uppercase tracking-[0.34em] text-white/65">BTC 15M Signal Monitor</p>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-5xl">
-                Manual-only tape reader for the active Kalshi contract.
+                Confirmed tape on the left. Reactive prediction on the right.
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-white/75 sm:text-base">
-                This page no longer trades. It polls Kalshi and Coinbase every second, scores the
-                15-minute Bitcoin market, and shows direction, confidence, and suggested size.
+                This page stays manual-only. It polls Kalshi and Coinbase every second, keeps the
+                existing confirmation-based signal, and now adds a faster predictive read for
+                likely direction changes over the next 2-3 minutes.
               </p>
             </div>
 
             <div className="flex flex-col gap-3">
               <div className="rounded-[28px] border border-white/10 bg-black/20 px-5 py-4 text-sm text-white/80">
-                <p>Last refresh: {formatTimestamp(snapshot?.generatedAt, snapshot?.timeZone ?? "Pacific/Honolulu")}</p>
+                <p>
+                  Last refresh: {formatTimestamp(snapshot?.generatedAt, snapshot?.timeZone ?? "Pacific/Honolulu")}
+                </p>
                 <p className="mt-1">Market: {snapshot?.market?.ticker ?? "loading"}</p>
                 <p className="mt-1">Window: {snapshot?.currentWindowLabel ?? "loading"}</p>
               </div>
@@ -251,27 +303,34 @@ export function TradingBotDashboard() {
             </div>
           </div>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className={`rounded-[30px] border px-5 py-6 text-center animate-pulse ${pulseClass(signal)}`}>
-              <p className="text-xs uppercase tracking-[0.4em] text-white/65">Live Signal</p>
-              <p className={`mt-4 text-6xl font-black tracking-[0.18em] sm:text-8xl ${confidenceTone}`}>
-                {signal === "above" ? "GREEN" : signal === "below" ? "RED" : "WAIT"}
-              </p>
-              <p className="mt-4 text-lg font-medium text-white/90">
-                {signal === "above"
-                  ? "Bias is ABOVE"
-                  : signal === "below"
-                    ? "Bias is BELOW"
-                    : "No trade-quality directional read"}
-              </p>
-              <p className="mt-2 text-sm text-white/70">{snapshot?.decision?.summary ?? "Loading current tape read..."}</p>
-            </div>
+          <div className="mt-6 grid gap-4 xl:grid-cols-[1.05fr_1.05fr_0.9fr]">
+            <SignalPanel
+              title="Confirmed Signal"
+              subtitle="Current tape confirmation"
+              signal={signal}
+              confidence={snapshot?.decision?.confidence}
+              tapePattern={formatTapePattern(snapshot?.decision?.tapePattern)}
+              summary={snapshot?.decision?.summary}
+            />
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Metric label="Confidence" value={`${snapshot?.decision?.confidence ?? 0}`} tone={confidenceTone} />
+            <SignalPanel
+              title="Predictive Signal"
+              subtitle="Early turn read for the next 2-3 minutes"
+              signal={predictiveSignal}
+              confidence={snapshot?.predictiveDecision?.confidence}
+              tapePattern={formatTapePattern(snapshot?.predictiveDecision?.tapePattern)}
+              summary={snapshot?.predictiveDecision?.summary}
+            />
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
               <Metric
-                label="Tape Pattern"
-                value={(snapshot?.decision?.tapePattern ?? "n/a").replace("_", " ")}
+                label="Confirmed Confidence"
+                value={`${snapshot?.decision?.confidence ?? 0}`}
+                tone={confidenceTone}
+              />
+              <Metric
+                label="Predictive Confidence"
+                value={`${snapshot?.predictiveDecision?.confidence ?? 0}`}
               />
               <Metric
                 label="Recommended Buy"
@@ -286,8 +345,14 @@ export function TradingBotDashboard() {
               <Metric label="Selected Ask" value={formatMoney(selectedAsk)} />
               <Metric label="BTC Spot" value={formatMoney(snapshot?.indicators?.currentPrice)} />
               <Metric label="Kalshi Strike" value={formatMoney(snapshot?.market?.strikePrice)} />
-              <Metric label="YES Ask / Bid" value={`${formatMoney(snapshot?.market?.yesAskPrice)} / ${formatMoney(snapshot?.market?.yesBidPrice)}`} />
-              <Metric label="NO Ask / Bid" value={`${formatMoney(snapshot?.market?.noAskPrice)} / ${formatMoney(snapshot?.market?.noBidPrice)}`} />
+              <Metric
+                label="YES Ask / Bid"
+                value={`${formatMoney(snapshot?.market?.yesAskPrice)} / ${formatMoney(snapshot?.market?.yesBidPrice)}`}
+              />
+              <Metric
+                label="NO Ask / Bid"
+                value={`${formatMoney(snapshot?.market?.noAskPrice)} / ${formatMoney(snapshot?.market?.noBidPrice)}`}
+              />
             </div>
           </div>
         </section>
@@ -303,15 +368,24 @@ export function TradingBotDashboard() {
             <p className="text-xs uppercase tracking-[0.32em] text-slate-400">Signal Details</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <Metric label="Trend Bias" value={snapshot?.indicators?.trendBias ?? "n/a"} />
-              <Metric label="Deterministic Edge" value={formatNumber(snapshot?.indicators?.deterministicEdge, 3)} />
+              <Metric
+                label="Deterministic Edge"
+                value={formatNumber(snapshot?.indicators?.deterministicEdge, 3)}
+              />
               <Metric label="Distance To Strike" value={formatMoney(snapshot?.indicators?.distanceToStrike)} />
               <Metric label="ATR14" value={formatNumber(snapshot?.indicators?.atr14)} />
               <Metric label="RSI14" value={formatNumber(snapshot?.indicators?.rsi14)} />
               <Metric label="Momentum 5m" value={formatNumber(snapshot?.indicators?.momentum5)} />
               <Metric label="Momentum 15m" value={formatNumber(snapshot?.indicators?.momentum15)} />
               <Metric label="Momentum 30m" value={formatNumber(snapshot?.indicators?.momentum30)} />
-              <Metric label="EMA9 / EMA21" value={`${formatNumber(snapshot?.indicators?.ema9)} / ${formatNumber(snapshot?.indicators?.ema21)}`} />
-              <Metric label="EMA55 / VWAP" value={`${formatNumber(snapshot?.indicators?.ema55)} / ${formatNumber(snapshot?.indicators?.vwap)}`} />
+              <Metric
+                label="EMA9 / EMA21"
+                value={`${formatNumber(snapshot?.indicators?.ema9)} / ${formatNumber(snapshot?.indicators?.ema21)}`}
+              />
+              <Metric
+                label="EMA55 / VWAP"
+                value={`${formatNumber(snapshot?.indicators?.ema55)} / ${formatNumber(snapshot?.indicators?.vwap)}`}
+              />
               <Metric label="Minute In Window" value={`${snapshot?.minuteInWindow ?? "--"}`} />
               <Metric label="Timing Context" value={snapshot?.timingRisk ?? "n/a"} />
             </div>
@@ -319,39 +393,52 @@ export function TradingBotDashboard() {
 
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur">
             <p className="text-xs uppercase tracking-[0.32em] text-slate-400">Reasoning</p>
-            <div className="mt-4 grid gap-3">
-              <div className="rounded-[24px] border border-white/10 bg-[#0c1420] p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Why This Read</p>
-                <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-200">
-                  {snapshot?.decision?.reasoning?.length ? (
-                    snapshot.decision.reasoning.map((reason) => <p key={reason}>{reason}</p>)
-                  ) : (
-                    <p>Loading reasoning…</p>
-                  )}
-                </div>
-              </div>
+            <div className="mt-4 grid gap-3 xl:grid-cols-2">
+              {[
+                { label: "Confirmed Logic", decision: snapshot?.decision },
+                { label: "Predictive Logic", decision: snapshot?.predictiveDecision },
+              ].map((panel) => (
+                <div key={panel.label} className="grid gap-3">
+                  <div className="rounded-[24px] border border-white/10 bg-[#0c1420] p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{panel.label}</p>
+                    <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-200">
+                      {panel.decision?.reasoning?.length ? (
+                        panel.decision.reasoning.map((reason) => (
+                          <p key={`${panel.label}-${reason}`}>{reason}</p>
+                        ))
+                      ) : (
+                        <p>Loading reasoning...</p>
+                      )}
+                    </div>
+                  </div>
 
-              <div className="rounded-[24px] border border-white/10 bg-[#0c1420] p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Conviction Drivers</p>
-                <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-200">
-                  {snapshot?.decision?.gateReasons?.length ? (
-                    snapshot.decision.gateReasons.map((reason) => <p key={reason}>{reason}</p>)
-                  ) : (
-                    <p>No conviction drivers yet.</p>
-                  )}
-                </div>
-              </div>
+                  <div className="rounded-[24px] border border-white/10 bg-[#0c1420] p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Conviction Drivers</p>
+                    <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-200">
+                      {panel.decision?.gateReasons?.length ? (
+                        panel.decision.gateReasons.map((reason) => (
+                          <p key={`${panel.label}-gate-${reason}`}>{reason}</p>
+                        ))
+                      ) : (
+                        <p>No conviction drivers yet.</p>
+                      )}
+                    </div>
+                  </div>
 
-              <div className="rounded-[24px] border border-white/10 bg-[#0c1420] p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Current Blockers</p>
-                <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-200">
-                  {snapshot?.decision?.blockers?.length ? (
-                    snapshot.decision.blockers.map((blocker) => <p key={blocker}>{blocker}</p>)
-                  ) : (
-                    <p>No active blockers.</p>
-                  )}
+                  <div className="rounded-[24px] border border-white/10 bg-[#0c1420] p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Current Blockers</p>
+                    <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-200">
+                      {panel.decision?.blockers?.length ? (
+                        panel.decision.blockers.map((blocker) => (
+                          <p key={`${panel.label}-block-${blocker}`}>{blocker}</p>
+                        ))
+                      ) : (
+                        <p>No active blockers.</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
         </section>

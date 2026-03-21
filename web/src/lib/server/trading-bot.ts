@@ -1,5 +1,8 @@
 import { fetchCoinbaseCandles } from "@/lib/server/coinbase-client";
-import { buildTradingDecision } from "@/lib/server/decision-engine";
+import {
+  buildPredictiveChampionTradingDecision,
+  buildTradingDecision,
+} from "@/lib/server/decision-engine";
 import {
   clearFundingHalt,
   getFundingHaltReason,
@@ -841,13 +844,22 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
   }
 
   const indicators = buildIndicatorSnapshot(candles, market?.strikePrice ?? null);
-  const decision = await buildTradingDecision({
-    market,
-    indicators,
-    minuteInWindow,
-    timingRisk,
-    warnings,
-  });
+  const [decision, predictiveDecision] = await Promise.all([
+    buildTradingDecision({
+      market,
+      indicators,
+      minuteInWindow,
+      timingRisk,
+      warnings,
+    }),
+    buildPredictiveChampionTradingDecision({
+      market,
+      indicators,
+      minuteInWindow,
+      timingRisk,
+      warnings,
+    }),
+  ]);
 
   const execution = await maybeSubmitTrade({
     executeTrade: Boolean(options?.executeTrade),
@@ -905,6 +917,7 @@ export async function getTradingBotSnapshot(options?: SnapshotOptions) {
     market,
     indicators,
     decision,
+    predictiveDecision,
     tradingEnabled: false,
     warnings,
     livePositions: exposure.livePositions,
