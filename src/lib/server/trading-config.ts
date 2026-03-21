@@ -164,7 +164,7 @@ export const tradingConfig = {
   ),
   entryMinRewardRiskRatio: Math.max(
     1,
-    Math.min(4, parseNumber(process.env.BOT_ENTRY_MIN_REWARD_RISK_RATIO, 1.25)),
+    Math.min(4, parseNumber(process.env.BOT_ENTRY_MIN_REWARD_RISK_RATIO, 1.1)),
   ),
   entryMinNetTargetProfitDollars: Math.max(
     0,

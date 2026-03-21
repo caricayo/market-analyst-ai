@@ -211,6 +211,21 @@ function getManagedTradeSettings(
   };
 }
 
+function getProfitRatioBlocker(
+  entryPriceDollars: number,
+  managedSettings: ReturnType<typeof getManagedTradeSettings>,
+) {
+  const rewardDollars = Math.max(0, managedSettings.targetPriceDollars - entryPriceDollars);
+  const riskDollars = Math.max(0.0001, entryPriceDollars - managedSettings.stopPriceDollars);
+  const profitRatio = rewardDollars / riskDollars;
+
+  if (profitRatio + 0.0001 < tradingConfig.entryMinRewardRiskRatio) {
+    return `Scalp entry skipped because the profit ratio is only ${profitRatio.toFixed(2)} to 1, below the required 1:${tradingConfig.entryMinRewardRiskRatio.toFixed(2)}.`;
+  }
+
+  return null;
+}
+
 async function maybeSubmitTrade(input: {
   executeTrade: boolean;
   market: NonNullable<BotStatusSnapshot["market"]> | null;
@@ -369,12 +384,75 @@ async function maybeSubmitTrade(input: {
     } satisfies TradeExecution;
   }
 
+  const firstManagedSettings = getManagedTradeSettings(
+    setupType,
+    firstAttempt.limitPriceDollars,
+    input.market.closeTime,
+    getMinuteInWindow(),
+  );
+  const firstAttemptProfitRatioBlocker = getProfitRatioBlocker(
+    firstAttempt.limitPriceDollars,
+    firstManagedSettings,
+  );
+  if (firstAttemptProfitRatioBlocker) {
+    return {
+      status: "skipped",
+      side,
+      outcome: input.decision.derivedOutcome,
+      contracts: firstAttempt.contracts,
+      plannedContracts: firstAttempt.contracts,
+      maxCostDollars: firstAttempt.maxCostDollars,
+      plannedMaxCostDollars: firstAttempt.maxCostDollars,
+      orderId: null,
+      clientOrderId: baseClientOrderId,
+      managedTradeId: null,
+      entryPriceDollars: null,
+      targetPriceDollars: null,
+      stopPriceDollars: null,
+      liquidityAvailableContracts: null,
+      liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
+      attempts: executionAttempts,
+      message: firstAttemptProfitRatioBlocker,
+    } satisfies TradeExecution;
+  }
+
   let lastLiquidityMessage: string | null = null;
 
   for (let index = 0; index < entryAttempts.length; index += 1) {
     const baseAttempt = entryAttempts[index];
     let attempt = baseAttempt;
     let liquidityContracts: number | null = null;
+    const managedSettings = getManagedTradeSettings(
+      setupType,
+      attempt.limitPriceDollars,
+      input.market.closeTime,
+      getMinuteInWindow(),
+    );
+    const profitRatioBlocker = getProfitRatioBlocker(
+      attempt.limitPriceDollars,
+      managedSettings,
+    );
+    if (profitRatioBlocker) {
+      return {
+        status: "skipped",
+        side,
+        outcome: input.decision.derivedOutcome,
+        contracts: attempt.contracts,
+        plannedContracts: attempt.contracts,
+        maxCostDollars: attempt.maxCostDollars,
+        plannedMaxCostDollars: attempt.maxCostDollars,
+        orderId: null,
+        clientOrderId: attempt.clientOrderId,
+        managedTradeId: null,
+        entryPriceDollars: null,
+        targetPriceDollars: null,
+        stopPriceDollars: null,
+        liquidityAvailableContracts: null,
+        liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
+        attempts: executionAttempts,
+        message: profitRatioBlocker,
+      } satisfies TradeExecution;
+    }
 
     try {
       const liquidity = await getKalshiAvailableLiquidityForBuy({
