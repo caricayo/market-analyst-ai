@@ -1,6 +1,12 @@
 import { fetchCoinbaseCandles } from "@/lib/server/coinbase-client";
 import { buildTradingDecision } from "@/lib/server/decision-engine";
 import {
+  buildTierExecutionPlan,
+  describeTierTrigger,
+  isTierManagedSetup,
+  type TierExecutionPlan,
+} from "@/lib/server/price-tier-model";
+import {
   clearFundingHalt,
   getFundingHaltReason,
   getLastExecutionAt,
@@ -211,6 +217,7 @@ function getManagedTradeSettings(
   entryPriceDollars: number,
   closeTime: string | null,
   minuteInWindow?: number | null,
+  tierPlan?: TierExecutionPlan | null,
 ) {
   const profitTargetCents =
     setupType === "trend"
@@ -236,7 +243,8 @@ function getManagedTradeSettings(
         : tradingConfig.scalpForcedExitLeadSeconds;
 
   return {
-    targetPriceDollars: Math.min(0.99, round(entryPriceDollars + profitTargetCents / 100, 2) ?? 0.99),
+    targetPriceDollars:
+      tierPlan?.targetTierDollars ?? Math.min(0.99, round(entryPriceDollars + profitTargetCents / 100, 2) ?? 0.99),
     stopPriceDollars: Math.max(0.01, round(entryPriceDollars - stopLossCents / 100, 2) ?? 0.01),
     forcedExitAt: new Date(
       Math.max(
@@ -252,6 +260,7 @@ function getEntryPriceQualityBlocker(
   contracts: number,
   entryPriceDollars: number,
   managedSettings: ReturnType<typeof getManagedTradeSettings>,
+  tierPlan?: TierExecutionPlan | null,
 ) {
   const rewardDollars = Math.max(0, (managedSettings.targetPriceDollars - entryPriceDollars) * contracts);
   const riskDollars = Math.max(0.01, (entryPriceDollars - managedSettings.stopPriceDollars) * contracts);
@@ -262,15 +271,8 @@ function getEntryPriceQualityBlocker(
   const stopExitFeesDollars = estimateKalshiTakerFeesDollars(contracts, managedSettings.stopPriceDollars);
   const netTargetProfitDollars = rewardDollars - entryFeesDollars - targetExitFeesDollars;
   const netStopLossDollars = riskDollars + entryFeesDollars + stopExitFeesDollars;
-  const preferredMaxEntryPriceDollars =
-    setupType === "trend"
-      ? tradingConfig.trendPreferredMaxEntryPriceDollars
-      : setupType === "scalp"
-        ? tradingConfig.scalpPreferredMaxEntryPriceDollars
-        : null;
-
-  if (preferredMaxEntryPriceDollars !== null && entryPriceDollars - preferredMaxEntryPriceDollars > 0.0001) {
-    return `${setupType} entry skipped because the contract is priced at ${entryPriceDollars.toFixed(2)}, above the preferred ${preferredMaxEntryPriceDollars.toFixed(2)} entry range from recent winning trades.`;
+  if (isTierManagedSetup(setupType) && !tierPlan) {
+    return `${setupType} entry skipped because the price never reached a valid tier trigger; ${describeTierTrigger(entryPriceDollars)}`;
   }
 
   if (remainingUpsideDollars + 0.0001 < minUpsideRequired) {
@@ -483,12 +485,15 @@ async function maybeSubmitTrade(input: {
     firstAttempt.limitPriceDollars,
     input.market.closeTime,
     getMinuteInWindow(),
+    buildTierExecutionPlan(setupType, firstAttempt.limitPriceDollars, input.decision.confidence),
   );
+  const tierPlan = buildTierExecutionPlan(setupType, firstAttempt.limitPriceDollars, input.decision.confidence);
   const firstAttemptPriceBlocker = getEntryPriceQualityBlocker(
     setupType,
     firstAttempt.contracts,
     firstAttempt.limitPriceDollars,
     firstManagedSettings,
+    tierPlan,
   );
   if (firstAttemptPriceBlocker) {
     return {
@@ -523,12 +528,14 @@ async function maybeSubmitTrade(input: {
       attempt.limitPriceDollars,
       input.market.closeTime,
       getMinuteInWindow(),
+      tierPlan,
     );
     const entryPriceBlocker = getEntryPriceQualityBlocker(
       setupType,
       attempt.contracts,
       attempt.limitPriceDollars,
       managedSettings,
+      tierPlan,
     );
     if (entryPriceBlocker) {
       return {
@@ -635,6 +642,7 @@ async function maybeSubmitTrade(input: {
         entryPriceDollars,
         input.market.closeTime,
         getMinuteInWindow(),
+        tierPlan,
       );
       const managedTrade = await createManagedTrade({
         marketTicker: input.market.ticker,
@@ -649,6 +657,10 @@ async function maybeSubmitTrade(input: {
         entryPriceDollars,
         targetPriceDollars: managedSettings.targetPriceDollars,
         stopPriceDollars: managedSettings.stopPriceDollars,
+        entryTierDollars: tierPlan?.entryTierDollars ?? null,
+        targetTierDollars: tierPlan?.targetTierDollars ?? null,
+        stopTierDollars: tierPlan?.stopTierDollars ?? null,
+        confidenceBand: tierPlan?.confidenceBand ?? null,
         forcedExitAt: managedSettings.forcedExitAt,
         status: "open",
         exitReason: null,
@@ -678,6 +690,10 @@ async function maybeSubmitTrade(input: {
         entryPriceDollars,
         targetPriceDollars: managedTrade?.targetPriceDollars ?? null,
         stopPriceDollars: managedTrade?.stopPriceDollars ?? null,
+        entryTierDollars: managedTrade?.entryTierDollars ?? null,
+        targetTierDollars: managedTrade?.targetTierDollars ?? null,
+        stopTierDollars: managedTrade?.stopTierDollars ?? null,
+        confidenceBand: managedTrade?.confidenceBand ?? null,
         liquidityAvailableContracts: liquidityContracts,
         liquidityDepthLevels: tradingConfig.entryLiquidityOrderbookDepth,
         attempts: [

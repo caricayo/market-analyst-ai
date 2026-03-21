@@ -5,6 +5,11 @@ import {
   submitKalshiOrder,
 } from "@/lib/server/kalshi-client";
 import {
+  buildRecoveredTierExecutionPlan,
+  getTieredStopFloor,
+  isTierManagedSetup,
+} from "@/lib/server/price-tier-model";
+import {
   createManagedTrade,
   closeManagedTrade,
   hydrateManagedTradesFromPersistence,
@@ -64,6 +69,7 @@ function getManagedTradeSettings(
   entryPriceDollars: number,
   closeTime: string | null,
   createdAt?: string | null,
+  targetTierDollars?: number | null,
 ) {
   const profitTargetCents =
     setupType === "trend"
@@ -90,7 +96,8 @@ function getManagedTradeSettings(
         : tradingConfig.scalpForcedExitLeadSeconds;
 
   return {
-    targetPriceDollars: Math.min(0.99, roundPrice(entryPriceDollars + profitTargetCents / 100, 2) ?? 0.99),
+    targetPriceDollars:
+      targetTierDollars ?? Math.min(0.99, roundPrice(entryPriceDollars + profitTargetCents / 100, 2) ?? 0.99),
     stopPriceDollars: Math.max(0.01, roundPrice(entryPriceDollars - stopLossCents / 100, 2) ?? 0.01),
     forcedExitAt: new Date(
       Math.max(
@@ -218,6 +225,33 @@ function getReversalStopState(trade: ManagedTrade, now: Date, peakPriceDollars: 
   };
 }
 
+function applyTierStopFloor(
+  trade: ManagedTrade,
+  fallbackState: { stopArmedAt: string | null; stopPriceDollars: number; stopActive: boolean },
+  now: Date,
+  peakPriceDollars: number,
+) {
+  const stopTierDollars = getTieredStopFloor(
+    trade.entryTierDollars,
+    trade.targetTierDollars,
+    peakPriceDollars,
+  );
+
+  if (stopTierDollars === null) {
+    return {
+      ...fallbackState,
+      stopTierDollars: trade.stopTierDollars,
+    };
+  }
+
+  return {
+    stopArmedAt: fallbackState.stopArmedAt ?? now.toISOString(),
+    stopPriceDollars: Math.max(fallbackState.stopPriceDollars, clampPrice(stopTierDollars)),
+    stopActive: true,
+    stopTierDollars,
+  };
+}
+
 function getTrackedContractsForTicker(ticker: string) {
   return listOpenManagedTrades()
     .filter((trade) => trade.marketTicker === ticker)
@@ -287,7 +321,9 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
         entryPriceDollars,
         market?.closeTime ?? null,
         new Date().toISOString(),
+        buildRecoveredTierExecutionPlan(setupType, entryPriceDollars)?.targetTierDollars ?? null,
       );
+      const tierPlan = buildRecoveredTierExecutionPlan(setupType, entryPriceDollars);
 
       await createManagedTrade({
         marketTicker: position.ticker,
@@ -302,6 +338,10 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
         entryPriceDollars,
         targetPriceDollars: settings.targetPriceDollars,
         stopPriceDollars: settings.stopPriceDollars,
+        entryTierDollars: tierPlan?.entryTierDollars ?? null,
+        targetTierDollars: tierPlan?.targetTierDollars ?? null,
+        stopTierDollars: tierPlan?.stopTierDollars ?? null,
+        confidenceBand: tierPlan?.confidenceBand ?? null,
         forcedExitAt: settings.forcedExitAt,
         status: "open",
         exitReason: null,
@@ -339,11 +379,13 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
     const market = await fetchKalshiMarketByTicker(position.ticker).catch(() => null);
     const setupType = inferSetupTypeFromClientOrderId(latestBotFill.clientOrderId, latestBotFill.createdAt);
     const entryPriceDollars = roundPrice(weightedPrice, 2) ?? 0.5;
+    const tierPlan = buildRecoveredTierExecutionPlan(setupType, entryPriceDollars);
     const settings = getManagedTradeSettings(
       setupType,
       entryPriceDollars,
       market?.closeTime ?? null,
       latestBotFill.createdAt,
+      tierPlan?.targetTierDollars ?? null,
     );
 
     await createManagedTrade({
@@ -359,6 +401,10 @@ async function recoverManagedTradesFromPositions(positions: Awaited<ReturnType<t
       entryPriceDollars,
       targetPriceDollars: settings.targetPriceDollars,
       stopPriceDollars: settings.stopPriceDollars,
+      entryTierDollars: tierPlan?.entryTierDollars ?? null,
+      targetTierDollars: tierPlan?.targetTierDollars ?? null,
+      stopTierDollars: tierPlan?.stopTierDollars ?? null,
+      confidenceBand: tierPlan?.confidenceBand ?? null,
       forcedExitAt: settings.forcedExitAt,
       status: "open",
       exitReason: null,
@@ -444,9 +490,14 @@ function getManagedExitState(trade: ManagedTrade, now: Date, bidPrice: number | 
   const peakPriceDollars = Math.max(trade.peakPriceDollars ?? trade.entryPriceDollars, bidPrice ?? 0);
 
   if (trade.setupType === "scalp") {
+    const fallbackState = getScalpStopState(trade, now, peakPriceDollars);
+    const tierState =
+      isTierManagedSetup(trade.setupType) && trade.entryTierDollars !== null
+        ? applyTierStopFloor(trade, fallbackState, now, peakPriceDollars)
+        : { ...fallbackState, stopTierDollars: trade.stopTierDollars };
     return {
       peakPriceDollars,
-      ...getScalpStopState(trade, now, peakPriceDollars),
+      ...tierState,
     };
   }
 
@@ -454,6 +505,7 @@ function getManagedExitState(trade: ManagedTrade, now: Date, bidPrice: number | 
     return {
       peakPriceDollars,
       ...getReversalStopState(trade, now, peakPriceDollars),
+      stopTierDollars: trade.stopTierDollars,
     };
   }
 
@@ -463,12 +515,18 @@ function getManagedExitState(trade: ManagedTrade, now: Date, bidPrice: number | 
       stopPriceDollars: trade.stopPriceDollars,
       stopArmedAt: trade.stopArmedAt ?? now.toISOString(),
       stopActive: true,
+      stopTierDollars: trade.stopTierDollars,
     };
   }
 
+  const fallbackState = getTrendStopState(trade, now, peakPriceDollars);
+  const tierState =
+    isTierManagedSetup(trade.setupType) && trade.entryTierDollars !== null
+      ? applyTierStopFloor(trade, fallbackState, now, peakPriceDollars)
+      : { ...fallbackState, stopTierDollars: trade.stopTierDollars };
   return {
     peakPriceDollars,
-    ...getTrendStopState(trade, now, peakPriceDollars),
+    ...tierState,
   };
 }
 
@@ -572,6 +630,7 @@ async function processTrade(trade: ManagedTrade) {
     peakPriceDollars: exitState.peakPriceDollars,
     stopArmedAt: exitState.stopArmedAt,
     stopPriceDollars: exitState.stopPriceDollars,
+    stopTierDollars: exitState.stopTierDollars,
   });
 
   const tradeWithDynamicStop: ManagedTrade = {
@@ -579,6 +638,7 @@ async function processTrade(trade: ManagedTrade) {
     peakPriceDollars: exitState.peakPriceDollars,
     stopArmedAt: exitState.stopArmedAt,
     stopPriceDollars: exitState.stopPriceDollars,
+    stopTierDollars: exitState.stopTierDollars,
   };
   const exitReason =
     trade.status === "exit-submitted"

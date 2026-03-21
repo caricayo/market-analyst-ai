@@ -22,6 +22,10 @@ type ManagedTradeRow = {
   entry_price_dollars: number | string;
   target_price_dollars: number | string;
   stop_price_dollars: number | string;
+  entry_tier_dollars: number | string | null;
+  target_tier_dollars: number | string | null;
+  stop_tier_dollars: number | string | null;
+  confidence_band: ManagedTrade["confidenceBand"] | null;
   forced_exit_at: string;
   status: ManagedTradeStatus;
   exit_reason: ExitReason | null;
@@ -100,6 +104,10 @@ function toManagedTrade(row: ManagedTradeRow): ManagedTrade {
     entryPriceDollars: parseNumber(row.entry_price_dollars) ?? 0,
     targetPriceDollars: parseNumber(row.target_price_dollars) ?? 0,
     stopPriceDollars: parseNumber(row.stop_price_dollars) ?? 0,
+    entryTierDollars: parseNumber(row.entry_tier_dollars),
+    targetTierDollars: parseNumber(row.target_tier_dollars),
+    stopTierDollars: parseNumber(row.stop_tier_dollars),
+    confidenceBand: row.confidence_band,
     forcedExitAt: row.forced_exit_at,
     status: row.status,
     exitReason: row.exit_reason,
@@ -133,6 +141,10 @@ function toManagedTradeRow(trade: ManagedTrade): ManagedTradeRow {
     entry_price_dollars: trade.entryPriceDollars,
     target_price_dollars: trade.targetPriceDollars,
     stop_price_dollars: trade.stopPriceDollars,
+    entry_tier_dollars: trade.entryTierDollars,
+    target_tier_dollars: trade.targetTierDollars,
+    stop_tier_dollars: trade.stopTierDollars,
+    confidence_band: trade.confidenceBand,
     forced_exit_at: trade.forcedExitAt,
     status: trade.status,
     exit_reason: trade.exitReason,

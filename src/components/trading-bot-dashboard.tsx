@@ -325,6 +325,10 @@ export function TradingBotDashboard() {
                         stop {formatMoney(trade.stopPriceDollars)}
                       </p>
                       <p className="mt-2 text-sm text-slate-400">
+                        Entry tier {formatMoney(trade.entryTierDollars)} | target tier {formatMoney(trade.targetTierDollars)} |
+                        stop tier {formatMoney(trade.stopTierDollars)} | band {trade.confidenceBand ?? "n/a"}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-400">
                         Last bid {formatMoney(trade.lastSeenBidDollars)} | peak {formatMoney(trade.peakPriceDollars)} |
                         forced exit {formatTimestamp(trade.forcedExitAt, snapshot.timeZone)}
                       </p>
@@ -681,6 +685,10 @@ export function TradingBotDashboard() {
                         <p>Entry price: {formatMoney(entry.execution.entryPriceDollars)}</p>
                         <p>Target: {formatMoney(entry.execution.targetPriceDollars)}</p>
                         <p>Stop: {formatMoney(entry.execution.stopPriceDollars)}</p>
+                        <p>Entry tier: {formatMoney(entry.execution.entryTierDollars)}</p>
+                        <p>Target tier: {formatMoney(entry.execution.targetTierDollars)}</p>
+                        <p>Stop tier: {formatMoney(entry.execution.stopTierDollars)}</p>
+                        <p>Confidence band: {entry.execution.confidenceBand ?? "n/a"}</p>
                         <p>Deterministic confidence: {entry.deterministicConfidence}</p>
                         <p>Filled max cost: {formatMoney(entry.execution.maxCostDollars)}</p>
                         <p>Planned max cost: {formatMoney(entry.execution.plannedMaxCostDollars)}</p>

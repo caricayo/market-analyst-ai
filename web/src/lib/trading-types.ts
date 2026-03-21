@@ -9,6 +9,7 @@ export type TradeCall = "above" | "below" | "no_trade";
 export type SetupType = "trend" | "scalp" | "reversal" | "none";
 export type ExitReason = "target" | "stop" | "time" | "manual-sync" | "expired" | "unknown";
 export type ManagedTradeStatus = "open" | "exit-submitted" | "closed" | "error";
+export type ConfidenceBand = "low" | "mid" | "high";
 
 export type TradingDecision = {
   call: TradeCall;
@@ -81,6 +82,10 @@ export type TradeExecution = {
   entryPriceDollars: number | null;
   targetPriceDollars: number | null;
   stopPriceDollars: number | null;
+  entryTierDollars?: number | null;
+  targetTierDollars?: number | null;
+  stopTierDollars?: number | null;
+  confidenceBand?: ConfidenceBand | null;
   liquidityAvailableContracts: number | null;
   liquidityDepthLevels: number | null;
   attempts: {
@@ -112,6 +117,10 @@ export type ManagedTrade = {
   entryPriceDollars: number;
   targetPriceDollars: number;
   stopPriceDollars: number;
+  entryTierDollars: number | null;
+  targetTierDollars: number | null;
+  stopTierDollars: number | null;
+  confidenceBand: ConfidenceBand | null;
   forcedExitAt: string;
   status: ManagedTradeStatus;
   exitReason: ExitReason | null;
