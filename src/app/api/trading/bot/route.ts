@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { ensureAutoEntryManagerStarted } from "@/lib/server/auto-entry-manager";
-import { getTradingBotSnapshot, runTradingBotExecution } from "@/lib/server/trading-bot";
+import { getTradingBotSnapshot } from "@/lib/server/trading-bot";
 import { getServerSupabaseUser } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -13,7 +12,6 @@ export async function GET() {
       return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     }
 
-    ensureAutoEntryManagerStarted();
     const payload = await getTradingBotSnapshot();
     return NextResponse.json(payload);
   } catch (error) {
@@ -27,25 +25,10 @@ export async function GET() {
 }
 
 export async function POST() {
-  try {
-    const user = await getServerSupabaseUser();
-    if (!user) {
-      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-    }
-
-    ensureAutoEntryManagerStarted();
-    const payload = await runTradingBotExecution("manual");
-    return NextResponse.json(payload);
-  } catch (error) {
-    const status =
-      error instanceof Error && error.message.includes("rate-limited")
-        ? 429
-        : 500;
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Unable to run the trading bot.",
-      },
-      { status },
-    );
-  }
+  return NextResponse.json(
+    {
+      error: "Manual execution is disabled. This page is now a read-only signal monitor.",
+    },
+    { status: 405 },
+  );
 }
