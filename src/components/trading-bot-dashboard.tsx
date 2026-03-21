@@ -270,6 +270,10 @@ export function TradingBotDashboard() {
             <div className="grid gap-3 sm:grid-cols-2">
               <Metric label="Confidence" value={`${snapshot?.decision?.confidence ?? 0}`} tone={confidenceTone} />
               <Metric
+                label="Tape Pattern"
+                value={(snapshot?.decision?.tapePattern ?? "n/a").replace("_", " ")}
+              />
+              <Metric
                 label="Recommended Buy"
                 value={
                   snapshot?.decision?.shouldTrade && recommendation.contracts > 0

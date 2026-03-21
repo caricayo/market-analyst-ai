@@ -10,6 +10,7 @@ export type SetupType = "trend" | "scalp" | "reversal" | "none";
 export type ExitReason = "target" | "stop" | "time" | "manual-sync" | "expired" | "unknown";
 export type ManagedTradeStatus = "open" | "exit-submitted" | "closed" | "error";
 export type ConfidenceBand = "low" | "mid" | "high";
+export type TapePattern = "continuation" | "possible_reversal" | "chop";
 
 export type TradingDecision = {
   call: TradeCall;
@@ -17,6 +18,7 @@ export type TradingDecision = {
   deterministicConfidence: number;
   summary: string;
   reasoning: string[];
+  tapePattern: TapePattern;
   setupType: SetupType;
   candidateSide: "above" | "below" | null;
   timingRisk: TimingRiskLevel;

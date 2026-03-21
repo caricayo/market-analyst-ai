@@ -4,6 +4,7 @@ import type {
   IndicatorSnapshot,
   KalshiMarketSnapshot,
   TimingRiskLevel,
+  TapePattern,
   TradingDecision,
 } from "@/lib/trading-types";
 
@@ -52,6 +53,41 @@ function describeTimingContext(timingRisk: TimingRiskLevel) {
     default:
       return "Core trade-window tape is being scored as a short intraday scalp.";
   }
+}
+
+function classifyTapePattern(
+  indicators: IndicatorSnapshot,
+  call: "above" | "below",
+  score: ReturnType<typeof buildScalpScore>,
+): TapePattern {
+  const distance = indicators.distanceToStrike ?? 0;
+  const momentum5 = indicators.momentum5 ?? 0;
+  const momentum15 = indicators.momentum15 ?? 0;
+  const rsi = indicators.rsi14 ?? 50;
+  const alignedMomentum =
+    call === "above" ? momentum5 >= 0 && momentum15 >= 0 : momentum5 <= 0 && momentum15 <= 0;
+  const fadingMomentum =
+    call === "above" ? momentum5 > 0 && momentum15 < 0 : momentum5 < 0 && momentum15 > 0;
+  const stretchedAgainstSignal =
+    call === "above"
+      ? distance < 0 && Math.abs(distance) >= Math.max(indicators.atr14 ?? 20, 20) * 0.35
+      : distance > 0 && Math.abs(distance) >= Math.max(indicators.atr14 ?? 20, 20) * 0.35;
+  const exhaustionRsi =
+    call === "above" ? rsi <= 42 : rsi >= 58;
+
+  if (Math.abs(score.rawScore) < 8 || Math.abs(momentum5) < 1.5) {
+    return "chop";
+  }
+
+  if (fadingMomentum && stretchedAgainstSignal && exhaustionRsi) {
+    return "possible_reversal";
+  }
+
+  if (alignedMomentum && Math.abs(score.rawScore) >= 12) {
+    return "continuation";
+  }
+
+  return "chop";
 }
 
 function buildScalpScore(indicators: IndicatorSnapshot) {
@@ -171,6 +207,7 @@ export async function buildTradingDecisionForProfile(input: {
         "The bot now trades a single scalp playbook from confidence direction only.",
         "This cycle was skipped because a required market or price input was missing.",
       ],
+      tapePattern: "chop",
       setupType: "none",
       candidateSide: null,
       timingRisk: input.timingRisk,
@@ -201,6 +238,7 @@ export async function buildTradingDecisionForProfile(input: {
   const meetsConfidence = confidence >= requiredConfidence;
   const mapping = deriveOutcomeMapping(input.market, meetsConfidence ? call : "no_trade");
   const { reasoning, gateReasons } = buildReasoning(input.indicators, call, input.timingRisk, score);
+  const tapePattern = classifyTapePattern(input.indicators, call, score);
 
   if (openWindowConvictionTriggered) {
     reasoning.push(
@@ -225,6 +263,7 @@ export async function buildTradingDecisionForProfile(input: {
       ? `Scalp ${call.toUpperCase()} setup based on intraday tape pressure and short-term directional confidence.`
       : `No trade because the intraday scalp confidence only reached ${confidence}.`,
     reasoning,
+    tapePattern,
     setupType: meetsConfidence ? "scalp" : "none",
     candidateSide: call,
     timingRisk: input.timingRisk,
