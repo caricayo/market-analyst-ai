@@ -124,11 +124,11 @@ function inferSetupTypeFromClientOrderId(clientOrderId: string | null, createdAt
   if (createdAt) {
     const minuteInWindow = getMinuteInWindow(new Date(createdAt));
     if (minuteInWindow >= 9 && minuteInWindow <= 12) {
-      return "reversal" as const;
+      return "scalp" as const;
     }
   }
 
-  return "reversal" as const;
+  return "trend" as const;
 }
 
 function clampPrice(value: number) {

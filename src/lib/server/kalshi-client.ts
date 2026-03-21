@@ -220,6 +220,10 @@ function isActiveBtcFifteenMinuteMarket(market: KalshiMarketApi, now: Date) {
     return false;
   }
 
+  if ((market.status ?? "").toLowerCase() !== "active") {
+    return false;
+  }
+
   const closeTs = getCloseTimestamp(market);
   const msUntilClose = closeTs - now.getTime();
   return Number.isFinite(closeTs) && msUntilClose > 0 && msUntilClose <= 16 * 60_000;

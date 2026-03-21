@@ -9,8 +9,9 @@ export type TierExecutionPlan = {
   confidenceBand: ConfidenceBand;
 };
 
-const ALL_TIERS = [0.6, 0.65, 0.7, 0.8, 0.9] as const;
+const ALL_TIERS = [0.5, 0.6, 0.65, 0.7, 0.8, 0.9] as const;
 const ENTRY_RANGES = [
+  { min: 0.45, max: 0.54, tier: 0.5 },
   { min: 0.55, max: 0.64, tier: 0.6 },
   { min: 0.65, max: 0.69, tier: 0.65 },
   { min: 0.7, max: 0.79, tier: 0.7 },
@@ -44,33 +45,36 @@ function getMappedTargetTier(entryTierDollars: number, confidenceBand: Confidenc
   if (confidenceBand === "low") {
     return (
       {
+        0.5: 0.6,
         0.6: 0.65,
         0.65: 0.7,
         0.7: 0.8,
         0.8: 0.9,
       } as const
-    )[entryTierDollars as 0.6 | 0.65 | 0.7 | 0.8];
+    )[entryTierDollars as 0.5 | 0.6 | 0.65 | 0.7 | 0.8];
   }
 
   if (confidenceBand === "mid") {
     return (
       {
+        0.5: 0.65,
         0.6: 0.7,
         0.65: 0.8,
         0.7: 0.9,
         0.8: 0.9,
       } as const
-    )[entryTierDollars as 0.6 | 0.65 | 0.7 | 0.8];
+    )[entryTierDollars as 0.5 | 0.6 | 0.65 | 0.7 | 0.8];
   }
 
   return (
     {
+      0.5: 0.7,
       0.6: 0.8,
       0.65: 0.9,
       0.7: 0.9,
       0.8: 0.9,
     } as const
-  )[entryTierDollars as 0.6 | 0.65 | 0.7 | 0.8];
+  )[entryTierDollars as 0.5 | 0.6 | 0.65 | 0.7 | 0.8];
 }
 
 export function buildTierExecutionPlan(setupType: SetupType, entryPriceDollars: number, confidence: number) {
@@ -107,12 +111,13 @@ export function buildRecoveredTierExecutionPlan(setupType: SetupType, entryPrice
     entryTierDollars,
     targetTierDollars: (
       {
+        0.5: 0.6,
         0.6: 0.65,
         0.65: 0.7,
         0.7: 0.8,
         0.8: 0.9,
       } as const
-    )[entryTierDollars as 0.6 | 0.65 | 0.7 | 0.8],
+    )[entryTierDollars as 0.5 | 0.6 | 0.65 | 0.7 | 0.8],
     stopTierDollars: null,
     confidenceBand: "low",
   } satisfies TierExecutionPlan;
@@ -145,5 +150,5 @@ export function getTieredStopFloor(
 }
 
 export function describeTierTrigger(entryPriceDollars: number) {
-  return `allowed ranges are 0.55-0.64, 0.65-0.69, 0.70-0.79, and 0.80-0.89; current ask was ${entryPriceDollars.toFixed(2)}.`;
+  return `allowed ranges are 0.45-0.54, 0.55-0.64, 0.65-0.69, 0.70-0.79, and 0.80-0.89; current ask was ${entryPriceDollars.toFixed(2)}.`;
 }
