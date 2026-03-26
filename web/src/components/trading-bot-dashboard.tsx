@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowUpRight, BrainCircuit, CandlestickChart, Clock3, Database, ShieldAlert } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, BrainCircuit, CandlestickChart, Clock3, Database, RefreshCcw, ShieldAlert } from "lucide-react";
 import type { Btc15mSignalSnapshot, SignalAction } from "@/lib/signal-types";
 
 type LoadState = {
@@ -104,6 +104,26 @@ function actionTone(action: SignalAction) {
   }
 }
 
+function reversalTone(direction: "bullish" | "bearish" | "neutral") {
+  switch (direction) {
+    case "bullish":
+      return {
+        pill: "border-emerald-300/35 bg-emerald-400/15 text-emerald-50",
+        accent: "text-emerald-200",
+      };
+    case "bearish":
+      return {
+        pill: "border-rose-300/35 bg-rose-400/15 text-rose-50",
+        accent: "text-rose-200",
+      };
+    default:
+      return {
+        pill: "border-slate-300/25 bg-slate-300/10 text-slate-100",
+        accent: "text-slate-100",
+      };
+  }
+}
+
 function Stat({
   label,
   value,
@@ -168,6 +188,8 @@ export function TradingBotDashboard() {
   const snapshot = state.data;
   const recommendation = snapshot?.recommendation;
   const tone = actionTone(recommendation?.action ?? "no_buy");
+  const reversal = snapshot?.reversal;
+  const reversalSkin = reversalTone(reversal?.direction ?? "neutral");
   const latestWarning = snapshot?.warnings?.[0] ?? null;
   const factorRows = useMemo(() => {
     if (!snapshot?.features) {
@@ -178,6 +200,15 @@ export function TradingBotDashboard() {
       .sort((left, right) => Math.abs(right[1]) - Math.abs(left[1]))
       .slice(0, 6);
   }, [snapshot]);
+  const reversalFactorRows = useMemo(() => {
+    if (!reversal?.factorScores) {
+      return [];
+    }
+
+    return Object.entries(reversal.factorScores)
+      .sort((left, right) => Math.abs(right[1]) - Math.abs(left[1]))
+      .slice(0, 4);
+  }, [reversal]);
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#070c11] px-4 py-4 text-slate-100 sm:px-6 lg:px-8">
@@ -399,6 +430,95 @@ export function TradingBotDashboard() {
           </div>
         </section>
 
+        <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+          <div className="rounded-[30px] border border-white/10 bg-[rgba(10,16,24,0.9)] p-6">
+            <div className="flex items-center gap-3">
+              <RefreshCcw className="h-5 w-5 text-slate-400" />
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Reversal Intelligence</p>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <Stat label="Direction" value={reversal?.direction ?? "neutral"} />
+              <Stat label="Watch Soon" value={reversal?.watchStatus ?? "none"} />
+              <Stat label="Happening Now" value={reversal?.activeStatus ?? "none"} />
+              <Stat
+                label="Confidence"
+                value={formatNumber(reversal?.confidence, 0)}
+                helper="Informational only. Does not override the main trade call."
+              />
+              <Stat
+                label="Trigger Level"
+                value={formatMoney(reversal?.triggerLevel)}
+                helper={reversal?.estimatedWindow ?? "No imminent trigger"}
+              />
+              <Stat
+                label="Invalidation"
+                value={
+                  reversal?.direction === "bullish"
+                    ? formatMoney(reversal?.invalidatesBelow)
+                    : reversal?.direction === "bearish"
+                      ? formatMoney(reversal?.invalidatesAbove)
+                      : "n/a"
+                }
+              />
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Current Read</p>
+                <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${reversalSkin.pill}`}>
+                  {reversal?.direction ?? "neutral"}
+                </div>
+              </div>
+              <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-200">
+                {reversal?.reasons?.length ? (
+                  reversal.reasons.map((reason) => <p key={reason}>{reason}</p>)
+                ) : (
+                  <p>No reversal setup is dominating yet.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            <div className="rounded-[30px] border border-white/10 bg-[rgba(10,16,24,0.9)] p-6">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Reversal Risk Flags</p>
+              <div className="mt-4 grid gap-3">
+                {reversal?.riskFlags?.length ? (
+                  reversal.riskFlags.map((flag) => (
+                    <div key={flag} className="rounded-[22px] border border-white/10 bg-black/20 px-4 py-3 text-sm text-slate-200">
+                      {flag}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-300">No extra reversal cautions right now.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-[30px] border border-white/10 bg-[rgba(10,16,24,0.9)] p-6">
+              <div className="flex items-center gap-3">
+                <ShieldAlert className={`h-5 w-5 ${reversalSkin.accent}`} />
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Top Reversal Factors</p>
+              </div>
+              <div className="mt-4 grid gap-3">
+                {reversalFactorRows.length ? (
+                  reversalFactorRows.map(([label, value]) => (
+                    <div key={label} className="rounded-[22px] border border-white/10 bg-black/20 px-4 py-3">
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-sm font-medium text-white">{label}</p>
+                        <p className={`text-sm font-semibold ${reversalSkin.accent}`}>{formatNumber(value, 4)}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-300">Reversal factors will appear once a live setup develops.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
           <div className="rounded-[30px] border border-white/10 bg-[rgba(10,16,24,0.9)] p-6">
             <div className="flex items-center gap-3">
@@ -429,6 +549,10 @@ export function TradingBotDashboard() {
                       <p className="text-sm text-slate-300">Final lean: <span className="font-semibold capitalize text-white">{entry.finalPredictedDirection}</span></p>
                       <p className="text-sm text-slate-300">Final action: <span className="font-semibold capitalize text-white">{entry.finalAction.replace("_", " ")}</span></p>
                       <p className="text-sm text-slate-300">Flipped after open: <span className="font-semibold text-white">{entry.flippedAfterOpen ? "Yes" : "No"}</span></p>
+                      <p className="text-sm text-slate-300">Reversal watch: <span className="font-semibold capitalize text-white">{entry.reversalWatchStatus}</span></p>
+                      <p className="text-sm text-slate-300">Reversal now: <span className="font-semibold capitalize text-white">{entry.reversalActiveStatus}</span></p>
+                      <p className="text-sm text-slate-300">Reversal direction: <span className="font-semibold capitalize text-white">{entry.reversalDirection}</span></p>
+                      <p className="text-sm text-slate-300">Reversal confidence: <span className="font-semibold text-white">{formatNumber(entry.reversalConfidence, 0)}</span></p>
                       <p className="text-sm text-slate-300">Outcome: <span className="font-semibold capitalize text-white">{entry.outcome ?? "pending"}</span></p>
                       <p className="text-sm text-slate-300">Result: <span className="font-semibold capitalize text-white">{entry.outcomeResult ?? "pending"}</span></p>
                       <p className="text-sm text-slate-300">Paper PnL: <span className="font-semibold text-white">{formatMoney(entry.suggestedPnlDollars)}</span></p>

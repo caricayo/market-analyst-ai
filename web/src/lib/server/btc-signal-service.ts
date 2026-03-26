@@ -1,7 +1,7 @@
 import { fetchCoinbaseCandles, fetchCoinbaseCandlesInRange } from "@/lib/server/coinbase-client";
 import { discoverActiveBtcWindow, fetchKalshiWindowByTicker } from "@/lib/server/btc-kalshi-client";
 import { buildSignalExplanation } from "@/lib/server/btc-explainer";
-import { buildBtcSignalFeatures, buildSignalRecommendation } from "@/lib/server/btc-signal-model";
+import { buildBtcSignalFeatures, buildReversalSignal, buildSignalRecommendation } from "@/lib/server/btc-signal-model";
 import {
   appendSignalSnapshot,
   getLatestSignalSnapshot,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/server/btc-signal-store";
 import { signalConfig } from "@/lib/server/signal-config";
 import type {
+  BtcReversalSignal,
   Btc15mSignalSnapshot,
   PersistedSignalSnapshot,
   PersistedSignalWindow,
@@ -125,6 +126,63 @@ function hasDecisionFlip(series: PersistedSignalSnapshot[]) {
   return series.some((snapshot) => snapshot.action !== openingAction);
 }
 
+function asNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function asString(value: unknown) {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function asStringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
+}
+
+function asFactorScores(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => typeof entry === "number" && Number.isFinite(entry)),
+  );
+}
+
+function extractPersistedReversal(snapshot: PersistedSignalSnapshot): BtcReversalSignal | null {
+  const raw = snapshot.features.reversal;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+
+  const record = raw as Record<string, unknown>;
+  const watchStatus = record.watchStatus;
+  const activeStatus = record.activeStatus;
+  const direction = record.direction;
+
+  if (
+    (watchStatus !== "none" && watchStatus !== "building" && watchStatus !== "soon") ||
+    (activeStatus !== "none" && activeStatus !== "starting" && activeStatus !== "active") ||
+    (direction !== "bullish" && direction !== "bearish" && direction !== "neutral")
+  ) {
+    return null;
+  }
+
+  return {
+    watchStatus,
+    activeStatus,
+    direction,
+    confidence: asNumber(record.confidence) ?? 50,
+    score: asNumber(record.score) ?? 0,
+    reasons: asStringArray(record.reasons),
+    riskFlags: asStringArray(record.riskFlags),
+    triggerLevel: asNumber(record.triggerLevel),
+    invalidatesBelow: asNumber(record.invalidatesBelow),
+    invalidatesAbove: asNumber(record.invalidatesAbove),
+    estimatedWindow: asString(record.estimatedWindow),
+    factorScores: asFactorScores(record.factorScores),
+  };
+}
+
 function getOutcomeResult(snapshot: PersistedSignalSnapshot): SignalOutcome | null {
   if (!snapshot.resolutionOutcome) {
     return null;
@@ -171,6 +229,10 @@ function mapHistory(): SignalHistoryEntry[] {
     edgeDollars: entry.first.edgeDollars,
     modelProbability: getPredictedProbability(entry.first),
     currentPrice: entry.first.currentPriceDollars,
+    reversalDirection: extractPersistedReversal(entry.first)?.direction ?? "neutral",
+    reversalWatchStatus: extractPersistedReversal(entry.first)?.watchStatus ?? "none",
+    reversalActiveStatus: extractPersistedReversal(entry.first)?.activeStatus ?? "none",
+    reversalConfidence: extractPersistedReversal(entry.first)?.confidence ?? null,
     outcome: entry.first.resolutionOutcome,
     outcomeResult: getOutcomeResult(entry.first),
     suggestedPnlDollars: getSuggestedPnl(entry.first),
@@ -368,6 +430,7 @@ async function computeSnapshot() {
         market: null,
       },
       features: null,
+      reversal: null,
       recommendation: null,
       explanation: {
         status: "fallback",
@@ -413,6 +476,7 @@ async function computeSnapshot() {
             market,
           },
           features: null,
+          reversal: null,
           recommendation: null,
           explanation: {
             status: "fallback",
@@ -432,6 +496,12 @@ async function computeSnapshot() {
     candles,
     market: latestMarket,
     now,
+  });
+  const reversal = buildReversalSignal({
+    candles,
+    features,
+    market: latestMarket,
+    riskLevel,
   });
   const recommendation = buildSignalRecommendation({
     market: latestMarket,
@@ -478,6 +548,7 @@ async function computeSnapshot() {
       momentum10: features.momentum10,
       momentum15: features.momentum15,
       trendBias: features.trendBias,
+      reversal,
     },
     reasons: recommendation.reasons,
     blockers: recommendation.blockers,
@@ -504,6 +575,7 @@ async function computeSnapshot() {
       market: latestMarket,
     },
     features,
+    reversal,
     recommendation,
     explanation,
     metrics: buildPerformanceMetrics(),

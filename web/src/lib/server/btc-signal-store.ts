@@ -39,7 +39,7 @@ type SignalSnapshotRow = {
   confidence: number;
   suggested_stake_dollars: number | string;
   suggested_contracts: number;
-  features: Record<string, number | string | null>;
+  features: Record<string, unknown>;
   reasons: string[];
   blockers: string[];
   explanation_status: PersistedSignalSnapshot["explanationStatus"];

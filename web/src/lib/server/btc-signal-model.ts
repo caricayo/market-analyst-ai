@@ -1,6 +1,7 @@
 import type { Candle } from "@/lib/server/coinbase-client";
 import { signalConfig } from "@/lib/server/signal-config";
 import type {
+  BtcReversalSignal,
   BtcSignalFeatures,
   KalshiBtcWindowSnapshot,
   SignalRecommendation,
@@ -63,6 +64,32 @@ function rsi(candles: Candle[], period: number) {
 
   const relativeStrength = gains / losses;
   return 100 - 100 / (1 + relativeStrength);
+}
+
+function buildRsiSeries(candles: Candle[], period: number) {
+  return candles.map((_, index) => {
+    if (index < period) {
+      return null;
+    }
+
+    let gains = 0;
+    let losses = 0;
+    for (let cursor = index - period + 1; cursor <= index; cursor += 1) {
+      const change = candles[cursor].close - candles[cursor - 1].close;
+      if (change >= 0) {
+        gains += change;
+      } else {
+        losses += Math.abs(change);
+      }
+    }
+
+    if (losses === 0) {
+      return 100;
+    }
+
+    const relativeStrength = gains / losses;
+    return 100 - 100 / (1 + relativeStrength);
+  });
 }
 
 function atr(candles: Candle[], period: number) {
@@ -208,6 +235,39 @@ function topReasons(
     .map((item) => item.label);
 }
 
+function averageVolume(candles: Candle[], lookback: number) {
+  return average(candles.slice(-lookback).map((candle) => candle.volume));
+}
+
+function findExtreme(
+  candles: Candle[],
+  startIndex: number,
+  endIndex: number,
+  type: "high" | "low",
+) {
+  if (startIndex < 0 || endIndex <= startIndex) {
+    return null;
+  }
+
+  let bestIndex = startIndex;
+  for (let index = startIndex + 1; index < endIndex; index += 1) {
+    if (type === "high" ? candles[index].high > candles[bestIndex].high : candles[index].low < candles[bestIndex].low) {
+      bestIndex = index;
+    }
+  }
+
+  return { index: bestIndex, candle: candles[bestIndex] };
+}
+
+function nearestLevelDistance(price: number, levels: Array<number | null | undefined>) {
+  const numericLevels = levels.filter((level): level is number => typeof level === "number" && Number.isFinite(level));
+  if (!numericLevels.length) {
+    return null;
+  }
+
+  return Math.min(...numericLevels.map((level) => Math.abs(price - level)));
+}
+
 export function buildBtcSignalFeatures(input: {
   candles: Candle[];
   market: KalshiBtcWindowSnapshot | null;
@@ -316,6 +376,365 @@ export function buildBtcSignalFeatures(input: {
         Object.entries(factorScores).map(([key, value]) => [key, Number(value.toFixed(4))]),
       ),
     },
+  };
+}
+
+export function buildReversalSignal(input: {
+  candles: Candle[];
+  features: BtcSignalFeatures;
+  market: KalshiBtcWindowSnapshot | null;
+  riskLevel: SignalRiskLevel;
+}): BtcReversalSignal {
+  const { candles, features, market, riskLevel } = input;
+  const current = candles.at(-1);
+  const previous = candles.at(-2);
+
+  if (!current || !previous) {
+    return {
+      watchStatus: "none",
+      activeStatus: "none",
+      direction: "neutral",
+      confidence: 50,
+      score: 0,
+      reasons: [],
+      riskFlags: ["Not enough candle history for reversal detection."],
+      triggerLevel: null,
+      invalidatesBelow: null,
+      invalidatesAbove: null,
+      estimatedWindow: null,
+      factorScores: {},
+    };
+  }
+
+  const rsiValues = buildRsiSeries(candles, 14);
+  const avgVol10 = averageVolume(candles.slice(0, -1), 10);
+  const volumeBoost = avgVol10 && avgVol10 > 0 ? current.volume / avgVol10 : 1;
+  const atr14 = features.atr14 ?? 0;
+  const tolerance = Math.max(atr14 * 0.18, features.currentPrice * 0.00045, 12);
+  const currentBody = Math.abs(current.close - current.open);
+  const upperWick = current.high - Math.max(current.open, current.close);
+  const lowerWick = Math.min(current.open, current.close) - current.low;
+  const recentHigh = Math.max(...candles.slice(-6, -1).map((candle) => candle.high));
+  const recentLow = Math.min(...candles.slice(-6, -1).map((candle) => candle.low));
+  const closeToResistance =
+    nearestLevelDistance(current.high, [market?.strikePrice ?? null, features.high15, features.vwap120, recentHigh]) ?? Infinity;
+  const closeToSupport =
+    nearestLevelDistance(current.low, [market?.strikePrice ?? null, features.low15, features.vwap120, recentLow]) ?? Infinity;
+  const volumeConfirmed = volumeBoost >= 1.18;
+  const directionalFactors: Record<string, number> = {};
+  const bullReasons: Array<{ label: string; score: number }> = [];
+  const bearReasons: Array<{ label: string; score: number }> = [];
+  const riskFlags: string[] = [];
+  let bullWatchScore = 0;
+  let bearWatchScore = 0;
+  let bullActiveScore = 0;
+  let bearActiveScore = 0;
+  let bullishTriggerLevel: number | null = recentHigh;
+  let bearishTriggerLevel: number | null = recentLow;
+  let bullishInvalidation: number | null = Math.min(current.low, recentLow);
+  let bearishInvalidation: number | null = Math.max(current.high, recentHigh);
+
+  const recentHighExtreme = findExtreme(candles, Math.max(0, candles.length - 6), candles.length - 1, "high");
+  const priorHighExtreme = findExtreme(candles, Math.max(0, candles.length - 12), Math.max(0, candles.length - 6), "high");
+  const recentLowExtreme = findExtreme(candles, Math.max(0, candles.length - 6), candles.length - 1, "low");
+  const priorLowExtreme = findExtreme(candles, Math.max(0, candles.length - 12), Math.max(0, candles.length - 6), "low");
+
+  if (
+    recentHighExtreme &&
+    priorHighExtreme &&
+    recentHighExtreme.candle.high > priorHighExtreme.candle.high &&
+    (rsiValues[recentHighExtreme.index] ?? 50) + 2.5 < (rsiValues[priorHighExtreme.index] ?? 50)
+  ) {
+    directionalFactors.rsiDivergence = -1.35;
+    bearWatchScore += 1.35;
+    bearReasons.push({
+      label: "Price made a higher high while RSI failed to confirm it.",
+      score: 1.35,
+    });
+    bearishInvalidation = Math.max(bearishInvalidation ?? recentHighExtreme.candle.high, recentHighExtreme.candle.high);
+  }
+
+  if (
+    recentLowExtreme &&
+    priorLowExtreme &&
+    recentLowExtreme.candle.low < priorLowExtreme.candle.low &&
+    (rsiValues[recentLowExtreme.index] ?? 50) > (rsiValues[priorLowExtreme.index] ?? 50) + 2.5
+  ) {
+    directionalFactors.rsiDivergence = 1.35;
+    bullWatchScore += 1.35;
+    bullReasons.push({
+      label: "Price made a lower low while RSI held a higher low.",
+      score: 1.35,
+    });
+    bullishInvalidation = Math.min(bullishInvalidation ?? recentLowExtreme.candle.low, recentLowExtreme.candle.low);
+  }
+
+  const bearishFailureSwing =
+    features.rsi14 !== null &&
+    features.rsi14 > 62 &&
+    (features.momentum3 ?? 0) < 0 &&
+    current.close < previous.close &&
+    current.close < current.open;
+  if (bearishFailureSwing) {
+    directionalFactors.failureSwing = -0.9;
+    bearWatchScore += 0.9;
+    bearReasons.push({
+      label: "RSI is rolling lower after an overbought push.",
+      score: 0.9,
+    });
+  }
+
+  const bullishFailureSwing =
+    features.rsi14 !== null &&
+    features.rsi14 < 38 &&
+    (features.momentum3 ?? 0) > 0 &&
+    current.close > previous.close &&
+    current.close > current.open;
+  if (bullishFailureSwing) {
+    directionalFactors.failureSwing = 0.9;
+    bullWatchScore += 0.9;
+    bullReasons.push({
+      label: "RSI is lifting after an oversold washout.",
+      score: 0.9,
+    });
+  }
+
+  const bearishRejection =
+    closeToResistance <= tolerance &&
+    upperWick > currentBody * 1.3 &&
+    current.close < current.open;
+  if (bearishRejection) {
+    directionalFactors.levelRejection = -1.1;
+    bearWatchScore += 1.1;
+    bearReasons.push({
+      label: "Upper-wick rejection formed near resistance or the Kalshi strike.",
+      score: 1.1,
+    });
+  }
+
+  const bullishRejection =
+    closeToSupport <= tolerance &&
+    lowerWick > currentBody * 1.3 &&
+    current.close > current.open;
+  if (bullishRejection) {
+    directionalFactors.levelRejection = 1.1;
+    bullWatchScore += 1.1;
+    bullReasons.push({
+      label: "Lower-wick rejection formed near support or the Kalshi strike.",
+      score: 1.1,
+    });
+  }
+
+  const bearishStretch =
+    features.trendBias === "bullish" &&
+    features.rsi14 !== null &&
+    features.rsi14 > 66 &&
+    features.vwap120 !== null &&
+    atr14 > 0 &&
+    features.currentPrice > features.vwap120 + atr14 * 0.55 &&
+    (features.momentum3 ?? 0) < (features.momentum10 ?? 0);
+  if (bearishStretch) {
+    directionalFactors.stretch = -0.85;
+    bearWatchScore += 0.85;
+    bearReasons.push({
+      label: "BTC is extended above VWAP and momentum is cooling.",
+      score: 0.85,
+    });
+  }
+
+  const bullishStretch =
+    features.trendBias === "bearish" &&
+    features.rsi14 !== null &&
+    features.rsi14 < 34 &&
+    features.vwap120 !== null &&
+    atr14 > 0 &&
+    features.currentPrice < features.vwap120 - atr14 * 0.55 &&
+    (features.momentum3 ?? 0) > (features.momentum10 ?? 0);
+  if (bullishStretch) {
+    directionalFactors.stretch = 0.85;
+    bullWatchScore += 0.85;
+    bullReasons.push({
+      label: "BTC is stretched below VWAP and downside momentum is fading.",
+      score: 0.85,
+    });
+  }
+
+  const bearishFalseBreak = current.high > recentHigh + tolerance * 0.15 && current.close < recentHigh;
+  if (bearishFalseBreak) {
+    directionalFactors.falseBreak = -1.05;
+    bearWatchScore += 1.05;
+    bearReasons.push({
+      label: "Price broke above the recent high and fell back inside the range.",
+      score: 1.05,
+    });
+    bearishTriggerLevel = recentLow;
+    bearishInvalidation = Math.max(bearishInvalidation ?? current.high, current.high);
+  }
+
+  const bullishFalseBreak = current.low < recentLow - tolerance * 0.15 && current.close > recentLow;
+  if (bullishFalseBreak) {
+    directionalFactors.falseBreak = 1.05;
+    bullWatchScore += 1.05;
+    bullReasons.push({
+      label: "Price broke below the recent low and reclaimed the range.",
+      score: 1.05,
+    });
+    bullishTriggerLevel = recentHigh;
+    bullishInvalidation = Math.min(bullishInvalidation ?? current.low, current.low);
+  }
+
+  const bearishStructureBreak =
+    features.trendBias !== "bearish" &&
+    current.close < recentLow &&
+    current.close < (features.ema9 ?? current.close) &&
+    (features.momentum3 ?? 0) < 0;
+  if (bearishStructureBreak) {
+    directionalFactors.structureBreak = -1.55;
+    bearActiveScore += 1.55;
+    bearReasons.push({
+      label: "Price lost the recent 1-minute swing low and slipped under the fast trend.",
+      score: 1.55,
+    });
+  }
+
+  const bullishStructureBreak =
+    features.trendBias !== "bullish" &&
+    current.close > recentHigh &&
+    current.close > (features.ema9 ?? current.close) &&
+    (features.momentum3 ?? 0) > 0;
+  if (bullishStructureBreak) {
+    directionalFactors.structureBreak = 1.55;
+    bullActiveScore += 1.55;
+    bullReasons.push({
+      label: "Price reclaimed the recent 1-minute swing high and pushed back above fast trend.",
+      score: 1.55,
+    });
+  }
+
+  const bearishTrendTurn =
+    features.trendBias === "bullish" &&
+    current.close < (features.ema9 ?? current.close) &&
+    previous.close > (features.ema9 ?? previous.close) &&
+    (features.momentum3 ?? 0) < 0;
+  if (bearishTrendTurn) {
+    directionalFactors.emaInflection = -0.9;
+    bearActiveScore += 0.9;
+    bearReasons.push({
+      label: "Fast trend support just gave way after a prior upside run.",
+      score: 0.9,
+    });
+  }
+
+  const bullishTrendTurn =
+    features.trendBias === "bearish" &&
+    current.close > (features.ema9 ?? current.close) &&
+    previous.close < (features.ema9 ?? previous.close) &&
+    (features.momentum3 ?? 0) > 0;
+  if (bullishTrendTurn) {
+    directionalFactors.emaInflection = 0.9;
+    bullActiveScore += 0.9;
+    bullReasons.push({
+      label: "Fast trend resistance just gave way after a prior downside run.",
+      score: 0.9,
+    });
+  }
+
+  if (volumeConfirmed) {
+    if (bearWatchScore + bearActiveScore > bullWatchScore + bullActiveScore) {
+      directionalFactors.volumeConfirmation = -0.45;
+      bearWatchScore += 0.2;
+      bearActiveScore += 0.25;
+      bearReasons.push({
+        label: "The rejection is arriving with above-average volume.",
+        score: 0.45,
+      });
+    } else if (bullWatchScore + bullActiveScore > bearWatchScore + bearActiveScore) {
+      directionalFactors.volumeConfirmation = 0.45;
+      bullWatchScore += 0.2;
+      bullActiveScore += 0.25;
+      bullReasons.push({
+        label: "The reclaim is arriving with above-average volume.",
+        score: 0.45,
+      });
+    }
+  } else {
+    riskFlags.push("Volume confirmation is still light.");
+  }
+
+  const bullTotal = bullWatchScore + bullActiveScore * 1.15;
+  const bearTotal = bearWatchScore + bearActiveScore * 1.15;
+  const dominantStrength = Math.max(bullTotal, bearTotal);
+  const balanceGap = Math.abs(bullTotal - bearTotal);
+  const direction =
+    dominantStrength < 1.25 || balanceGap < 0.35
+      ? "neutral"
+      : bullTotal > bearTotal
+        ? "bullish"
+        : "bearish";
+  const dominantWatchScore = direction === "bullish" ? bullWatchScore : direction === "bearish" ? bearWatchScore : 0;
+  const dominantActiveScore = direction === "bullish" ? bullActiveScore : direction === "bearish" ? bearActiveScore : 0;
+  const watchStatus =
+    direction === "neutral"
+      ? "none"
+      : dominantWatchScore >= 2.75
+        ? "soon"
+        : dominantWatchScore >= 1.6
+          ? "building"
+          : "none";
+  const activeStatus =
+    direction === "neutral"
+      ? "none"
+      : dominantActiveScore >= 2.7
+        ? "active"
+        : dominantActiveScore >= 1.45
+          ? "starting"
+          : "none";
+  const confidence =
+    direction === "neutral"
+      ? 50
+      : Math.round(clamp(50 + dominantStrength * 11 + balanceGap * 8, 52, 94));
+  const score = round(direction === "bullish" ? bullTotal : direction === "bearish" ? bearTotal : dominantStrength, 3) ?? 0;
+
+  if (direction === "neutral") {
+    riskFlags.push("Bullish and bearish reversal signals are still too balanced.");
+  } else if (watchStatus !== "none" && activeStatus === "none") {
+    riskFlags.push("Structure has not fully broken yet, so this remains a watch signal.");
+  }
+
+  if (riskLevel === "closing") {
+    riskFlags.push("Late-window noise is elevated near settlement.");
+  }
+
+  const directionalReasons = direction === "bullish" ? bullReasons : direction === "bearish" ? bearReasons : [];
+  const reasons =
+    direction === "neutral"
+      ? ["No clean reversal setup is dominating yet."]
+      : directionalReasons
+          .sort((left, right) => right.score - left.score)
+          .slice(0, 4)
+          .map((entry) => entry.label);
+
+  return {
+    watchStatus,
+    activeStatus,
+    direction,
+    confidence,
+    score,
+    reasons,
+    riskFlags: Array.from(new Set(riskFlags)),
+    triggerLevel:
+      direction === "bullish"
+        ? round(bullishTriggerLevel)
+        : direction === "bearish"
+          ? round(bearishTriggerLevel)
+          : null,
+    invalidatesBelow: direction === "bullish" ? round(bullishInvalidation) : null,
+    invalidatesAbove: direction === "bearish" ? round(bearishInvalidation) : null,
+    estimatedWindow:
+      watchStatus === "soon" ? "next 1-3 candles" : watchStatus === "building" ? "next 3-5 candles" : null,
+    factorScores: Object.fromEntries(
+      Object.entries(directionalFactors).map(([key, value]) => [key, Number(value.toFixed(4))]),
+    ),
   };
 }
 

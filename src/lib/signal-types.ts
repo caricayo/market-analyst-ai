@@ -3,6 +3,9 @@ export type SignalRiskLevel = "fresh" | "developing" | "late" | "closing";
 export type TrendBias = "bullish" | "bearish" | "neutral";
 export type SignalDirection = "above" | "below";
 export type SignalOutcome = "win" | "loss" | "skipped";
+export type ReversalWatchStatus = "none" | "building" | "soon";
+export type ReversalActiveStatus = "none" | "starting" | "active";
+export type ReversalDirection = "bullish" | "bearish" | "neutral";
 
 export type KalshiBtcWindowSnapshot = {
   ticker: string;
@@ -83,6 +86,21 @@ export type SignalExplanation = {
   caution: string[];
 };
 
+export type BtcReversalSignal = {
+  watchStatus: ReversalWatchStatus;
+  activeStatus: ReversalActiveStatus;
+  direction: ReversalDirection;
+  confidence: number;
+  score: number;
+  reasons: string[];
+  riskFlags: string[];
+  triggerLevel: number | null;
+  invalidatesBelow: number | null;
+  invalidatesAbove: number | null;
+  estimatedWindow: string | null;
+  factorScores: Record<string, number>;
+};
+
 export type SignalHistoryEntry = {
   windowTicker: string;
   observedAt: string;
@@ -98,6 +116,10 @@ export type SignalHistoryEntry = {
   edgeDollars: number | null;
   modelProbability: number | null;
   currentPrice: number | null;
+  reversalDirection: ReversalDirection;
+  reversalWatchStatus: ReversalWatchStatus;
+  reversalActiveStatus: ReversalActiveStatus;
+  reversalConfidence: number | null;
   outcome: "above" | "below" | null;
   outcomeResult: SignalOutcome | null;
   suggestedPnlDollars: number | null;
@@ -134,6 +156,7 @@ export type Btc15mSignalSnapshot = {
   stale: boolean;
   window: BtcWindowStatus;
   features: BtcSignalFeatures | null;
+  reversal: BtcReversalSignal | null;
   recommendation: SignalRecommendation | null;
   explanation: SignalExplanation;
   metrics: SignalPerformanceMetrics;
@@ -175,7 +198,7 @@ export type PersistedSignalSnapshot = {
   confidence: number;
   suggestedStakeDollars: number;
   suggestedContracts: number;
-  features: Record<string, number | string | null>;
+  features: Record<string, unknown>;
   reasons: string[];
   blockers: string[];
   explanationStatus: ExplanationStatus;
