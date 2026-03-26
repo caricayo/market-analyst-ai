@@ -154,7 +154,7 @@ function getTrendStopState(trade: ManagedTrade, now: Date, peakPriceDollars: num
 
 function getScalpStopState(trade: ManagedTrade, now: Date, peakPriceDollars: number) {
   let stopPriceDollars = trade.stopPriceDollars;
-  let stopArmedAt = trade.stopArmedAt ?? now.toISOString();
+  const stopArmedAt = trade.stopArmedAt ?? now.toISOString();
   const breakevenTriggerPrice =
     trade.entryPriceDollars + tradingConfig.scalpBreakevenTriggerCents / 100;
   const trailTriggerPrice =

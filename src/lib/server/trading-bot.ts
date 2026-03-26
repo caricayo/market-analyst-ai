@@ -196,8 +196,9 @@ function getManagedTradeSettings(
   _setupType: Exclude<SetupType, "none">,
   entryPriceDollars: number,
   closeTime: string | null,
-  _minuteInWindow?: number | null,
+  minuteInWindow?: number | null,
 ) {
+  void minuteInWindow;
   const profitTargetCents = tradingConfig.scalpProfitTargetCents;
   const stopLossCents = tradingConfig.scalpStopLossCents;
   const forcedExitLeadSeconds = tradingConfig.scalpForcedExitLeadSeconds;

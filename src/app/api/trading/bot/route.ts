@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTradingBotSnapshot } from "@/lib/server/trading-bot";
+import { getBtc15mSignalSnapshot } from "@/lib/server/btc-signal-service";
 import { getServerSupabaseUser } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -12,12 +12,12 @@ export async function GET() {
       return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     }
 
-    const payload = await getTradingBotSnapshot();
+    const payload = await getBtc15mSignalSnapshot();
     return NextResponse.json(payload);
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Unable to load the trading bot snapshot.",
+        error: error instanceof Error ? error.message : "Unable to load the BTC 15-minute signal snapshot.",
       },
       { status: 500 },
     );
@@ -27,7 +27,7 @@ export async function GET() {
 export async function POST() {
   return NextResponse.json(
     {
-      error: "Manual execution is disabled. This page is now a read-only signal monitor.",
+      error: "This endpoint is read-only. The BTC 15-minute signal station does not place trades.",
     },
     { status: 405 },
   );

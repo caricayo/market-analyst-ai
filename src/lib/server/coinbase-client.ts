@@ -1,4 +1,4 @@
-import { tradingConfig } from "@/lib/server/trading-config";
+import { signalConfig } from "@/lib/server/signal-config";
 
 export type Candle = {
   start: number;
@@ -18,7 +18,7 @@ async function fetchChunk(start: Date, end: Date) {
     granularity: "60",
   });
   const url =
-    `https://api.exchange.coinbase.com/products/${encodeURIComponent(tradingConfig.coinbaseProductId)}/candles?` +
+    `https://api.exchange.coinbase.com/products/${encodeURIComponent(signalConfig.coinbaseProductId)}/candles?` +
     params.toString();
   const response = await fetch(url, {
     headers: {
@@ -62,7 +62,7 @@ export async function fetchCoinbaseCandlesInRange(start: Date, end: Date) {
 export async function fetchCoinbaseCandles() {
   const now = new Date();
   const end = new Date(now.getTime() + 60_000);
-  const lookbackMinutes = tradingConfig.lookbackCandles;
+  const lookbackMinutes = signalConfig.lookbackCandles;
   const chunkMinutes = 300;
   const chunkCount = Math.ceil(lookbackMinutes / chunkMinutes);
   const chunks: Promise<Candle[]>[] = [];

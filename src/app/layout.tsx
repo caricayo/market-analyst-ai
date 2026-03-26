@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "BTC 15-Minute Signal Monitor",
+  title: "BTC 15M Signal Station",
   description:
-    "A read-only Bitcoin 15-minute Kalshi signal monitor with Coinbase one-minute candles and deterministic intraday confidence scoring.",
+    "An auth-protected Bitcoin 15-minute Kalshi advisory station with Coinbase-led probability modeling, Supabase history, and GPT-assisted reasoning.",
 };
 
 export default function RootLayout({

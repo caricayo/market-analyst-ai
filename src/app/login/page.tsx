@@ -5,22 +5,32 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, LockKeyhole, LogOut, ShieldCheck } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
+function getInitialSearchState() {
+  if (typeof window === "undefined") {
+    return {
+      message: null as string | null,
+      nextPath: "/",
+    };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  return {
+    message: params.get("error"),
+    nextPath: params.get("next") || "/",
+  };
+}
+
 export default function LoginPage() {
   const router = useRouter();
-  const [message, setMessage] = useState<string | null>(null);
+  const [searchState] = useState(getInitialSearchState);
+  const [message, setMessage] = useState<string | null>(searchState.message);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [nextPath, setNextPath] = useState("/");
+  const [nextPath] = useState(searchState.nextPath);
 
   const envReady = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   );
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setNextPath(params.get("next") || "/");
-    setMessage(params.get("error"));
-  }, []);
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();
