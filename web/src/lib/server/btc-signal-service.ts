@@ -6,7 +6,9 @@ import {
   appendSignalSnapshot,
   getLatestSignalSnapshot,
   hydrateSignalStore,
-  listSignalHistory,
+  listSignalSnapshots,
+  listSignalWindows,
+  updateResolvedSnapshotsForWindow,
   upsertSignalWindow,
 } from "@/lib/server/btc-signal-store";
 import { signalConfig } from "@/lib/server/signal-config";
@@ -15,6 +17,8 @@ import type {
   PersistedSignalSnapshot,
   PersistedSignalWindow,
   SignalHistoryEntry,
+  SignalOutcome,
+  SignalPerformanceMetrics,
   SignalRiskLevel,
 } from "@/lib/signal-types";
 
@@ -40,7 +44,7 @@ function round(value: number | null, digits = 2) {
 function buildProgressLabel(secondsElapsed: number) {
   const minute = Math.floor(secondsElapsed / 60);
   const second = secondsElapsed % 60;
-  return `Minute ${Math.min(15, minute + 1)} · ${String(second).padStart(2, "0")}s`;
+  return `Minute ${Math.min(15, minute + 1)} - ${String(second).padStart(2, "0")}s`;
 }
 
 function toSignalRisk(secondsToClose: number): SignalRiskLevel {
@@ -65,20 +69,162 @@ async function hydrateOnce() {
   await hydrateSignalStore().catch(() => undefined);
 }
 
+function getLatestSnapshotsByWindow(limit?: number) {
+  const latestByWindow = new Map<string, PersistedSignalSnapshot>();
+
+  for (const snapshot of listSignalSnapshots()) {
+    if (!latestByWindow.has(snapshot.windowId)) {
+      latestByWindow.set(snapshot.windowId, snapshot);
+    }
+  }
+
+  const snapshots = Array.from(latestByWindow.values()).sort((left, right) =>
+    right.observedAt.localeCompare(left.observedAt),
+  );
+  return typeof limit === "number" ? snapshots.slice(0, limit) : snapshots;
+}
+
+function getPredictedDirection(snapshot: PersistedSignalSnapshot) {
+  return (snapshot.modelAboveProbability ?? 0) >= (snapshot.modelBelowProbability ?? 0)
+    ? "above"
+    : "below";
+}
+
+function getPredictedProbability(snapshot: PersistedSignalSnapshot) {
+  return getPredictedDirection(snapshot) === "above"
+    ? snapshot.modelAboveProbability
+    : snapshot.modelBelowProbability;
+}
+
+function getOutcomeResult(snapshot: PersistedSignalSnapshot): SignalOutcome | null {
+  if (!snapshot.resolutionOutcome) {
+    return null;
+  }
+
+  if (snapshot.action === "no_buy") {
+    return "skipped";
+  }
+
+  const expectedOutcome = snapshot.action === "buy_yes" ? "above" : "below";
+  return expectedOutcome === snapshot.resolutionOutcome ? "win" : "loss";
+}
+
+function getSuggestedPnl(snapshot: PersistedSignalSnapshot) {
+  if (
+    snapshot.action === "no_buy" ||
+    snapshot.buyPriceDollars === null ||
+    snapshot.suggestedContracts <= 0 ||
+    !snapshot.resolutionOutcome
+  ) {
+    return null;
+  }
+
+  const win =
+    (snapshot.action === "buy_yes" && snapshot.resolutionOutcome === "above") ||
+    (snapshot.action === "buy_no" && snapshot.resolutionOutcome === "below");
+  const perContract = win ? 1 - snapshot.buyPriceDollars : -snapshot.buyPriceDollars;
+  return round(perContract * snapshot.suggestedContracts, 2);
+}
+
 function mapHistory(): SignalHistoryEntry[] {
-  return listSignalHistory(signalConfig.historyLimit).map((entry) => ({
+  return getLatestSnapshotsByWindow(signalConfig.historyLimit).map((entry) => ({
     windowTicker: entry.marketTicker,
     observedAt: entry.observedAt,
     action: entry.action,
     contractSide: entry.contractSide,
+    predictedDirection: getPredictedDirection(entry),
     buyPriceDollars: entry.buyPriceDollars,
     fairValueDollars: entry.fairValueDollars,
     edgeDollars: entry.edgeDollars,
-    modelProbability: entry.modelAboveProbability,
+    modelProbability: getPredictedProbability(entry),
     currentPrice: entry.currentPriceDollars,
     outcome: entry.resolutionOutcome,
+    outcomeResult: getOutcomeResult(entry),
+    suggestedPnlDollars: getSuggestedPnl(entry),
     outcomeSource: entry.outcomeSource,
   }));
+}
+
+function buildCalibrationBuckets(snapshots: PersistedSignalSnapshot[]) {
+  const ranges = [
+    { label: "50-54%", min: 0.5, max: 0.55 },
+    { label: "55-59%", min: 0.55, max: 0.6 },
+    { label: "60-64%", min: 0.6, max: 0.65 },
+    { label: "65-69%", min: 0.65, max: 0.7 },
+    { label: "70-79%", min: 0.7, max: 0.8 },
+    { label: "80%+", min: 0.8, max: 1.01 },
+  ];
+
+  return ranges.map((range) => {
+    const bucketSnapshots = snapshots.filter((snapshot) => {
+      const predictedProbability = getPredictedProbability(snapshot) ?? 0;
+      return predictedProbability >= range.min && predictedProbability < range.max;
+    });
+    const hits = bucketSnapshots.filter(
+      (snapshot) => snapshot.resolutionOutcome === getPredictedDirection(snapshot),
+    ).length;
+    const avgPredictedProbability =
+      bucketSnapshots.length > 0
+        ? bucketSnapshots.reduce((sum, snapshot) => sum + (getPredictedProbability(snapshot) ?? 0), 0) /
+          bucketSnapshots.length
+        : null;
+
+    return {
+      label: range.label,
+      samples: bucketSnapshots.length,
+      hits,
+      accuracyPct: bucketSnapshots.length ? round((hits / bucketSnapshots.length) * 100, 1) : null,
+      avgPredictedProbabilityPct:
+        avgPredictedProbability !== null ? round(avgPredictedProbability * 100, 1) : null,
+    };
+  });
+}
+
+function buildPerformanceMetrics(): SignalPerformanceMetrics {
+  const resolvedWindowIds = new Set(
+    listSignalWindows()
+      .filter((window) => window.status === "resolved" && window.resolutionOutcome)
+      .map((window) => window.id),
+  );
+  const latestSnapshots = getLatestSnapshotsByWindow().filter((snapshot) =>
+    resolvedWindowIds.has(snapshot.windowId),
+  );
+  const actionableSnapshots = latestSnapshots.filter(
+    (snapshot) => snapshot.action !== "no_buy" && snapshot.buyPriceDollars !== null,
+  );
+  const directionalHits = latestSnapshots.filter(
+    (snapshot) => snapshot.resolutionOutcome === getPredictedDirection(snapshot),
+  ).length;
+  const actionableHits = actionableSnapshots.filter(
+    (snapshot) => getOutcomeResult(snapshot) === "win",
+  ).length;
+  const noBuyWindows = latestSnapshots.filter((snapshot) => snapshot.action === "no_buy").length;
+  const totalSuggestedPnl = actionableSnapshots.reduce(
+    (sum, snapshot) => sum + (getSuggestedPnl(snapshot) ?? 0),
+    0,
+  );
+  const avgEdgeCents =
+    actionableSnapshots.length > 0
+      ? actionableSnapshots.reduce((sum, snapshot) => sum + ((snapshot.edgeDollars ?? 0) * 100), 0) /
+        actionableSnapshots.length
+      : null;
+
+  return {
+    resolvedWindows: resolvedWindowIds.size,
+    directionalCalls: latestSnapshots.length,
+    directionalAccuracyPct:
+      latestSnapshots.length > 0 ? round((directionalHits / latestSnapshots.length) * 100, 1) : null,
+    actionableWindows: actionableSnapshots.length,
+    actionableAccuracyPct:
+      actionableSnapshots.length > 0 ? round((actionableHits / actionableSnapshots.length) * 100, 1) : null,
+    noBuyWindows,
+    noBuyRatePct: latestSnapshots.length > 0 ? round((noBuyWindows / latestSnapshots.length) * 100, 1) : null,
+    avgEdgeCents: avgEdgeCents !== null ? round(avgEdgeCents, 2) : null,
+    totalSuggestedPnlDollars: round(totalSuggestedPnl, 2) ?? 0,
+    avgSuggestedPnlDollars:
+      actionableSnapshots.length > 0 ? round(totalSuggestedPnl / actionableSnapshots.length, 2) : null,
+    calibration: buildCalibrationBuckets(latestSnapshots),
+  };
 }
 
 async function resolveWindowOutcome(window: PersistedSignalWindow) {
@@ -99,7 +245,7 @@ async function resolveWindowOutcome(window: PersistedSignalWindow) {
     return window;
   }
 
-  return upsertSignalWindow({
+  const resolvedWindow = await upsertSignalWindow({
     id: window.id,
     marketTicker: window.marketTicker,
     marketTitle: window.marketTitle,
@@ -112,6 +258,16 @@ async function resolveWindowOutcome(window: PersistedSignalWindow) {
     settlementProxyPriceDollars: round(settleCandle.close),
     outcomeSource: "coinbase_proxy",
   });
+
+  if (resolvedWindow.resolutionOutcome) {
+    await updateResolvedSnapshotsForWindow({
+      windowId: resolvedWindow.id,
+      resolutionOutcome: resolvedWindow.resolutionOutcome,
+      outcomeSource: "coinbase_proxy",
+    }).catch(() => undefined);
+  }
+
+  return resolvedWindow;
 }
 
 async function getWindowAnchor(now: Date) {
@@ -176,6 +332,7 @@ async function computeSnapshot() {
         conviction: [],
         caution: ["The app needs an active KXBTC15M market before it can score a trade."],
       },
+      metrics: buildPerformanceMetrics(),
       history: mapHistory(),
       warnings: ["No active BTC 15-minute Kalshi market is available right now."],
     } satisfies Btc15mSignalSnapshot;
@@ -220,6 +377,7 @@ async function computeSnapshot() {
             conviction: [],
             caution: ["The live BTC feed returned too few candles for the model."],
           },
+          metrics: buildPerformanceMetrics(),
           history: mapHistory(),
           warnings: [...warnings, "Coinbase returned too few candles for the live engine."],
         };
@@ -304,6 +462,7 @@ async function computeSnapshot() {
     features,
     recommendation,
     explanation,
+    metrics: buildPerformanceMetrics(),
     history: mapHistory(),
     warnings,
   } satisfies Btc15mSignalSnapshot;

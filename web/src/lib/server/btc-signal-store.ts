@@ -232,12 +232,51 @@ export async function appendSignalSnapshot(snapshot: PersistedSignalSnapshot) {
   return snapshot;
 }
 
+export async function updateResolvedSnapshotsForWindow(input: {
+  windowId: string;
+  resolutionOutcome: "above" | "below";
+  outcomeSource: "coinbase_proxy";
+}) {
+  signalStore.__btcSignalSnapshots = getSnapshotsStore().map((snapshot) =>
+    snapshot.windowId === input.windowId
+      ? {
+          ...snapshot,
+          resolutionOutcome: input.resolutionOutcome,
+          outcomeSource: input.outcomeSource,
+        }
+      : snapshot,
+  );
+
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) {
+    return;
+  }
+
+  await supabase
+    .from("btc_signal_snapshots")
+    .update({
+      resolution_outcome: input.resolutionOutcome,
+      outcome_source: input.outcomeSource,
+    })
+    .eq("window_id", input.windowId);
+}
+
 export function getLatestSignalSnapshot() {
   return getSnapshotsStore()[0] ?? null;
 }
 
 export function listSignalHistory(limit = 8) {
   return getSnapshotsStore().slice(0, limit);
+}
+
+export function listSignalSnapshots(limit?: number) {
+  const snapshots = getSnapshotsStore();
+  return typeof limit === "number" ? snapshots.slice(0, limit) : [...snapshots];
+}
+
+export function listSignalWindows(limit?: number) {
+  const windows = getWindowsStore();
+  return typeof limit === "number" ? windows.slice(0, limit) : [...windows];
 }
 
 export async function hydrateSignalStore(limit = 40) {
@@ -248,7 +287,7 @@ export async function hydrateSignalStore(limit = 40) {
 
   const [{ data: windowsData }, { data: snapshotsData }] = await Promise.all([
     supabase.from("btc_signal_windows").select("*").order("updated_at", { ascending: false }).limit(limit),
-    supabase.from("btc_signal_snapshots").select("*").order("observed_at", { ascending: false }).limit(100),
+    supabase.from("btc_signal_snapshots").select("*").order("observed_at", { ascending: false }).limit(300),
   ]);
 
   signalStore.__btcSignalWindows = ((windowsData ?? []) as SignalWindowRow[]).map(toWindow);

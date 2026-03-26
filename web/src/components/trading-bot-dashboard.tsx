@@ -425,6 +425,10 @@ export function TradingBotDashboard() {
                       <p className="text-sm text-slate-300">Fair value: <span className="font-semibold text-white">{formatMoney(entry.fairValueDollars, 4)}</span></p>
                       <p className="text-sm text-slate-300">Edge: <span className="font-semibold text-white">{formatMoney(entry.edgeDollars, 4)}</span></p>
                       <p className="text-sm text-slate-300">Observed spot: <span className="font-semibold text-white">{formatMoney(entry.currentPrice)}</span></p>
+                      <p className="text-sm text-slate-300">Predicted: <span className="font-semibold capitalize text-white">{entry.predictedDirection}</span></p>
+                      <p className="text-sm text-slate-300">Outcome: <span className="font-semibold capitalize text-white">{entry.outcome ?? "pending"}</span></p>
+                      <p className="text-sm text-slate-300">Result: <span className="font-semibold capitalize text-white">{entry.outcomeResult ?? "pending"}</span></p>
+                      <p className="text-sm text-slate-300">Paper PnL: <span className="font-semibold text-white">{formatMoney(entry.suggestedPnlDollars)}</span></p>
                     </div>
                   </div>
                 ))
@@ -435,8 +439,28 @@ export function TradingBotDashboard() {
           </div>
 
           <div className="rounded-[30px] border border-white/10 bg-[rgba(10,16,24,0.9)] p-6">
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Current Recommendation Envelope</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Measured Performance</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Stat
+                label="Resolved Windows"
+                value={formatNumber(snapshot?.metrics.resolvedWindows, 0)}
+                helper="Latest scored window per contract"
+              />
+              <Stat
+                label="Directional Accuracy"
+                value={formatPercent(snapshot?.metrics.directionalAccuracyPct, 1)}
+                helper={`${formatNumber(snapshot?.metrics.directionalCalls, 0)} directional calls scored`}
+              />
+              <Stat
+                label="Actionable Accuracy"
+                value={formatPercent(snapshot?.metrics.actionableAccuracyPct, 1)}
+                helper={`${formatNumber(snapshot?.metrics.actionableWindows, 0)} buy windows`}
+              />
+              <Stat
+                label="Paper PnL"
+                value={formatMoney(snapshot?.metrics.totalSuggestedPnlDollars)}
+                helper={snapshot?.metrics.avgSuggestedPnlDollars !== null ? `${formatMoney(snapshot?.metrics.avgSuggestedPnlDollars)} average per buy` : "No resolved buys yet"}
+              />
               <Stat
                 label="Model ABOVE"
                 value={formatPercent(
@@ -463,9 +487,9 @@ export function TradingBotDashboard() {
                 helper={snapshot?.explanation.model ?? "No model"}
               />
               <Stat
-                label="Last Refresh"
-                value={formatTimestamp(snapshot?.generatedAt)}
-                helper={state.loading ? "Refreshing..." : "Polling every 5 seconds"}
+                label="No-Buy Rate"
+                value={formatPercent(snapshot?.metrics.noBuyRatePct, 1)}
+                helper={`${formatNumber(snapshot?.metrics.noBuyWindows, 0)} resolved windows skipped`}
               />
             </div>
 
@@ -477,6 +501,38 @@ export function TradingBotDashboard() {
                 ) : (
                   <p>No active blockers. The current signal is actionable.</p>
                 )}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Calibration Buckets</p>
+              <div className="mt-3 grid gap-3">
+                {snapshot?.metrics.calibration.length ? (
+                  snapshot.metrics.calibration.map((bucket) => (
+                    <div key={bucket.label} className="rounded-[18px] border border-white/10 bg-white/5 px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm font-medium text-white">{bucket.label}</p>
+                        <p className="text-sm text-slate-300">
+                          {formatPercent(bucket.accuracyPct, 1)} accuracy on {formatNumber(bucket.samples, 0)} samples
+                        </p>
+                      </div>
+                      <p className="mt-2 text-xs text-slate-400">
+                        Avg predicted probability: {formatPercent(bucket.avgPredictedProbabilityPct, 1)}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-300">Calibration will appear once enough resolved windows accumulate.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Ops</p>
+              <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-200">
+                <p>Avg live edge on buys: {formatNumber(snapshot?.metrics.avgEdgeCents, 2)} cents.</p>
+                <p>Last refresh: {formatTimestamp(snapshot?.generatedAt)}.</p>
+                <p>{state.loading ? "Refreshing..." : "Polling every 5 seconds."}</p>
               </div>
             </div>
           </div>

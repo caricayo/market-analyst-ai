@@ -1,6 +1,8 @@
 export type SignalAction = "buy_yes" | "buy_no" | "no_buy";
 export type SignalRiskLevel = "fresh" | "developing" | "late" | "closing";
 export type TrendBias = "bullish" | "bearish" | "neutral";
+export type SignalDirection = "above" | "below";
+export type SignalOutcome = "win" | "loss" | "skipped";
 
 export type KalshiBtcWindowSnapshot = {
   ticker: string;
@@ -86,13 +88,38 @@ export type SignalHistoryEntry = {
   observedAt: string;
   action: SignalAction;
   contractSide: "yes" | "no" | null;
+  predictedDirection: SignalDirection;
   buyPriceDollars: number | null;
   fairValueDollars: number | null;
   edgeDollars: number | null;
   modelProbability: number | null;
   currentPrice: number | null;
   outcome: "above" | "below" | null;
+  outcomeResult: SignalOutcome | null;
+  suggestedPnlDollars: number | null;
   outcomeSource: "coinbase_proxy" | null;
+};
+
+export type SignalCalibrationBucket = {
+  label: string;
+  samples: number;
+  hits: number;
+  accuracyPct: number | null;
+  avgPredictedProbabilityPct: number | null;
+};
+
+export type SignalPerformanceMetrics = {
+  resolvedWindows: number;
+  directionalCalls: number;
+  directionalAccuracyPct: number | null;
+  actionableWindows: number;
+  actionableAccuracyPct: number | null;
+  noBuyWindows: number;
+  noBuyRatePct: number | null;
+  avgEdgeCents: number | null;
+  totalSuggestedPnlDollars: number;
+  avgSuggestedPnlDollars: number | null;
+  calibration: SignalCalibrationBucket[];
 };
 
 export type Btc15mSignalSnapshot = {
@@ -102,6 +129,7 @@ export type Btc15mSignalSnapshot = {
   features: BtcSignalFeatures | null;
   recommendation: SignalRecommendation | null;
   explanation: SignalExplanation;
+  metrics: SignalPerformanceMetrics;
   history: SignalHistoryEntry[];
   warnings: string[];
 };
