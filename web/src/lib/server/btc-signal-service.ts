@@ -15,6 +15,7 @@ import { signalConfig } from "@/lib/server/signal-config";
 import type {
   BtcReversalSignal,
   Btc15mSignalSnapshot,
+  KalshiBtcWindowSnapshot,
   PersistedSignalSnapshot,
   PersistedSignalWindow,
   SignalHistoryEntry,
@@ -400,6 +401,13 @@ async function getWindowAnchor(now: Date) {
   return { market, window };
 }
 
+function hydrateMarketStrike(market: KalshiBtcWindowSnapshot, window: PersistedSignalWindow): KalshiBtcWindowSnapshot {
+  return {
+    ...market,
+    strikePrice: market.strikePrice ?? window.strikePriceDollars,
+  };
+}
+
 async function computeSnapshot() {
   await hydrateOnce();
   const warnings: string[] = [];
@@ -491,7 +499,8 @@ async function computeSnapshot() {
         };
   }
 
-  const latestMarket = await fetchKalshiWindowByTicker(market.ticker).catch(() => market);
+  const fetchedMarket = await fetchKalshiWindowByTicker(market.ticker).catch(() => market);
+  const latestMarket = hydrateMarketStrike(fetchedMarket, window);
   const { features } = buildBtcSignalFeatures({
     candles,
     market: latestMarket,
