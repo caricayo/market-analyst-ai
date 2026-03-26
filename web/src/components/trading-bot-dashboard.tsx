@@ -280,15 +280,29 @@ export function TradingBotDashboard() {
               <div className="rounded-[30px] border border-white/10 bg-[#0d141c] p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Price To Beat</p>
+                    <p className="text-xs uppercase tracking-[0.3em] text-slate-500">BTC Price To Beat</p>
                     <p className={`mt-3 text-4xl font-black tracking-[0.08em] ${tone.accent}`}>
-                      {formatMoney(recommendation?.buyPriceDollars)}
+                      {formatMoney(snapshot?.window.market?.strikePrice)}
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-slate-400">
+                      Settlement strike for the active 15-minute Kalshi window.
                     </p>
                   </div>
                   <CandlestickChart className="h-10 w-10 text-white/25" />
                 </div>
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <Stat
+                    label="Selected Contract Ask"
+                    value={formatMoney(recommendation?.buyPriceDollars)}
+                    helper={
+                      recommendation?.action === "buy_yes"
+                        ? "Current YES ask for the bot's preferred side"
+                        : recommendation?.action === "buy_no"
+                          ? "Current NO ask for the bot's preferred side"
+                          : "No active buy side right now"
+                    }
+                  />
                   <Stat
                     label="Model Fair Value"
                     value={formatMoney(recommendation?.fairValueDollars, 4)}
@@ -300,12 +314,12 @@ export function TradingBotDashboard() {
                     helper={recommendation?.edgePct !== null ? `${formatPercent(recommendation?.edgePct)} over ask` : "No edge"}
                   />
                   <Stat
-                    label="YES Ask / Bid"
-                    value={`${formatMoney(snapshot?.window.market?.yesAskPrice)} / ${formatMoney(snapshot?.window.market?.yesBidPrice)}`}
-                  />
-                  <Stat
                     label="NO Ask / Bid"
                     value={`${formatMoney(snapshot?.window.market?.noAskPrice)} / ${formatMoney(snapshot?.window.market?.noBidPrice)}`}
+                  />
+                  <Stat
+                    label="YES Ask / Bid"
+                    value={`${formatMoney(snapshot?.window.market?.yesAskPrice)} / ${formatMoney(snapshot?.window.market?.yesBidPrice)}`}
                   />
                 </div>
               </div>
