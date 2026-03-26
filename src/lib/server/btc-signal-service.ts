@@ -377,6 +377,14 @@ async function resolveWindowOutcome(window: PersistedSignalWindow) {
   return resolvedWindow;
 }
 
+async function resolveOverdueWindows() {
+  const activeWindows = listSignalWindows().filter((window) => window.status === "active" && window.closeTime);
+
+  for (const window of activeWindows) {
+    await resolveWindowOutcome(window).catch(() => undefined);
+  }
+}
+
 async function getWindowAnchor(now: Date) {
   const market = await discoverActiveBtcWindow(now);
   if (!market || !market.closeTime) {
@@ -410,6 +418,7 @@ function hydrateMarketStrike(market: KalshiBtcWindowSnapshot, window: PersistedS
 
 async function computeSnapshot() {
   await hydrateOnce();
+  await resolveOverdueWindows();
   const warnings: string[] = [];
   const now = new Date();
   const { market, window } = await getWindowAnchor(now);
