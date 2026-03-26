@@ -88,7 +88,11 @@ export type SignalHistoryEntry = {
   observedAt: string;
   action: SignalAction;
   contractSide: "yes" | "no" | null;
+  finalAction: SignalAction;
+  finalContractSide: "yes" | "no" | null;
+  flippedAfterOpen: boolean;
   predictedDirection: SignalDirection;
+  finalPredictedDirection: SignalDirection;
   buyPriceDollars: number | null;
   fairValueDollars: number | null;
   edgeDollars: number | null;
@@ -110,10 +114,13 @@ export type SignalCalibrationBucket = {
 
 export type SignalPerformanceMetrics = {
   resolvedWindows: number;
-  directionalCalls: number;
-  directionalAccuracyPct: number | null;
-  actionableWindows: number;
-  actionableAccuracyPct: number | null;
+  openingSuggestionWindows: number;
+  openingSuggestionAccuracyPct: number | null;
+  openingActionableWindows: number;
+  openingActionableAccuracyPct: number | null;
+  finalSnapshotAccuracyPct: number | null;
+  flipWindows: number;
+  flipRatePct: number | null;
   noBuyWindows: number;
   noBuyRatePct: number | null;
   avgEdgeCents: number | null;

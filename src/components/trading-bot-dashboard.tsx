@@ -425,7 +425,10 @@ export function TradingBotDashboard() {
                       <p className="text-sm text-slate-300">Fair value: <span className="font-semibold text-white">{formatMoney(entry.fairValueDollars, 4)}</span></p>
                       <p className="text-sm text-slate-300">Edge: <span className="font-semibold text-white">{formatMoney(entry.edgeDollars, 4)}</span></p>
                       <p className="text-sm text-slate-300">Observed spot: <span className="font-semibold text-white">{formatMoney(entry.currentPrice)}</span></p>
-                      <p className="text-sm text-slate-300">Predicted: <span className="font-semibold capitalize text-white">{entry.predictedDirection}</span></p>
+                      <p className="text-sm text-slate-300">Opening lean: <span className="font-semibold capitalize text-white">{entry.predictedDirection}</span></p>
+                      <p className="text-sm text-slate-300">Final lean: <span className="font-semibold capitalize text-white">{entry.finalPredictedDirection}</span></p>
+                      <p className="text-sm text-slate-300">Final action: <span className="font-semibold capitalize text-white">{entry.finalAction.replace("_", " ")}</span></p>
+                      <p className="text-sm text-slate-300">Flipped after open: <span className="font-semibold text-white">{entry.flippedAfterOpen ? "Yes" : "No"}</span></p>
                       <p className="text-sm text-slate-300">Outcome: <span className="font-semibold capitalize text-white">{entry.outcome ?? "pending"}</span></p>
                       <p className="text-sm text-slate-300">Result: <span className="font-semibold capitalize text-white">{entry.outcomeResult ?? "pending"}</span></p>
                       <p className="text-sm text-slate-300">Paper PnL: <span className="font-semibold text-white">{formatMoney(entry.suggestedPnlDollars)}</span></p>
@@ -444,22 +447,27 @@ export function TradingBotDashboard() {
               <Stat
                 label="Resolved Windows"
                 value={formatNumber(snapshot?.metrics.resolvedWindows, 0)}
-                helper="Latest scored window per contract"
+                helper="Windows with a resolved opening snapshot"
               />
               <Stat
-                label="Directional Accuracy"
-                value={formatPercent(snapshot?.metrics.directionalAccuracyPct, 1)}
-                helper={`${formatNumber(snapshot?.metrics.directionalCalls, 0)} directional calls scored`}
+                label="Opening Accuracy"
+                value={formatPercent(snapshot?.metrics.openingSuggestionAccuracyPct, 1)}
+                helper={`${formatNumber(snapshot?.metrics.openingSuggestionWindows, 0)} first-window calls scored`}
               />
               <Stat
-                label="Actionable Accuracy"
-                value={formatPercent(snapshot?.metrics.actionableAccuracyPct, 1)}
-                helper={`${formatNumber(snapshot?.metrics.actionableWindows, 0)} buy windows`}
+                label="Opening Buy Accuracy"
+                value={formatPercent(snapshot?.metrics.openingActionableAccuracyPct, 1)}
+                helper={`${formatNumber(snapshot?.metrics.openingActionableWindows, 0)} first-buy windows`}
               />
               <Stat
-                label="Paper PnL"
-                value={formatMoney(snapshot?.metrics.totalSuggestedPnlDollars)}
-                helper={snapshot?.metrics.avgSuggestedPnlDollars !== null ? `${formatMoney(snapshot?.metrics.avgSuggestedPnlDollars)} average per buy` : "No resolved buys yet"}
+                label="Final Snapshot Accuracy"
+                value={formatPercent(snapshot?.metrics.finalSnapshotAccuracyPct, 1)}
+                helper="Diagnostic only after any intrawindow flips"
+              />
+              <Stat
+                label="Flip Rate"
+                value={formatPercent(snapshot?.metrics.flipRatePct, 1)}
+                helper={`${formatNumber(snapshot?.metrics.flipWindows, 0)} windows changed action after open`}
               />
               <Stat
                 label="Model ABOVE"
@@ -480,6 +488,11 @@ export function TradingBotDashboard() {
                     : null,
                 )}
                 helper="Complement probability"
+              />
+              <Stat
+                label="Paper PnL"
+                value={formatMoney(snapshot?.metrics.totalSuggestedPnlDollars)}
+                helper={snapshot?.metrics.avgSuggestedPnlDollars !== null ? `${formatMoney(snapshot?.metrics.avgSuggestedPnlDollars)} average per opening buy` : "No resolved opening buys yet"}
               />
               <Stat
                 label="GPT Layer"

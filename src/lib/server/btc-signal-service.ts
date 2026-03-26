@@ -69,19 +69,39 @@ async function hydrateOnce() {
   await hydrateSignalStore().catch(() => undefined);
 }
 
-function getLatestSnapshotsByWindow(limit?: number) {
-  const latestByWindow = new Map<string, PersistedSignalSnapshot>();
+type WindowSnapshotSeries = {
+  windowId: string;
+  first: PersistedSignalSnapshot;
+  latest: PersistedSignalSnapshot;
+  snapshots: PersistedSignalSnapshot[];
+};
+
+function getWindowSnapshotSeries(limit?: number) {
+  const seriesByWindow = new Map<string, PersistedSignalSnapshot[]>();
 
   for (const snapshot of listSignalSnapshots()) {
-    if (!latestByWindow.has(snapshot.windowId)) {
-      latestByWindow.set(snapshot.windowId, snapshot);
+    const series = seriesByWindow.get(snapshot.windowId);
+    if (series) {
+      series.push(snapshot);
+    } else {
+      seriesByWindow.set(snapshot.windowId, [snapshot]);
     }
   }
 
-  const snapshots = Array.from(latestByWindow.values()).sort((left, right) =>
-    right.observedAt.localeCompare(left.observedAt),
-  );
-  return typeof limit === "number" ? snapshots.slice(0, limit) : snapshots;
+  const series = Array.from(seriesByWindow.entries())
+    .map(([windowId, snapshots]) => ({
+      windowId,
+      first: snapshots.at(-1) ?? snapshots[0],
+      latest: snapshots[0],
+      snapshots,
+    }))
+    .filter(
+      (entry): entry is WindowSnapshotSeries =>
+        Boolean(entry.first) && Boolean(entry.latest) && entry.snapshots.length > 0,
+    )
+    .sort((left, right) => right.first.observedAt.localeCompare(left.first.observedAt));
+
+  return typeof limit === "number" ? series.slice(0, limit) : series;
 }
 
 function getPredictedDirection(snapshot: PersistedSignalSnapshot) {
@@ -94,6 +114,15 @@ function getPredictedProbability(snapshot: PersistedSignalSnapshot) {
   return getPredictedDirection(snapshot) === "above"
     ? snapshot.modelAboveProbability
     : snapshot.modelBelowProbability;
+}
+
+function hasDecisionFlip(series: PersistedSignalSnapshot[]) {
+  if (series.length <= 1) {
+    return false;
+  }
+
+  const openingAction = series.at(-1)?.action ?? series[0]?.action;
+  return series.some((snapshot) => snapshot.action !== openingAction);
 }
 
 function getOutcomeResult(snapshot: PersistedSignalSnapshot): SignalOutcome | null {
@@ -127,21 +156,25 @@ function getSuggestedPnl(snapshot: PersistedSignalSnapshot) {
 }
 
 function mapHistory(): SignalHistoryEntry[] {
-  return getLatestSnapshotsByWindow(signalConfig.historyLimit).map((entry) => ({
-    windowTicker: entry.marketTicker,
-    observedAt: entry.observedAt,
-    action: entry.action,
-    contractSide: entry.contractSide,
-    predictedDirection: getPredictedDirection(entry),
-    buyPriceDollars: entry.buyPriceDollars,
-    fairValueDollars: entry.fairValueDollars,
-    edgeDollars: entry.edgeDollars,
-    modelProbability: getPredictedProbability(entry),
-    currentPrice: entry.currentPriceDollars,
-    outcome: entry.resolutionOutcome,
-    outcomeResult: getOutcomeResult(entry),
-    suggestedPnlDollars: getSuggestedPnl(entry),
-    outcomeSource: entry.outcomeSource,
+  return getWindowSnapshotSeries(signalConfig.historyLimit).map((entry) => ({
+    windowTicker: entry.first.marketTicker,
+    observedAt: entry.first.observedAt,
+    action: entry.first.action,
+    contractSide: entry.first.contractSide,
+    finalAction: entry.latest.action,
+    finalContractSide: entry.latest.contractSide,
+    flippedAfterOpen: hasDecisionFlip(entry.snapshots),
+    predictedDirection: getPredictedDirection(entry.first),
+    finalPredictedDirection: getPredictedDirection(entry.latest),
+    buyPriceDollars: entry.first.buyPriceDollars,
+    fairValueDollars: entry.first.fairValueDollars,
+    edgeDollars: entry.first.edgeDollars,
+    modelProbability: getPredictedProbability(entry.first),
+    currentPrice: entry.first.currentPriceDollars,
+    outcome: entry.first.resolutionOutcome,
+    outcomeResult: getOutcomeResult(entry.first),
+    suggestedPnlDollars: getSuggestedPnl(entry.first),
+    outcomeSource: entry.first.outcomeSource,
   }));
 }
 
@@ -186,19 +219,25 @@ function buildPerformanceMetrics(): SignalPerformanceMetrics {
       .filter((window) => window.status === "resolved" && window.resolutionOutcome)
       .map((window) => window.id),
   );
-  const latestSnapshots = getLatestSnapshotsByWindow().filter((snapshot) =>
-    resolvedWindowIds.has(snapshot.windowId),
+  const resolvedSeries = getWindowSnapshotSeries().filter((entry) =>
+    resolvedWindowIds.has(entry.windowId),
   );
-  const actionableSnapshots = latestSnapshots.filter(
+  const openingSnapshots = resolvedSeries.map((entry) => entry.first);
+  const latestSnapshots = resolvedSeries.map((entry) => entry.latest);
+  const actionableSnapshots = openingSnapshots.filter(
     (snapshot) => snapshot.action !== "no_buy" && snapshot.buyPriceDollars !== null,
   );
-  const directionalHits = latestSnapshots.filter(
+  const openingHits = openingSnapshots.filter(
+    (snapshot) => snapshot.resolutionOutcome === getPredictedDirection(snapshot),
+  ).length;
+  const finalHits = latestSnapshots.filter(
     (snapshot) => snapshot.resolutionOutcome === getPredictedDirection(snapshot),
   ).length;
   const actionableHits = actionableSnapshots.filter(
     (snapshot) => getOutcomeResult(snapshot) === "win",
   ).length;
-  const noBuyWindows = latestSnapshots.filter((snapshot) => snapshot.action === "no_buy").length;
+  const noBuyWindows = openingSnapshots.filter((snapshot) => snapshot.action === "no_buy").length;
+  const flipWindows = resolvedSeries.filter((entry) => hasDecisionFlip(entry.snapshots)).length;
   const totalSuggestedPnl = actionableSnapshots.reduce(
     (sum, snapshot) => sum + (getSuggestedPnl(snapshot) ?? 0),
     0,
@@ -211,19 +250,24 @@ function buildPerformanceMetrics(): SignalPerformanceMetrics {
 
   return {
     resolvedWindows: resolvedWindowIds.size,
-    directionalCalls: latestSnapshots.length,
-    directionalAccuracyPct:
-      latestSnapshots.length > 0 ? round((directionalHits / latestSnapshots.length) * 100, 1) : null,
-    actionableWindows: actionableSnapshots.length,
-    actionableAccuracyPct:
+    openingSuggestionWindows: openingSnapshots.length,
+    openingSuggestionAccuracyPct:
+      openingSnapshots.length > 0 ? round((openingHits / openingSnapshots.length) * 100, 1) : null,
+    openingActionableWindows: actionableSnapshots.length,
+    openingActionableAccuracyPct:
       actionableSnapshots.length > 0 ? round((actionableHits / actionableSnapshots.length) * 100, 1) : null,
+    finalSnapshotAccuracyPct:
+      latestSnapshots.length > 0 ? round((finalHits / latestSnapshots.length) * 100, 1) : null,
+    flipWindows,
+    flipRatePct:
+      resolvedSeries.length > 0 ? round((flipWindows / resolvedSeries.length) * 100, 1) : null,
     noBuyWindows,
-    noBuyRatePct: latestSnapshots.length > 0 ? round((noBuyWindows / latestSnapshots.length) * 100, 1) : null,
+    noBuyRatePct: openingSnapshots.length > 0 ? round((noBuyWindows / openingSnapshots.length) * 100, 1) : null,
     avgEdgeCents: avgEdgeCents !== null ? round(avgEdgeCents, 2) : null,
     totalSuggestedPnlDollars: round(totalSuggestedPnl, 2) ?? 0,
     avgSuggestedPnlDollars:
       actionableSnapshots.length > 0 ? round(totalSuggestedPnl / actionableSnapshots.length, 2) : null,
-    calibration: buildCalibrationBuckets(latestSnapshots),
+    calibration: buildCalibrationBuckets(openingSnapshots),
   };
 }
 
