@@ -1,10 +1,9 @@
 {
   "name": "market-analyst-ai-root",
   "private": true,
+  "type": "module",
   "scripts": {
-    "postinstall": "npm --prefix web ci",
-    "build": "npm --prefix web run build",
-    "start": "npm --prefix web run start",
-    "lint": "npm --prefix web run lint"
+    "build": "node --check backend/server.mjs",
+    "start": "node backend/server.mjs"
   }
 }

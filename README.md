@@ -1,6 +1,6 @@
 # BTC 15-Minute Kalshi Bot
 
-Railway deploys the `web/` app. The repository root now only holds shared repo assets like `supabase/` and this README.
+Railway deploys the user-facing app from `web/`. The repository root now hosts a minimal dedicated backend service for the separate Railway `backend` service.
 
 This project is now a Bitcoin 15-minute Kalshi trading console built on the same Next.js 16 infrastructure. It:
 
