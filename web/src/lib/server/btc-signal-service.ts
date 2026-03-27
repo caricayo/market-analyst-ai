@@ -1,6 +1,11 @@
 import { fetchCoinbaseCandles, fetchCoinbaseCandlesInRange } from "@/lib/server/coinbase-client";
 import { discoverActiveBtcWindow, fetchKalshiWindowByTicker } from "@/lib/server/btc-kalshi-client";
 import { buildSignalExplanation } from "@/lib/server/btc-explainer";
+import {
+  getSignalExecutionByWindowTicker,
+  hydrateSignalExecutions,
+  listSignalExecutions,
+} from "@/lib/server/btc-signal-execution-store";
 import { buildBtcSignalFeatures, buildReversalSignal, buildSignalRecommendation } from "@/lib/server/btc-signal-model";
 import {
   appendSignalSnapshot,
@@ -15,7 +20,9 @@ import { signalConfig } from "@/lib/server/signal-config";
 import type {
   BtcReversalSignal,
   Btc15mSignalSnapshot,
+  BtcSignalExecution,
   KalshiBtcWindowSnapshot,
+  PersistedSignalExecution,
   PersistedSignalSnapshot,
   PersistedSignalWindow,
   SignalHistoryEntry,
@@ -68,7 +75,10 @@ async function hydrateOnce() {
   }
 
   runtimeStore.__btcSignalHydrated = true;
-  await hydrateSignalStore().catch(() => undefined);
+  await Promise.all([
+    hydrateSignalStore().catch(() => undefined),
+    hydrateSignalExecutions().catch(() => undefined),
+  ]);
 }
 
 type WindowSnapshotSeries = {
@@ -239,6 +249,36 @@ function mapHistory(): SignalHistoryEntry[] {
     suggestedPnlDollars: getSuggestedPnl(entry.first),
     outcomeSource: entry.first.outcomeSource,
   }));
+}
+
+function toPublicExecutionStatus(execution: PersistedSignalExecution | null): BtcSignalExecution | null {
+  if (!execution) {
+    return null;
+  }
+
+  return {
+    windowId: execution.windowId,
+    windowTicker: execution.windowTicker,
+    status: execution.status,
+    lockedAction: execution.lockedAction,
+    lockedSide: execution.lockedSide,
+    decisionObservedAt: execution.decisionObservedAt,
+    submittedAt: execution.submittedAt,
+    entryPriceDollars: execution.entryPriceDollars,
+    submittedContracts: execution.submittedContracts,
+    filledContracts: execution.filledContracts,
+    maxCostDollars: execution.maxCostDollars,
+    orderId: execution.orderId,
+    clientOrderId: execution.clientOrderId,
+    message: execution.message,
+    resolutionOutcome: execution.resolutionOutcome,
+    realizedPnlDollars: execution.realizedPnlDollars,
+    updatedAt: execution.updatedAt,
+  };
+}
+
+function listRecentExecutionStatuses(limit = 8) {
+  return listSignalExecutions(limit).map((execution) => toPublicExecutionStatus(execution)).filter(Boolean) as BtcSignalExecution[];
 }
 
 function buildCalibrationBuckets(snapshots: PersistedSignalSnapshot[]) {
@@ -449,6 +489,8 @@ async function computeSnapshot() {
       features: null,
       reversal: null,
       recommendation: null,
+      execution: null,
+      recentExecutions: listRecentExecutionStatuses(),
       explanation: {
         status: "fallback",
         model: null,
@@ -495,6 +537,8 @@ async function computeSnapshot() {
           features: null,
           reversal: null,
           recommendation: null,
+          execution: market?.ticker ? toPublicExecutionStatus(getSignalExecutionByWindowTicker(market.ticker)) : null,
+          recentExecutions: listRecentExecutionStatuses(),
           explanation: {
             status: "fallback",
             model: null,
@@ -595,6 +639,8 @@ async function computeSnapshot() {
     features,
     reversal,
     recommendation,
+    execution: toPublicExecutionStatus(getSignalExecutionByWindowTicker(latestMarket.ticker)),
+    recentExecutions: listRecentExecutionStatuses(),
     explanation,
     metrics: buildPerformanceMetrics(),
     history: mapHistory(),

@@ -6,6 +6,14 @@ export type SignalOutcome = "win" | "loss" | "skipped";
 export type ReversalWatchStatus = "none" | "building" | "soon";
 export type ReversalActiveStatus = "none" | "starting" | "active";
 export type ReversalDirection = "bullish" | "bearish" | "neutral";
+export type SignalExecutionStatus =
+  | "waiting"
+  | "submitted"
+  | "partial_fill"
+  | "unfilled"
+  | "skipped_no_signal"
+  | "error"
+  | "resolved";
 
 export type KalshiBtcWindowSnapshot = {
   ticker: string;
@@ -134,6 +142,26 @@ export type SignalCalibrationBucket = {
   avgPredictedProbabilityPct: number | null;
 };
 
+export type BtcSignalExecution = {
+  windowId: string | null;
+  windowTicker: string | null;
+  status: SignalExecutionStatus;
+  lockedAction: SignalAction | null;
+  lockedSide: "yes" | "no" | null;
+  decisionObservedAt: string | null;
+  submittedAt: string | null;
+  entryPriceDollars: number | null;
+  submittedContracts: number;
+  filledContracts: number;
+  maxCostDollars: number | null;
+  orderId: string | null;
+  clientOrderId: string | null;
+  message: string;
+  resolutionOutcome: "above" | "below" | null;
+  realizedPnlDollars: number | null;
+  updatedAt: string | null;
+};
+
 export type SignalPerformanceMetrics = {
   resolvedWindows: number;
   openingSuggestionWindows: number;
@@ -158,6 +186,8 @@ export type Btc15mSignalSnapshot = {
   features: BtcSignalFeatures | null;
   reversal: BtcReversalSignal | null;
   recommendation: SignalRecommendation | null;
+  execution: BtcSignalExecution | null;
+  recentExecutions: BtcSignalExecution[];
   explanation: SignalExplanation;
   metrics: SignalPerformanceMetrics;
   history: SignalHistoryEntry[];
@@ -205,4 +235,27 @@ export type PersistedSignalSnapshot = {
   explanationSummary: string | null;
   resolutionOutcome: "above" | "below" | null;
   outcomeSource: "coinbase_proxy" | null;
+};
+
+export type PersistedSignalExecution = {
+  id: string;
+  windowId: string;
+  windowTicker: string;
+  status: SignalExecutionStatus;
+  lockedAction: SignalAction | null;
+  lockedSide: "yes" | "no" | null;
+  decisionSnapshotId: string | null;
+  decisionObservedAt: string | null;
+  submittedAt: string | null;
+  entryPriceDollars: number | null;
+  submittedContracts: number;
+  filledContracts: number;
+  maxCostDollars: number | null;
+  orderId: string | null;
+  clientOrderId: string | null;
+  message: string;
+  resolutionOutcome: "above" | "below" | null;
+  realizedPnlDollars: number | null;
+  createdAt: string;
+  updatedAt: string;
 };

@@ -32,6 +32,8 @@ export const signalConfig = {
   minimumEdgeCents: Math.max(1, Math.min(25, parseNumber(process.env.BTC_SIGNAL_MIN_EDGE_CENTS, 4))),
   minimumConfidence: Math.max(50, Math.min(98, parseNumber(process.env.BTC_SIGNAL_MIN_CONFIDENCE, 59))),
   historyLimit: Math.max(4, Math.min(24, Math.round(parseNumber(process.env.BTC_SIGNAL_HISTORY_LIMIT, 8)))),
+  executionEnabled: parseBoolean(process.env.BTC_SIGNAL_AUTO_EXECUTE_ENABLED, false),
+  executionStakeDollars: Math.max(1, parseNumber(process.env.BTC_SIGNAL_EXECUTION_STAKE_DOLLARS, 5)),
   explanationEnabled: parseBoolean(process.env.BTC_SIGNAL_EXPLANATION_ENABLED, true),
   explanationModel: process.env.OPENAI_SIGNAL_MODEL?.trim() || "gpt-5-mini",
   openAiApiKey: process.env.OPENAI_API_KEY?.trim() || "",

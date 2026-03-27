@@ -124,6 +124,31 @@ function reversalTone(direction: "bullish" | "bearish" | "neutral") {
   }
 }
 
+function executionTone(status: Btc15mSignalSnapshot["execution"] extends infer T
+  ? T extends { status: infer S }
+    ? S
+    : never
+  : never) {
+  switch (status) {
+    case "submitted":
+    case "partial_fill":
+    case "resolved":
+      return "border-emerald-300/35 bg-emerald-400/15 text-emerald-50";
+    case "error":
+    case "unfilled":
+      return "border-rose-300/35 bg-rose-400/15 text-rose-50";
+    default:
+      return "border-amber-300/35 bg-amber-300/15 text-amber-50";
+  }
+}
+
+function formatAction(action: SignalAction | null | undefined) {
+  if (!action) {
+    return "n/a";
+  }
+  return action.replace("_", " ").toUpperCase();
+}
+
 function Stat({
   label,
   value,
@@ -190,6 +215,8 @@ export function TradingBotDashboard() {
   const tone = actionTone(recommendation?.action ?? "no_buy");
   const reversal = snapshot?.reversal;
   const reversalSkin = reversalTone(reversal?.direction ?? "neutral");
+  const execution = snapshot?.execution;
+  const executionPill = executionTone(execution?.status ?? "waiting");
   const latestWarning = snapshot?.warnings?.[0] ?? null;
   const factorRows = useMemo(() => {
     if (!snapshot?.features) {
@@ -440,6 +467,76 @@ export function TradingBotDashboard() {
                   <p className="text-sm text-slate-300">Factor scores will appear once the first live snapshot lands.</p>
                 )}
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+          <div className="rounded-[30px] border border-white/10 bg-[rgba(10,16,24,0.9)] p-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Signal Execution</p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${executionPill}`}>
+                {execution?.status ?? "waiting"}
+              </div>
+              <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200">
+                {formatAction(execution?.lockedAction)}
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Stat
+                label="Locked Side"
+                value={execution?.lockedSide?.toUpperCase() ?? "WAITING"}
+                helper="First actionable Buy YES/NO is the only tradable decision for the window."
+              />
+              <Stat
+                label="Stake"
+                value={formatMoney(execution?.maxCostDollars)}
+                helper={`${formatNumber(execution?.filledContracts, 0)} filled of ${formatNumber(execution?.submittedContracts, 0)} submitted`}
+              />
+              <Stat
+                label="Entry Price"
+                value={formatMoney(execution?.entryPriceDollars, 4)}
+                helper={execution?.submittedAt ? `Submitted ${formatTimestamp(execution.submittedAt)}` : "No order submitted yet"}
+              />
+              <Stat
+                label="Settlement PnL"
+                value={formatMoney(execution?.realizedPnlDollars)}
+                helper={execution?.resolutionOutcome ? `Resolved ${execution.resolutionOutcome}` : "Holding to settlement if filled"}
+              />
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Execution Message</p>
+              <p className="mt-3 text-sm leading-6 text-slate-200">
+                {execution?.message ?? "Waiting for the first actionable Buy YES or Buy NO signal in this window."}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-[30px] border border-white/10 bg-[rgba(10,16,24,0.9)] p-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Recent Executions</p>
+            <div className="mt-4 grid gap-3">
+              {snapshot?.recentExecutions?.length ? (
+                snapshot.recentExecutions.map((entry) => (
+                  <div key={`${entry.windowTicker}-${entry.updatedAt}`} className="rounded-[22px] border border-white/10 bg-black/20 px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-white">{entry.windowTicker}</p>
+                      <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${executionTone(entry.status)}`}>
+                        {entry.status}
+                      </div>
+                    </div>
+                    <div className="mt-2 grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+                      <p>Action: <span className="font-semibold text-white">{formatAction(entry.lockedAction)}</span></p>
+                      <p>Side: <span className="font-semibold uppercase text-white">{entry.lockedSide ?? "n/a"}</span></p>
+                      <p>Filled: <span className="font-semibold text-white">{formatNumber(entry.filledContracts, 0)}</span></p>
+                      <p>PnL: <span className="font-semibold text-white">{formatMoney(entry.realizedPnlDollars)}</span></p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-300">No signal-following executions have been recorded yet.</p>
+              )}
             </div>
           </div>
         </section>
