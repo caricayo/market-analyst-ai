@@ -26,7 +26,9 @@ function round(value: number | null, digits = 2) {
 }
 
 function buildClientOrderId(windowTicker: string, side: "yes" | "no") {
-  return `btcsignal-${windowTicker}-${side}-${crypto.randomUUID()}`;
+  const compactTicker = windowTicker.replace(/[^A-Za-z0-9]/g, "").slice(-12);
+  const compactUuid = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  return `bsig-${compactTicker}-${side[0]}-${compactUuid}`;
 }
 
 function getSideAskPrice(
