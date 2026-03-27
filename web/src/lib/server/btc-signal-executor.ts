@@ -461,7 +461,7 @@ async function runMakerFirstEntry(input: { snapshot: Awaited<ReturnType<typeof g
   const targetSpendDollars = signalConfig.executionStakeDollars;
   const retryDeadline = Date.now() + Math.max(0, snapshot.window.secondsToClose * 1_000);
   const makerDeadline = Math.min(retryDeadline, Date.now() + Math.max(0, signalConfig.executionMakerWindowSeconds * 1_000));
-  let lastKnownAsk = getSideAskPrice(market, side) ?? snapshot.recommendation?.buyPriceDollars ?? 0;
+  const lastKnownAsk = getSideAskPrice(market, side) ?? snapshot.recommendation?.buyPriceDollars ?? 0;
   const preCheckPrice = lastKnownAsk > 0 ? lastKnownAsk : snapshot.recommendation?.buyPriceDollars ?? 0;
   const preCheckSizing = getExecutionSize(preCheckPrice, targetSpendDollars, 1);
   const balance = await getKalshiBalance().catch(() => null);

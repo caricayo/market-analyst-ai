@@ -7,20 +7,26 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    const params = new URLSearchParams(window.location.search);
+    return params.get("error");
+  });
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [nextPath, setNextPath] = useState("/");
+  const [nextPath] = useState(() => {
+    if (typeof window === "undefined") {
+      return "/";
+    }
+    const params = new URLSearchParams(window.location.search);
+    return params.get("next") || "/";
+  });
 
   const envReady = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   );
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setNextPath(params.get("next") || "/");
-    setMessage(params.get("error"));
-  }, []);
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();
