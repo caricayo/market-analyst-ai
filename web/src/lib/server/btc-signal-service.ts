@@ -105,6 +105,10 @@ type WindowSnapshotSeries = {
   snapshots: PersistedSignalSnapshot[];
 };
 
+function getPrimaryDecisionSnapshot(series: PersistedSignalSnapshot[]) {
+  return series.find((snapshot) => snapshot.action !== "no_buy") ?? series.at(-1) ?? series[0] ?? null;
+}
+
 function getWindowSnapshotSeries(limit?: number) {
   const seriesByWindow = new Map<string, PersistedSignalSnapshot[]>();
 
@@ -172,8 +176,11 @@ function hasDecisionFlip(series: PersistedSignalSnapshot[]) {
     return false;
   }
 
-  const openingAction = series.at(-1)?.action ?? series[0]?.action;
-  return series.some((snapshot) => snapshot.action !== openingAction);
+  const openingAction = getPrimaryDecisionSnapshot(series)?.action;
+  if (!openingAction) {
+    return false;
+  }
+  return series.some((snapshot) => snapshot.action !== "no_buy" && snapshot.action !== openingAction);
 }
 
 function asNumber(value: unknown) {
@@ -371,28 +378,28 @@ function getSuggestedPnlForDecision(snapshot: DecisionSnapshotLike) {
 
 function mapHistory(): SignalHistoryEntry[] {
   return getWindowSnapshotSeries(signalConfig.historyLimit).map((entry) => ({
-    windowTicker: entry.first.marketTicker,
-    observedAt: entry.first.observedAt,
-    action: entry.first.action,
-    contractSide: entry.first.contractSide,
+    windowTicker: (getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first).marketTicker,
+    observedAt: (getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first).observedAt,
+    action: (getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first).action,
+    contractSide: (getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first).contractSide,
     finalAction: entry.latest.action,
     finalContractSide: entry.latest.contractSide,
     flippedAfterOpen: hasDecisionFlip(entry.snapshots),
-    predictedDirection: getPredictedDirection(entry.first),
+    predictedDirection: getPredictedDirection(getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first),
     finalPredictedDirection: getPredictedDirection(entry.latest),
-    buyPriceDollars: entry.first.buyPriceDollars,
-    fairValueDollars: entry.first.fairValueDollars,
-    edgeDollars: entry.first.edgeDollars,
-    modelProbability: getPredictedProbability(entry.first),
-    currentPrice: entry.first.currentPriceDollars,
-    reversalDirection: extractPersistedReversal(entry.first)?.direction ?? "neutral",
-    reversalWatchStatus: extractPersistedReversal(entry.first)?.watchStatus ?? "none",
-    reversalActiveStatus: extractPersistedReversal(entry.first)?.activeStatus ?? "none",
-    reversalConfidence: extractPersistedReversal(entry.first)?.confidence ?? null,
-    outcome: entry.first.resolutionOutcome,
-    outcomeResult: getOutcomeResult(entry.first),
-    suggestedPnlDollars: getSuggestedPnl(entry.first),
-    outcomeSource: entry.first.outcomeSource,
+    buyPriceDollars: (getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first).buyPriceDollars,
+    fairValueDollars: (getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first).fairValueDollars,
+    edgeDollars: (getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first).edgeDollars,
+    modelProbability: getPredictedProbability(getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first),
+    currentPrice: (getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first).currentPriceDollars,
+    reversalDirection: extractPersistedReversal(getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first)?.direction ?? "neutral",
+    reversalWatchStatus: extractPersistedReversal(getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first)?.watchStatus ?? "none",
+    reversalActiveStatus: extractPersistedReversal(getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first)?.activeStatus ?? "none",
+    reversalConfidence: extractPersistedReversal(getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first)?.confidence ?? null,
+    outcome: (getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first).resolutionOutcome,
+    outcomeResult: getOutcomeResult(getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first),
+    suggestedPnlDollars: getSuggestedPnl(getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first),
+    outcomeSource: (getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first).outcomeSource,
   }));
 }
 
@@ -522,7 +529,9 @@ function buildLivePerformanceMetrics(): SignalPerformanceMetrics {
   const resolvedSeries = getWindowSnapshotSeries().filter((entry) =>
     resolvedWindowIds.has(entry.windowId),
   );
-  const openingSnapshots = resolvedSeries.map((entry) => entry.first);
+  const openingSnapshots = resolvedSeries
+    .map((entry) => getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first)
+    .filter(Boolean);
   const latestSnapshots = resolvedSeries.map((entry) => entry.latest);
   const flipWindows = resolvedSeries.filter((entry) => hasDecisionFlip(entry.snapshots)).length;
   return buildPerformanceMetrics(openingSnapshots, latestSnapshots, flipWindows, resolvedWindowIds.size);
@@ -539,7 +548,8 @@ function buildTestCasePerformanceMetrics(): SignalPerformanceMetrics {
   );
   const openingSnapshots = resolvedSeries
     .map((entry) => {
-      const testCase = extractPersistedTestCase(entry.first);
+      const sourceSnapshot = getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first;
+      const testCase = extractPersistedTestCase(sourceSnapshot);
       return testCase
         ? {
             action: testCase.recommendation.action,
@@ -548,7 +558,7 @@ function buildTestCasePerformanceMetrics(): SignalPerformanceMetrics {
             edgeDollars: testCase.recommendation.edgeDollars,
             modelAboveProbability: testCase.modelAboveProbability,
             modelBelowProbability: testCase.modelBelowProbability,
-            resolutionOutcome: entry.first.resolutionOutcome,
+            resolutionOutcome: sourceSnapshot.resolutionOutcome,
           }
         : null;
     })
@@ -570,7 +580,7 @@ function buildTestCasePerformanceMetrics(): SignalPerformanceMetrics {
     })
     .filter(Boolean) as DecisionSnapshotLike[];
   const flipWindows = resolvedSeries.filter((entry) => {
-    const first = extractPersistedTestCase(entry.first);
+    const first = extractPersistedTestCase(getPrimaryDecisionSnapshot(entry.snapshots) ?? entry.first);
     const latest = extractPersistedTestCase(entry.latest);
     return !!first && !!latest && first.recommendation.action !== latest.recommendation.action;
   }).length;

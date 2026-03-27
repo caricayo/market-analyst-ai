@@ -544,9 +544,9 @@ export function TradingBotDashboard() {
               <Stat label="Flip Risk" value={testCase?.flipRisk ?? "n/a"} helper={`Score ${formatNumber(testCase?.flipRiskScore, 2)}`} />
               <Stat label="Range Filter" value={testCase?.rangeFilter ?? "n/a"} helper="Range and chop suppression layer." />
               <Stat label="Structure Bias" value={testCase?.structureBias ?? "n/a"} helper={`Score ${formatNumber(testCase?.structureScore, 2)}`} />
-              <Stat label="Buy Accuracy" value={formatPercent(snapshot?.testCaseMetrics.openingActionableAccuracyPct, 1)} helper={`${formatNumber(snapshot?.testCaseMetrics.openingActionableWindows, 0)} resolved opening buys`} />
-              <Stat label="Opening Accuracy" value={formatPercent(snapshot?.testCaseMetrics.openingSuggestionAccuracyPct, 1)} helper={`${formatNumber(snapshot?.testCaseMetrics.openingSuggestionWindows, 0)} opening calls scored`} />
-              <Stat label="Paper PnL" value={formatMoney(snapshot?.testCaseMetrics.totalSuggestedPnlDollars)} helper={snapshot?.testCaseMetrics.avgSuggestedPnlDollars !== null ? `${formatMoney(snapshot?.testCaseMetrics.avgSuggestedPnlDollars)} average per opening buy` : "No resolved opening buys yet"} />
+              <Stat label="Buy Accuracy" value={formatPercent(snapshot?.testCaseMetrics.openingActionableAccuracyPct, 1)} helper={`${formatNumber(snapshot?.testCaseMetrics.openingActionableWindows, 0)} resolved first-decision buys`} />
+              <Stat label="First Decision Accuracy" value={formatPercent(snapshot?.testCaseMetrics.openingSuggestionAccuracyPct, 1)} helper={`${formatNumber(snapshot?.testCaseMetrics.openingSuggestionWindows, 0)} first-decision calls scored`} />
+              <Stat label="Paper PnL" value={formatMoney(snapshot?.testCaseMetrics.totalSuggestedPnlDollars)} helper={snapshot?.testCaseMetrics.avgSuggestedPnlDollars !== null ? `${formatMoney(snapshot?.testCaseMetrics.avgSuggestedPnlDollars)} average per first-decision buy` : "No resolved first-decision buys yet"} />
             </div>
 
             <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
@@ -914,17 +914,17 @@ export function TradingBotDashboard() {
               <Stat
                 label="Resolved Windows"
                 value={formatNumber(snapshot?.metrics.resolvedWindows, 0)}
-                helper="Windows with a resolved opening snapshot"
+                helper="Windows with a resolved first decision"
               />
               <Stat
-                label="Opening Accuracy"
+                label="First Decision Accuracy"
                 value={formatPercent(snapshot?.metrics.openingSuggestionAccuracyPct, 1)}
-                helper={`${formatNumber(snapshot?.metrics.openingSuggestionWindows, 0)} first-window calls scored`}
+                helper={`${formatNumber(snapshot?.metrics.openingSuggestionWindows, 0)} first-decision calls scored`}
               />
               <Stat
-                label="Opening Buy Accuracy"
+                label="First Buy Accuracy"
                 value={formatPercent(snapshot?.metrics.openingActionableAccuracyPct, 1)}
-                helper={`${formatNumber(snapshot?.metrics.openingActionableWindows, 0)} first-buy windows`}
+                helper={`${formatNumber(snapshot?.metrics.openingActionableWindows, 0)} first-decision buy windows`}
               />
               <Stat
                 label="Final Snapshot Accuracy"
@@ -934,7 +934,7 @@ export function TradingBotDashboard() {
               <Stat
                 label="Flip Rate"
                 value={formatPercent(snapshot?.metrics.flipRatePct, 1)}
-                helper={`${formatNumber(snapshot?.metrics.flipWindows, 0)} windows changed action after open`}
+                helper={`${formatNumber(snapshot?.metrics.flipWindows, 0)} windows changed after the first buy decision`}
               />
               <Stat
                 label="Model ABOVE"
@@ -959,7 +959,7 @@ export function TradingBotDashboard() {
               <Stat
                 label="Paper PnL"
                 value={formatMoney(snapshot?.metrics.totalSuggestedPnlDollars)}
-                helper={snapshot?.metrics.avgSuggestedPnlDollars !== null ? `${formatMoney(snapshot?.metrics.avgSuggestedPnlDollars)} average per opening buy` : "No resolved opening buys yet"}
+                helper={snapshot?.metrics.avgSuggestedPnlDollars !== null ? `${formatMoney(snapshot?.metrics.avgSuggestedPnlDollars)} average per first-decision buy` : "No resolved first-decision buys yet"}
               />
               <Stat
                 label="GPT Layer"
