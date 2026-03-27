@@ -1,6 +1,6 @@
 # BTC 15-Minute Kalshi Bot
 
-Railway deploys the `web/` app. The root `src/` tree is legacy and should not be treated as the production app surface.
+Railway deploys the `web/` app. The repository root now only holds shared repo assets like `supabase/` and this README.
 
 This project is now a Bitcoin 15-minute Kalshi trading console built on the same Next.js 16 infrastructure. It:
 
@@ -22,11 +22,12 @@ This project is now a Bitcoin 15-minute Kalshi trading console built on the same
 ## Local setup
 
 ```bash
+cd web
 npm install
 npm run dev
 ```
 
-Copy `.env.example` to `.env.local` and fill in:
+Copy `web/.env.example` to `web/.env.local` and fill in:
 
 - `KALSHI_API_KEY_ID`
 - `KALSHI_PRIVATE_KEY_PEM`
@@ -90,5 +91,6 @@ Optional runtime knobs:
 ## Build
 
 ```bash
+cd web
 npm run build
 ```
