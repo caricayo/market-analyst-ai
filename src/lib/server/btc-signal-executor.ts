@@ -327,14 +327,7 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
     if (firstAttempt.filledContracts < 1) {
       const refreshedMarket = await fetchKalshiWindowByTicker(snapshot.window.market.ticker).catch(() => null);
       const refreshedAsk = getSideAskPrice(refreshedMarket, snapshot.recommendation.contractSide);
-      const retrySlippageCents =
-        refreshedAsk === null ? null : Math.round((refreshedAsk - entryPriceDollars) * 100);
-      const canRetry =
-        refreshedAsk !== null &&
-        refreshedAsk > 0 &&
-        retrySlippageCents !== null &&
-        retrySlippageCents >= 0 &&
-        retrySlippageCents <= signalConfig.executionRetryMaxSlippageCents;
+      const canRetry = refreshedAsk !== null && refreshedAsk > 0;
 
       if (canRetry) {
         finalAttempt = await submitIocAttempt({
@@ -349,13 +342,7 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
               ? `First actionable signal locked the window. Initial IOC missed, retry at ${refreshedAsk.toFixed(2)} partially filled ${finalAttempt.filledContracts} contracts.`
               : `First actionable signal locked the window. Initial IOC missed, retry at ${refreshedAsk.toFixed(2)} filled ${finalAttempt.filledContracts} contracts.`;
       } else {
-        const retryReason =
-          refreshedAsk === null
-            ? "A fresh ask was unavailable for retry."
-            : retrySlippageCents === null || retrySlippageCents < 0
-              ? "The refreshed ask moved unexpectedly and was not retried."
-              : `Retry skipped because the refreshed ask was ${retrySlippageCents}c above the original entry, over the ${signalConfig.executionRetryMaxSlippageCents}c cap.`;
-        message = `First actionable signal locked the window, but the IOC order returned no fill. ${retryReason}`;
+        message = "First actionable signal locked the window, but the IOC order returned no fill and no fresh ask was available for retry.";
       }
     } else {
       message =
