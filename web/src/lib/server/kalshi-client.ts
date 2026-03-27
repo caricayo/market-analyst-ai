@@ -81,9 +81,16 @@ type OrderResponse = {
     fill_count_fp?: string | null;
     remaining_count_fp?: string | null;
     initial_count_fp?: string | null;
+    expiration_time?: string | null;
+    created_time?: string | null;
+    last_update_time?: string | null;
     taker_fill_cost_dollars?: string | null;
     maker_fill_cost_dollars?: string | null;
   };
+};
+
+type CancelOrderResponse = OrderResponse & {
+  reduced_by_fp?: string | null;
 };
 
 type OrderbookPriceLevel = [string, string];
@@ -122,6 +129,8 @@ export type KalshiOrderbookLiquiditySnapshot = {
   availableContracts: number | null;
   complementaryPriceDollars: number;
 };
+
+export type KalshiOrderSnapshot = NonNullable<OrderResponse["order"]>;
 
 type CachedMarketEntry = {
   expiresAt: number;
@@ -596,7 +605,8 @@ export async function submitKalshiOrder(input: {
   limitPriceCents: number;
   clientOrderId: string;
   reduceOnly?: boolean;
-  timeInForce?: "fill_or_kill" | "immediate_or_cancel";
+  postOnly?: boolean;
+  timeInForce?: "fill_or_kill" | "good_till_canceled" | "immediate_or_cancel";
 }) {
   if (!hasKalshiTradingCredentials()) {
     throw new Error("Kalshi trading credentials are missing.");
@@ -616,6 +626,7 @@ export async function submitKalshiOrder(input: {
     count: input.contracts,
     client_order_id: input.clientOrderId,
     ...(action === "buy" && timeInForce === "fill_or_kill" ? { buy_max_cost: totalCostCents } : {}),
+    ...(input.postOnly ? { post_only: true } : {}),
     ...(input.reduceOnly ? { reduce_only: true } : {}),
     ...(input.side === "yes"
       ? { yes_price: input.limitPriceCents }
@@ -645,4 +656,60 @@ export async function submitKalshiOrder(input: {
   }
 
   return (await response.json()) as OrderResponse;
+}
+
+export async function getKalshiOrder(orderId: string) {
+  if (!hasKalshiTradingCredentials()) {
+    throw new Error("Kalshi trading credentials are missing.");
+  }
+
+  const path = `/portfolio/orders/${encodeURIComponent(orderId)}`;
+  const requestUrl = `${tradingConfig.kalshiBaseUrl}${path}`;
+  let response = await fetch(requestUrl, {
+    headers: buildKalshiHeaders("GET", path, false),
+    cache: "no-store",
+  });
+
+  if (response.status === 401) {
+    response = await fetch(requestUrl, {
+      headers: buildKalshiHeaders("GET", path, true),
+      cache: "no-store",
+    });
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Kalshi get order failed with ${response.status}: ${errorText}`);
+  }
+
+  return (await response.json()) as OrderResponse;
+}
+
+export async function cancelKalshiOrder(orderId: string) {
+  if (!hasKalshiTradingCredentials()) {
+    throw new Error("Kalshi trading credentials are missing.");
+  }
+
+  const path = `/portfolio/orders/${encodeURIComponent(orderId)}`;
+  const requestUrl = `${tradingConfig.kalshiBaseUrl}${path}`;
+  let response = await fetch(requestUrl, {
+    method: "DELETE",
+    headers: buildKalshiHeaders("DELETE", path, false),
+    cache: "no-store",
+  });
+
+  if (response.status === 401) {
+    response = await fetch(requestUrl, {
+      method: "DELETE",
+      headers: buildKalshiHeaders("DELETE", path, true),
+      cache: "no-store",
+    });
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Kalshi cancel order failed with ${response.status}: ${errorText}`);
+  }
+
+  return (await response.json()) as CancelOrderResponse;
 }

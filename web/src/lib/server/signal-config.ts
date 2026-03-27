@@ -34,6 +34,18 @@ export const signalConfig = {
   historyLimit: Math.max(4, Math.min(24, Math.round(parseNumber(process.env.BTC_SIGNAL_HISTORY_LIMIT, 8)))),
   executionEnabled: parseBoolean(process.env.BTC_SIGNAL_AUTO_EXECUTE_ENABLED, false),
   executionStakeDollars: Math.max(1, parseNumber(process.env.BTC_SIGNAL_EXECUTION_STAKE_DOLLARS, 5)),
+  executionMakerWindowSeconds: Math.max(
+    5,
+    Math.min(120, Math.round(parseNumber(process.env.BTC_SIGNAL_EXECUTION_MAKER_WINDOW_SECONDS, 30))),
+  ),
+  executionMakerPollMs: Math.max(
+    500,
+    Math.min(5_000, Math.round(parseNumber(process.env.BTC_SIGNAL_EXECUTION_MAKER_POLL_MS, 1_000))),
+  ),
+  executionMakerRepriceCents: Math.max(
+    1,
+    Math.min(5, Math.round(parseNumber(process.env.BTC_SIGNAL_EXECUTION_MAKER_REPRICE_CENTS, 2))),
+  ),
   trackingStartIso: process.env.BTC_SIGNAL_TRACKING_START?.trim() || "2026-03-25T09:10:00.000Z",
   explanationEnabled: parseBoolean(process.env.BTC_SIGNAL_EXPLANATION_ENABLED, true),
   explanationModel: process.env.OPENAI_SIGNAL_MODEL?.trim() || "gpt-5-mini",

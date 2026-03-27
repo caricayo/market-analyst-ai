@@ -8,6 +8,7 @@ type SignalExecutionRow = {
   window_id: string;
   window_ticker: string;
   status: SignalExecutionStatus;
+  entry_mode: PersistedSignalExecution["entryMode"];
   locked_action: PersistedSignalExecution["lockedAction"];
   locked_side: PersistedSignalExecution["lockedSide"];
   decision_snapshot_id: string | null;
@@ -19,6 +20,13 @@ type SignalExecutionRow = {
   max_cost_dollars: number | string | null;
   order_id: string | null;
   client_order_id: string | null;
+  resting_order_id: string | null;
+  resting_client_order_id: string | null;
+  resting_price_dollars: number | string | null;
+  maker_placed_at: string | null;
+  maker_canceled_at: string | null;
+  maker_filled_contracts: number;
+  fallback_started_at: string | null;
   message: string;
   resolution_outcome: "above" | "below" | null;
   realized_pnl_dollars: number | string | null;
@@ -46,6 +54,7 @@ function toExecution(row: SignalExecutionRow): PersistedSignalExecution {
     windowId: row.window_id,
     windowTicker: row.window_ticker,
     status: row.status,
+    entryMode: row.entry_mode,
     lockedAction: row.locked_action,
     lockedSide: row.locked_side,
     decisionSnapshotId: row.decision_snapshot_id,
@@ -57,6 +66,13 @@ function toExecution(row: SignalExecutionRow): PersistedSignalExecution {
     maxCostDollars: parseNumber(row.max_cost_dollars),
     orderId: row.order_id,
     clientOrderId: row.client_order_id,
+    restingOrderId: row.resting_order_id,
+    restingClientOrderId: row.resting_client_order_id,
+    restingPriceDollars: parseNumber(row.resting_price_dollars),
+    makerPlacedAt: row.maker_placed_at,
+    makerCanceledAt: row.maker_canceled_at,
+    makerFilledContracts: row.maker_filled_contracts,
+    fallbackStartedAt: row.fallback_started_at,
     message: row.message,
     resolutionOutcome: row.resolution_outcome,
     realizedPnlDollars: parseNumber(row.realized_pnl_dollars),
@@ -73,6 +89,7 @@ function toExecutionRow(execution: PersistedSignalExecution): SignalExecutionRow
     window_id: execution.windowId,
     window_ticker: execution.windowTicker,
     status: execution.status,
+    entry_mode: execution.entryMode,
     locked_action: execution.lockedAction,
     locked_side: execution.lockedSide,
     decision_snapshot_id: execution.decisionSnapshotId,
@@ -84,6 +101,13 @@ function toExecutionRow(execution: PersistedSignalExecution): SignalExecutionRow
     max_cost_dollars: execution.maxCostDollars,
     order_id: execution.orderId,
     client_order_id: execution.clientOrderId,
+    resting_order_id: execution.restingOrderId,
+    resting_client_order_id: execution.restingClientOrderId,
+    resting_price_dollars: execution.restingPriceDollars,
+    maker_placed_at: execution.makerPlacedAt,
+    maker_canceled_at: execution.makerCanceledAt,
+    maker_filled_contracts: execution.makerFilledContracts,
+    fallback_started_at: execution.fallbackStartedAt,
     message: execution.message,
     resolution_outcome: execution.resolutionOutcome,
     realized_pnl_dollars: execution.realizedPnlDollars,
@@ -115,6 +139,7 @@ export async function upsertSignalExecution(
     windowId: input.windowId,
     windowTicker: input.windowTicker,
     status: input.status,
+    entryMode: input.entryMode,
     lockedAction: input.lockedAction,
     lockedSide: input.lockedSide,
     decisionSnapshotId: input.decisionSnapshotId,
@@ -126,6 +151,13 @@ export async function upsertSignalExecution(
     maxCostDollars: input.maxCostDollars,
     orderId: input.orderId,
     clientOrderId: input.clientOrderId,
+    restingOrderId: input.restingOrderId,
+    restingClientOrderId: input.restingClientOrderId,
+    restingPriceDollars: input.restingPriceDollars,
+    makerPlacedAt: input.makerPlacedAt,
+    makerCanceledAt: input.makerCanceledAt,
+    makerFilledContracts: input.makerFilledContracts,
+    fallbackStartedAt: input.fallbackStartedAt,
     message: input.message,
     resolutionOutcome: input.resolutionOutcome,
     realizedPnlDollars: input.realizedPnlDollars,

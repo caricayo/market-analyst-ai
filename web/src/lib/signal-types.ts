@@ -14,12 +14,15 @@ export type TestCaseRangeFilter = "clean" | "range" | "chop";
 export type TestCaseStructureBias = "supports_yes" | "supports_no" | "neutral";
 export type SignalExecutionStatus =
   | "waiting"
+  | "maker_resting"
+  | "maker_partial"
   | "submitted"
   | "partial_fill"
   | "unfilled"
   | "skipped_no_signal"
   | "error"
   | "resolved";
+export type SignalExecutionEntryMode = "maker_first" | "taker_fallback" | null;
 export type SignalExecutionControlMode = "running" | "stopped";
 export type SignalExecutionControlReason = "manual_stop" | "insufficient_funds" | null;
 export type TrackedTradeSource = "manual" | "auto" | "mixed" | "unknown";
@@ -174,6 +177,7 @@ export type BtcSignalExecution = {
   windowId: string | null;
   windowTicker: string | null;
   status: SignalExecutionStatus;
+  entryMode: SignalExecutionEntryMode;
   lockedAction: SignalAction | null;
   lockedSide: "yes" | "no" | null;
   decisionObservedAt: string | null;
@@ -184,6 +188,13 @@ export type BtcSignalExecution = {
   maxCostDollars: number | null;
   orderId: string | null;
   clientOrderId: string | null;
+  restingOrderId: string | null;
+  restingClientOrderId: string | null;
+  restingPriceDollars: number | null;
+  makerPlacedAt: string | null;
+  makerCanceledAt: string | null;
+  makerFilledContracts: number;
+  fallbackStartedAt: string | null;
   message: string;
   resolutionOutcome: "above" | "below" | null;
   realizedPnlDollars: number | null;
@@ -312,6 +323,7 @@ export type PersistedSignalExecution = {
   windowId: string;
   windowTicker: string;
   status: SignalExecutionStatus;
+  entryMode: SignalExecutionEntryMode;
   lockedAction: SignalAction | null;
   lockedSide: "yes" | "no" | null;
   decisionSnapshotId: string | null;
@@ -323,6 +335,13 @@ export type PersistedSignalExecution = {
   maxCostDollars: number | null;
   orderId: string | null;
   clientOrderId: string | null;
+  restingOrderId: string | null;
+  restingClientOrderId: string | null;
+  restingPriceDollars: number | null;
+  makerPlacedAt: string | null;
+  makerCanceledAt: string | null;
+  makerFilledContracts: number;
+  fallbackStartedAt: string | null;
   message: string;
   resolutionOutcome: "above" | "below" | null;
   realizedPnlDollars: number | null;
