@@ -525,36 +525,6 @@ async function runMakerFirstEntry(input: { snapshot: Awaited<ReturnType<typeof g
     const liveSnapshot = await getBtc15mSignalSnapshot().catch(() => null);
     if (liveSnapshot?.window.market?.ticker !== execution.windowTicker) break;
 
-    if (liveSnapshot?.recommendation?.action === "no_buy") {
-      if (progress.restingOrderId) {
-        const restingOrderId = progress.restingOrderId;
-        await cancelKalshiOrder(restingOrderId).catch(() => undefined);
-        progress.makerCanceledAt = new Date().toISOString();
-      }
-
-      await persistExecution(execution, {
-        status: progress.totalFilledContracts > 0 ? "partial_fill" : "unfilled",
-        entryMode: "maker_first",
-        orderId: progress.lastOrderId,
-        clientOrderId: progress.lastClientOrderId,
-        restingOrderId: null,
-        restingClientOrderId: null,
-        restingPriceDollars: null,
-        makerPlacedAt: progress.makerPlacedAt,
-        makerCanceledAt: progress.makerCanceledAt ?? new Date().toISOString(),
-        makerFilledContracts: progress.makerFilledContracts,
-        submittedAt: progress.submittedAt,
-        entryPriceDollars: getAverageEntryPrice(progress),
-        submittedContracts: progress.totalSubmittedContracts,
-        filledContracts: progress.totalFilledContracts,
-        message:
-          progress.totalFilledContracts > 0
-            ? "The locked signal weakened to No Buy during the maker phase, so the unfilled remainder was canceled."
-            : "The locked signal weakened to No Buy before any maker fill, so the resting order was canceled.",
-      });
-      return;
-    }
-
     market = await fetchKalshiWindowByTicker(execution.windowTicker).catch(() => market);
     const refreshedAsk = getSideAskPrice(market, side);
     if (refreshedAsk !== null && refreshedAsk > 0) progress.lastKnownAsk = refreshedAsk;
