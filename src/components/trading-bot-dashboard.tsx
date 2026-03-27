@@ -173,6 +173,7 @@ export function TradingBotDashboard() {
     loading: true,
     error: null,
   });
+  const [controlPending, setControlPending] = useState<"start" | "stop" | null>(null);
   const requestInFlightRef = useRef(false);
 
   async function loadSnapshot() {
@@ -210,11 +211,41 @@ export function TradingBotDashboard() {
     return () => window.clearInterval(timer);
   }, []);
 
+  async function handleExecutionControl(command: "start" | "stop") {
+    setControlPending(command);
+    try {
+      const response = await fetch("/api/trading/bot", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ command }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          typeof payload === "object" && payload && "error" in payload && typeof payload.error === "string"
+            ? payload.error
+            : "Unable to update execution control.",
+        );
+      }
+      await loadSnapshot();
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        error: error instanceof Error ? error.message : "Unable to update execution control.",
+      }));
+    } finally {
+      setControlPending(null);
+    }
+  }
+
   const snapshot = state.data;
   const recommendation = snapshot?.recommendation;
   const tone = actionTone(recommendation?.action ?? "no_buy");
   const reversal = snapshot?.reversal;
   const reversalSkin = reversalTone(reversal?.direction ?? "neutral");
+  const executionControl = snapshot?.executionControl;
   const execution = snapshot?.execution;
   const executionPill = executionTone(execution?.status ?? "waiting");
   const latestWarning = snapshot?.warnings?.[0] ?? null;
@@ -475,6 +506,15 @@ export function TradingBotDashboard() {
           <div className="rounded-[30px] border border-white/10 bg-[rgba(10,16,24,0.9)] p-6">
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Signal Execution</p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div
+                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                  executionControl?.mode === "running"
+                    ? "border-emerald-300/35 bg-emerald-400/15 text-emerald-50"
+                    : "border-rose-300/35 bg-rose-400/15 text-rose-50"
+                }`}
+              >
+                {executionControl?.mode ?? "running"}
+              </div>
               <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${executionPill}`}>
                 {execution?.status ?? "waiting"}
               </div>
@@ -484,6 +524,35 @@ export function TradingBotDashboard() {
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                disabled={controlPending !== null || executionControl?.mode === "running"}
+                onClick={() => void handleExecutionControl("start")}
+                className="rounded-full border border-emerald-300/30 bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {controlPending === "start" ? "Starting..." : "Go"}
+              </button>
+              <button
+                type="button"
+                disabled={controlPending !== null || executionControl?.mode === "stopped"}
+                onClick={() => void handleExecutionControl("stop")}
+                className="rounded-full border border-rose-300/30 bg-rose-400 px-4 py-3 text-sm font-semibold text-white transition hover:bg-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {controlPending === "stop" ? "Stopping..." : "Stop"}
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Stat
+                label="Bot Mode"
+                value={executionControl?.mode?.toUpperCase() ?? "RUNNING"}
+                helper={executionControl?.updatedAt ? `Updated ${formatTimestamp(executionControl.updatedAt)}` : "Execution control is ready."}
+              />
+              <Stat
+                label="Stop Reason"
+                value={executionControl?.reason ? executionControl.reason.replace("_", " ").toUpperCase() : "NONE"}
+                helper={executionControl?.updatedBy ?? "No operator recorded"}
+              />
               <Stat
                 label="Locked Side"
                 value={execution?.lockedSide?.toUpperCase() ?? "WAITING"}
@@ -504,6 +573,13 @@ export function TradingBotDashboard() {
                 value={formatMoney(execution?.realizedPnlDollars)}
                 helper={execution?.resolutionOutcome ? `Resolved ${execution.resolutionOutcome}` : "Holding to settlement if filled"}
               />
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Execution Control</p>
+              <p className="mt-3 text-sm leading-6 text-slate-200">
+                {executionControl?.message ?? "Auto-execution is live."}
+              </p>
             </div>
 
             <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">

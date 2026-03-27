@@ -1,6 +1,11 @@
 import { getBtc15mSignalSnapshot } from "@/lib/server/btc-signal-service";
 import { fetchKalshiWindowByTicker } from "@/lib/server/btc-kalshi-client";
 import {
+  getSignalExecutionControlState,
+  hydrateSignalExecutionControl,
+  setSignalExecutionControlState,
+} from "@/lib/server/btc-signal-control-store";
+import {
   getSignalExecutionByWindowTicker,
   hydrateSignalExecutions,
   listSignalExecutions,
@@ -23,6 +28,19 @@ function round(value: number | null, digits = 2) {
     return null;
   }
   return Number(value.toFixed(digits));
+}
+
+function isInsufficientFundsMessage(message: string | null | undefined) {
+  if (!message) {
+    return false;
+  }
+
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("insufficient") ||
+    normalized.includes("out of funds") ||
+    normalized.includes("available balance is below")
+  );
 }
 
 function sleep(ms: number) {
@@ -167,7 +185,10 @@ async function hydrateOnce() {
   }
 
   executorState.__btcSignalExecutorHydrated = true;
-  await hydrateSignalExecutions().catch(() => undefined);
+  await Promise.all([
+    hydrateSignalExecutions().catch(() => undefined),
+    hydrateSignalExecutionControl().catch(() => undefined),
+  ]);
 }
 
 async function reconcileExecutionOutcomes() {
@@ -299,6 +320,9 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
   if (!signalConfig.executionEnabled || !tradingConfig.autoTradeEnabled || !hasKalshiTradingCredentials()) {
     return;
   }
+  if (getSignalExecutionControlState().mode !== "running") {
+    return;
+  }
 
   if (!snapshot.window.id || !snapshot.window.market?.ticker || !snapshot.recommendation) {
     return;
@@ -329,6 +353,11 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
     maxCostDollars !== null &&
     balance.availableBalanceDollars + 0.001 < maxCostDollars
   ) {
+    await setSignalExecutionControlState({
+      mode: "stopped",
+      reason: "insufficient_funds",
+      message: "Auto-execution stopped after an out-of-funds check. Add funds, then press Go.",
+    });
     await upsertSignalExecution({
       id: execution.id,
       windowId: execution.windowId,
@@ -394,6 +423,13 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
         }
       } catch (error) {
         terminalError = error instanceof Error ? error.message : "Signal execution order failed.";
+        if (isInsufficientFundsMessage(terminalError)) {
+          await setSignalExecutionControlState({
+            mode: "stopped",
+            reason: "insufficient_funds",
+            message: "Auto-execution stopped after an out-of-funds response. Add funds, then press Go.",
+          });
+        }
         break;
       }
 
@@ -473,6 +509,14 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
     });
   } catch (error) {
     const clientOrderId = buildClientOrderId(snapshot.window.market.ticker, snapshot.recommendation.contractSide);
+    const errorMessage = error instanceof Error ? error.message : "Signal execution order failed.";
+    if (isInsufficientFundsMessage(errorMessage)) {
+      await setSignalExecutionControlState({
+        mode: "stopped",
+        reason: "insufficient_funds",
+        message: "Auto-execution stopped after an out-of-funds response. Add funds, then press Go.",
+      });
+    }
     await upsertSignalExecution({
       id: execution.id,
       windowId: execution.windowId,
@@ -489,7 +533,7 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
       maxCostDollars,
       orderId: null,
       clientOrderId,
-      message: error instanceof Error ? error.message : "Signal execution order failed.",
+      message: errorMessage,
       resolutionOutcome: null,
       realizedPnlDollars: null,
     });

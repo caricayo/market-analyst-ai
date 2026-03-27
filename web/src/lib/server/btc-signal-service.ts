@@ -5,6 +5,11 @@ import {
   listPublicTrackedTrades,
   syncTrackedAccountTrades,
 } from "@/lib/server/btc-signal-account-tracker";
+import {
+  getSignalExecutionControlState,
+  hydrateSignalExecutionControl,
+  toPublicSignalExecutionControl,
+} from "@/lib/server/btc-signal-control-store";
 import { buildSignalExplanation } from "@/lib/server/btc-explainer";
 import {
   getSignalExecutionByWindowTicker,
@@ -83,6 +88,7 @@ async function hydrateOnce() {
   await Promise.all([
     hydrateSignalStore().catch(() => undefined),
     hydrateSignalExecutions().catch(() => undefined),
+    hydrateSignalExecutionControl().catch(() => undefined),
   ]);
 }
 
@@ -467,6 +473,7 @@ async function computeSnapshot() {
   await syncTrackedAccountTrades().catch(() => undefined);
   const warnings: string[] = [];
   const now = new Date();
+  const executionControl = toPublicSignalExecutionControl(getSignalExecutionControlState());
   const { market, window } = await getWindowAnchor(now);
 
   if (!market || !window || !market.closeTime) {
@@ -495,6 +502,7 @@ async function computeSnapshot() {
       features: null,
       reversal: null,
       recommendation: null,
+      executionControl,
       execution: null,
       recentExecutions: listRecentExecutionStatuses(),
       explanation: {
@@ -545,6 +553,7 @@ async function computeSnapshot() {
           features: null,
           reversal: null,
           recommendation: null,
+          executionControl,
           execution: market?.ticker ? toPublicExecutionStatus(getSignalExecutionByWindowTicker(market.ticker)) : null,
           recentExecutions: listRecentExecutionStatuses(),
           explanation: {
@@ -649,6 +658,7 @@ async function computeSnapshot() {
     features,
     reversal,
     recommendation,
+    executionControl,
     execution: toPublicExecutionStatus(getSignalExecutionByWindowTicker(latestMarket.ticker)),
     recentExecutions: listRecentExecutionStatuses(),
     explanation,

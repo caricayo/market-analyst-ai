@@ -14,6 +14,8 @@ export type SignalExecutionStatus =
   | "skipped_no_signal"
   | "error"
   | "resolved";
+export type SignalExecutionControlMode = "running" | "stopped";
+export type SignalExecutionControlReason = "manual_stop" | "insufficient_funds" | null;
 export type TrackedTradeSource = "manual" | "auto" | "mixed" | "unknown";
 export type TrackedTradeResult = "win" | "loss" | "open";
 
@@ -164,6 +166,14 @@ export type BtcSignalExecution = {
   updatedAt: string | null;
 };
 
+export type BtcSignalExecutionControl = {
+  mode: SignalExecutionControlMode;
+  reason: SignalExecutionControlReason;
+  message: string;
+  updatedAt: string | null;
+  updatedBy: string | null;
+};
+
 export type SignalPerformanceMetrics = {
   resolvedWindows: number;
   openingSuggestionWindows: number;
@@ -217,6 +227,7 @@ export type Btc15mSignalSnapshot = {
   features: BtcSignalFeatures | null;
   reversal: BtcReversalSignal | null;
   recommendation: SignalRecommendation | null;
+  executionControl: BtcSignalExecutionControl;
   execution: BtcSignalExecution | null;
   recentExecutions: BtcSignalExecution[];
   explanation: SignalExplanation;
@@ -289,6 +300,16 @@ export type PersistedSignalExecution = {
   message: string;
   resolutionOutcome: "above" | "below" | null;
   realizedPnlDollars: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PersistedSignalExecutionControl = {
+  scope: string;
+  mode: SignalExecutionControlMode;
+  reason: SignalExecutionControlReason;
+  message: string;
+  updatedBy: string | null;
   createdAt: string;
   updatedAt: string;
 };
