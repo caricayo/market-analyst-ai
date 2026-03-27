@@ -558,6 +558,7 @@ export async function processSignalExecutionCycle() {
   executorState.__btcSignalExecutorRunning = true;
   try {
     await hydrateOnce();
+    await hydrateSignalExecutionControl().catch(() => undefined);
     const snapshot = await getBtc15mSignalSnapshot();
     await reconcileExecutionOutcomes();
     await maybeExecuteWindow(snapshot);
