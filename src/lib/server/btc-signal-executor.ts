@@ -25,6 +25,10 @@ function round(value: number | null, digits = 2) {
   return Number(value.toFixed(digits));
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function buildClientOrderId(windowTicker: string, side: "yes" | "no") {
   const compactTicker = windowTicker.replace(/[^A-Za-z0-9]/g, "").slice(-12);
   const compactUuid = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
@@ -323,26 +327,47 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
 
     let finalAttempt = firstAttempt;
     let message: string;
+    let attemptCount = 1;
 
     if (firstAttempt.filledContracts < 1) {
-      const refreshedMarket = await fetchKalshiWindowByTicker(snapshot.window.market.ticker).catch(() => null);
-      const refreshedAsk = getSideAskPrice(refreshedMarket, snapshot.recommendation.contractSide);
-      const canRetry = refreshedAsk !== null && refreshedAsk > 0;
+      const retryDeadline = Date.now() + Math.max(0, snapshot.window.secondsToClose * 1_000);
+      let lastKnownAsk = entryPriceDollars;
 
-      if (canRetry) {
+      while (finalAttempt.filledContracts < 1 && Date.now() + 1_000 < retryDeadline) {
+        await sleep(1_000);
+        const refreshedMarket = await fetchKalshiWindowByTicker(snapshot.window.market.ticker).catch(() => null);
+        const refreshedAsk = getSideAskPrice(refreshedMarket, snapshot.recommendation.contractSide);
+        const closeTime = refreshedMarket?.closeTime ?? refreshedMarket?.expirationTime ?? null;
+        const closesAt = closeTime ? Date.parse(closeTime) : Number.NaN;
+
+        if (Number.isFinite(closesAt) && closesAt <= Date.now()) {
+          break;
+        }
+
+        if ((refreshedMarket?.status ?? "").toLowerCase() === "closed") {
+          break;
+        }
+
+        if (refreshedAsk === null || refreshedAsk <= 0) {
+          continue;
+        }
+
+        lastKnownAsk = refreshedAsk;
         finalAttempt = await submitIocAttempt({
           windowTicker: snapshot.window.market.ticker,
           side: snapshot.recommendation.contractSide,
           entryPriceDollars: refreshedAsk,
         });
-        message =
-          finalAttempt.filledContracts < 1
-            ? `First actionable signal locked the window. Initial IOC missed, retry at ${refreshedAsk.toFixed(2)} also returned no fill.`
-            : finalAttempt.filledContracts < finalAttempt.submittedContracts
-              ? `First actionable signal locked the window. Initial IOC missed, retry at ${refreshedAsk.toFixed(2)} partially filled ${finalAttempt.filledContracts} contracts.`
-              : `First actionable signal locked the window. Initial IOC missed, retry at ${refreshedAsk.toFixed(2)} filled ${finalAttempt.filledContracts} contracts.`;
+        attemptCount += 1;
+      }
+
+      if (finalAttempt.filledContracts < 1) {
+        message = `First actionable signal locked the window, but no IOC attempt filled after ${attemptCount} tries. Last refreshed ask was ${lastKnownAsk.toFixed(2)}.`;
       } else {
-        message = "First actionable signal locked the window, but the IOC order returned no fill and no fresh ask was available for retry.";
+        message =
+          finalAttempt.filledContracts < finalAttempt.submittedContracts
+            ? `First actionable signal locked the window and partially filled ${finalAttempt.filledContracts} contracts after ${attemptCount} attempts.`
+            : `First actionable signal locked the window and filled ${finalAttempt.filledContracts} contracts after ${attemptCount} attempts.`;
       }
     } else {
       message =
