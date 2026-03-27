@@ -1,4 +1,5 @@
 import { getBtc15mSignalSnapshot } from "@/lib/server/btc-signal-service";
+import { fetchKalshiWindowByTicker } from "@/lib/server/btc-kalshi-client";
 import {
   getSignalExecutionByWindowTicker,
   hydrateSignalExecutions,
@@ -26,6 +27,13 @@ function round(value: number | null, digits = 2) {
 
 function buildClientOrderId(windowTicker: string, side: "yes" | "no") {
   return `btcsignal-${windowTicker}-${side}-${crypto.randomUUID()}`;
+}
+
+function getSideAskPrice(
+  market: Awaited<ReturnType<typeof fetchKalshiWindowByTicker>> | null | undefined,
+  side: "yes" | "no",
+) {
+  return side === "yes" ? market?.yesAskPrice ?? null : market?.noAskPrice ?? null;
 }
 
 function parseFilledContracts(order: {
@@ -71,6 +79,47 @@ function parseAverageFillPriceDollars(
       : Number(order?.no_price_dollars ?? order?.no_price ?? Number.NaN);
 
   return Number.isFinite(directPrice) && directPrice > 0 ? directPrice : fallbackPriceDollars;
+}
+
+function getExecutionSize(entryPriceDollars: number) {
+  const submittedContracts = Math.max(1, Math.floor(signalConfig.executionStakeDollars / entryPriceDollars));
+  return {
+    submittedContracts,
+    maxCostDollars: round(submittedContracts * entryPriceDollars, 2),
+  };
+}
+
+async function submitIocAttempt(input: {
+  windowTicker: string;
+  side: "yes" | "no";
+  entryPriceDollars: number;
+}) {
+  const { submittedContracts, maxCostDollars } = getExecutionSize(input.entryPriceDollars);
+  const clientOrderId = buildClientOrderId(input.windowTicker, input.side);
+  const response = await submitKalshiOrder({
+    action: "buy",
+    ticker: input.windowTicker,
+    side: input.side,
+    contracts: submittedContracts,
+    limitPriceCents: Math.max(1, Math.min(99, Math.round(input.entryPriceDollars * 100))),
+    clientOrderId,
+    timeInForce: "immediate_or_cancel",
+  });
+
+  const filledContracts = Math.max(0, parseFilledContracts(response.order) ?? submittedContracts);
+  const averageFillPrice = round(
+    parseAverageFillPriceDollars(response.order, input.side, input.entryPriceDollars, Math.max(1, filledContracts)),
+    4,
+  );
+
+  return {
+    submittedContracts,
+    filledContracts,
+    maxCostDollars,
+    entryPriceDollars: filledContracts > 0 ? averageFillPrice : input.entryPriceDollars,
+    orderId: response.order?.order_id ?? null,
+    clientOrderId: response.order?.client_order_id ?? clientOrderId,
+  };
 }
 
 async function hydrateOnce() {
@@ -231,8 +280,7 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
   }
 
   const entryPriceDollars = snapshot.recommendation.buyPriceDollars;
-  const submittedContracts = Math.max(1, Math.floor(signalConfig.executionStakeDollars / entryPriceDollars));
-  const maxCostDollars = round(submittedContracts * entryPriceDollars, 2);
+  const { submittedContracts, maxCostDollars } = getExecutionSize(entryPriceDollars);
 
   const balance = await getKalshiBalance().catch(() => null);
   if (
@@ -264,37 +312,64 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
     return;
   }
 
-  const clientOrderId = buildClientOrderId(snapshot.window.market.ticker, snapshot.recommendation.contractSide);
   try {
-    const response = await submitKalshiOrder({
-      action: "buy",
-      ticker: snapshot.window.market.ticker,
+    const firstAttempt = await submitIocAttempt({
+      windowTicker: snapshot.window.market.ticker,
       side: snapshot.recommendation.contractSide,
-      contracts: submittedContracts,
-      limitPriceCents: Math.max(1, Math.min(99, Math.round(entryPriceDollars * 100))),
-      clientOrderId,
-      timeInForce: "immediate_or_cancel",
+      entryPriceDollars,
     });
 
-    const filledContracts = parseFilledContracts(response.order) ?? submittedContracts;
-    const averageFillPrice = round(
-      parseAverageFillPriceDollars(
-        response.order,
-        snapshot.recommendation.contractSide,
-        entryPriceDollars,
-        Math.max(1, filledContracts),
-      ),
-      4,
-    );
+    let finalAttempt = firstAttempt;
+    let message: string;
+
+    if (firstAttempt.filledContracts < 1) {
+      const refreshedMarket = await fetchKalshiWindowByTicker(snapshot.window.market.ticker).catch(() => null);
+      const refreshedAsk = getSideAskPrice(refreshedMarket, snapshot.recommendation.contractSide);
+      const retrySlippageCents =
+        refreshedAsk === null ? null : Math.round((refreshedAsk - entryPriceDollars) * 100);
+      const canRetry =
+        refreshedAsk !== null &&
+        refreshedAsk > 0 &&
+        retrySlippageCents !== null &&
+        retrySlippageCents >= 0 &&
+        retrySlippageCents <= signalConfig.executionRetryMaxSlippageCents;
+
+      if (canRetry) {
+        finalAttempt = await submitIocAttempt({
+          windowTicker: snapshot.window.market.ticker,
+          side: snapshot.recommendation.contractSide,
+          entryPriceDollars: refreshedAsk,
+        });
+        message =
+          finalAttempt.filledContracts < 1
+            ? `First actionable signal locked the window. Initial IOC missed, retry at ${refreshedAsk.toFixed(2)} also returned no fill.`
+            : finalAttempt.filledContracts < finalAttempt.submittedContracts
+              ? `First actionable signal locked the window. Initial IOC missed, retry at ${refreshedAsk.toFixed(2)} partially filled ${finalAttempt.filledContracts} contracts.`
+              : `First actionable signal locked the window. Initial IOC missed, retry at ${refreshedAsk.toFixed(2)} filled ${finalAttempt.filledContracts} contracts.`;
+      } else {
+        const retryReason =
+          refreshedAsk === null
+            ? "A fresh ask was unavailable for retry."
+            : retrySlippageCents === null || retrySlippageCents < 0
+              ? "The refreshed ask moved unexpectedly and was not retried."
+              : `Retry skipped because the refreshed ask was ${retrySlippageCents}c above the original entry, over the ${signalConfig.executionRetryMaxSlippageCents}c cap.`;
+        message = `First actionable signal locked the window, but the IOC order returned no fill. ${retryReason}`;
+      }
+    } else {
+      message =
+        finalAttempt.filledContracts < finalAttempt.submittedContracts
+          ? `First actionable signal locked the window and partially filled ${finalAttempt.filledContracts} contracts.`
+          : `First actionable signal locked the window and filled ${finalAttempt.filledContracts} contracts.`;
+    }
 
     await upsertSignalExecution({
       id: execution.id,
       windowId: execution.windowId,
       windowTicker: execution.windowTicker,
       status:
-        filledContracts < 1
+        finalAttempt.filledContracts < 1
           ? "unfilled"
-          : filledContracts < submittedContracts
+          : finalAttempt.filledContracts < finalAttempt.submittedContracts
             ? "partial_fill"
             : "submitted",
       lockedAction: snapshot.recommendation.action,
@@ -302,22 +377,18 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
       decisionSnapshotId: null,
       decisionObservedAt: snapshot.generatedAt,
       submittedAt: new Date().toISOString(),
-      entryPriceDollars: filledContracts > 0 ? averageFillPrice : entryPriceDollars,
-      submittedContracts,
-      filledContracts: Math.max(0, filledContracts),
-      maxCostDollars,
-      orderId: response.order?.order_id ?? null,
-      clientOrderId: response.order?.client_order_id ?? clientOrderId,
-      message:
-        filledContracts < 1
-          ? "First actionable signal locked the window, but the IOC order returned no fill."
-          : filledContracts < submittedContracts
-            ? `First actionable signal locked the window and partially filled ${filledContracts} contracts.`
-            : `First actionable signal locked the window and filled ${filledContracts} contracts.`,
+      entryPriceDollars: finalAttempt.entryPriceDollars,
+      submittedContracts: finalAttempt.submittedContracts,
+      filledContracts: finalAttempt.filledContracts,
+      maxCostDollars: finalAttempt.maxCostDollars,
+      orderId: finalAttempt.orderId,
+      clientOrderId: finalAttempt.clientOrderId,
+      message,
       resolutionOutcome: null,
       realizedPnlDollars: null,
     });
   } catch (error) {
+    const clientOrderId = buildClientOrderId(snapshot.window.market.ticker, snapshot.recommendation.contractSide);
     await upsertSignalExecution({
       id: execution.id,
       windowId: execution.windowId,

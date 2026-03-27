@@ -615,7 +615,7 @@ export async function submitKalshiOrder(input: {
     time_in_force: timeInForce,
     count: input.contracts,
     client_order_id: input.clientOrderId,
-    ...(action === "buy" ? { buy_max_cost: totalCostCents } : {}),
+    ...(action === "buy" && timeInForce === "fill_or_kill" ? { buy_max_cost: totalCostCents } : {}),
     ...(input.reduceOnly ? { reduce_only: true } : {}),
     ...(input.side === "yes"
       ? { yes_price: input.limitPriceCents }
