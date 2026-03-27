@@ -1,5 +1,10 @@
 import { fetchCoinbaseCandles, fetchCoinbaseCandlesInRange } from "@/lib/server/coinbase-client";
 import { discoverActiveBtcWindow, fetchKalshiWindowByTicker } from "@/lib/server/btc-kalshi-client";
+import {
+  buildTrackedMetrics,
+  listPublicTrackedTrades,
+  syncTrackedAccountTrades,
+} from "@/lib/server/btc-signal-account-tracker";
 import { buildSignalExplanation } from "@/lib/server/btc-explainer";
 import {
   getSignalExecutionByWindowTicker,
@@ -459,6 +464,7 @@ function hydrateMarketStrike(market: KalshiBtcWindowSnapshot, window: PersistedS
 async function computeSnapshot() {
   await hydrateOnce();
   await resolveOverdueWindows();
+  await syncTrackedAccountTrades().catch(() => undefined);
   const warnings: string[] = [];
   const now = new Date();
   const { market, window } = await getWindowAnchor(now);
@@ -499,6 +505,8 @@ async function computeSnapshot() {
         caution: ["The app needs an active KXBTC15M market before it can score a trade."],
       },
       metrics: buildPerformanceMetrics(),
+      trackedMetrics: buildTrackedMetrics(),
+      trackedTrades: listPublicTrackedTrades(),
       history: mapHistory(),
       warnings: ["No active BTC 15-minute Kalshi market is available right now."],
     } satisfies Btc15mSignalSnapshot;
@@ -547,6 +555,8 @@ async function computeSnapshot() {
             caution: ["The live BTC feed returned too few candles for the model."],
           },
           metrics: buildPerformanceMetrics(),
+          trackedMetrics: buildTrackedMetrics(),
+          trackedTrades: listPublicTrackedTrades(),
           history: mapHistory(),
           warnings: [...warnings, "Coinbase returned too few candles for the live engine."],
         };
@@ -643,6 +653,8 @@ async function computeSnapshot() {
     recentExecutions: listRecentExecutionStatuses(),
     explanation,
     metrics: buildPerformanceMetrics(),
+    trackedMetrics: buildTrackedMetrics(),
+    trackedTrades: listPublicTrackedTrades(),
     history: mapHistory(),
     warnings,
   } satisfies Btc15mSignalSnapshot;

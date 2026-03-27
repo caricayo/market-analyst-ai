@@ -14,6 +14,8 @@ export type SignalExecutionStatus =
   | "skipped_no_signal"
   | "error"
   | "resolved";
+export type TrackedTradeSource = "manual" | "auto" | "mixed" | "unknown";
+export type TrackedTradeResult = "win" | "loss" | "open";
 
 export type KalshiBtcWindowSnapshot = {
   ticker: string;
@@ -179,6 +181,35 @@ export type SignalPerformanceMetrics = {
   calibration: SignalCalibrationBucket[];
 };
 
+export type BtcTrackedTrade = {
+  marketTicker: string;
+  side: "yes" | "no";
+  source: TrackedTradeSource;
+  firstFillAt: string | null;
+  lastFillAt: string | null;
+  totalContracts: number;
+  averagePriceDollars: number | null;
+  fillsCount: number;
+  resolutionOutcome: "above" | "below" | null;
+  result: TrackedTradeResult;
+  realizedPnlDollars: number | null;
+};
+
+export type TrackedWinRateMetrics = {
+  trackingStartIso: string;
+  trackingStartLabel: string;
+  trackedTrades: number;
+  resolvedTrades: number;
+  openTrades: number;
+  wins: number;
+  losses: number;
+  winRatePct: number | null;
+  pnlDollars: number;
+  autoTrades: number;
+  manualTrades: number;
+  mixedTrades: number;
+};
+
 export type Btc15mSignalSnapshot = {
   generatedAt: string;
   stale: boolean;
@@ -190,6 +221,8 @@ export type Btc15mSignalSnapshot = {
   recentExecutions: BtcSignalExecution[];
   explanation: SignalExplanation;
   metrics: SignalPerformanceMetrics;
+  trackedMetrics: TrackedWinRateMetrics;
+  trackedTrades: BtcTrackedTrade[];
   history: SignalHistoryEntry[];
   warnings: string[];
 };
@@ -255,6 +288,23 @@ export type PersistedSignalExecution = {
   clientOrderId: string | null;
   message: string;
   resolutionOutcome: "above" | "below" | null;
+  realizedPnlDollars: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PersistedTrackedTrade = {
+  id: string;
+  marketTicker: string;
+  side: "yes" | "no";
+  source: TrackedTradeSource;
+  firstFillAt: string | null;
+  lastFillAt: string | null;
+  totalContracts: number;
+  averagePriceDollars: number | null;
+  fillsCount: number;
+  resolutionOutcome: "above" | "below" | null;
+  result: TrackedTradeResult;
   realizedPnlDollars: number | null;
   createdAt: string;
   updatedAt: string;

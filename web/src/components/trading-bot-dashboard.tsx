@@ -677,6 +677,59 @@ export function TradingBotDashboard() {
           </div>
 
           <div className="rounded-[30px] border border-white/10 bg-[rgba(10,16,24,0.9)] p-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Tracked Account Record</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Stat
+                label="Current Win Rate"
+                value={formatPercent(snapshot?.trackedMetrics.winRatePct, 2)}
+                helper={`Since ${snapshot?.trackedMetrics.trackingStartLabel ?? "baseline"}`}
+              />
+              <Stat
+                label="Tracked PnL"
+                value={formatMoney(snapshot?.trackedMetrics.pnlDollars)}
+                helper={`${formatNumber(snapshot?.trackedMetrics.wins, 0)} wins and ${formatNumber(snapshot?.trackedMetrics.losses, 0)} losses`}
+              />
+              <Stat
+                label="Tracked Trades"
+                value={formatNumber(snapshot?.trackedMetrics.trackedTrades, 0)}
+                helper={`${formatNumber(snapshot?.trackedMetrics.resolvedTrades, 0)} resolved, ${formatNumber(snapshot?.trackedMetrics.openTrades, 0)} open`}
+              />
+              <Stat
+                label="Source Mix"
+                value={`${formatNumber(snapshot?.trackedMetrics.autoTrades, 0)} auto / ${formatNumber(snapshot?.trackedMetrics.manualTrades, 0)} manual`}
+                helper={`${formatNumber(snapshot?.trackedMetrics.mixedTrades, 0)} mixed windows`}
+              />
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Tracked Trade Feed</p>
+              <div className="mt-3 grid gap-3">
+                {snapshot?.trackedTrades?.length ? (
+                  snapshot.trackedTrades.map((trade) => (
+                    <div key={`${trade.marketTicker}-${trade.side}`} className="rounded-[18px] border border-white/10 bg-white/5 px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm font-medium text-white">{trade.marketTicker}</p>
+                        <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${trade.result === "win" ? "border-emerald-300/35 bg-emerald-400/15 text-emerald-50" : trade.result === "loss" ? "border-rose-300/35 bg-rose-400/15 text-rose-50" : "border-amber-300/35 bg-amber-300/15 text-amber-50"}`}>
+                          {trade.result}
+                        </div>
+                      </div>
+                      <div className="mt-2 grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+                        <p>Side: <span className="font-semibold uppercase text-white">{trade.side}</span></p>
+                        <p>Source: <span className="font-semibold capitalize text-white">{trade.source}</span></p>
+                        <p>Contracts: <span className="font-semibold text-white">{formatContracts(trade.totalContracts)}</span></p>
+                        <p>Avg fill: <span className="font-semibold text-white">{formatMoney(trade.averagePriceDollars, 4)}</span></p>
+                        <p>First fill: <span className="font-semibold text-white">{formatTimestamp(trade.firstFillAt)}</span></p>
+                        <p>PnL: <span className="font-semibold text-white">{formatMoney(trade.realizedPnlDollars)}</span></p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-300">Tracked Kalshi fills will appear here once the baseline sync completes.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Measured Performance</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <Stat
@@ -782,6 +835,7 @@ export function TradingBotDashboard() {
                 <p>Last refresh: {formatTimestamp(snapshot?.generatedAt)}.</p>
                 <p>{state.loading ? "Refreshing..." : "Polling every 5 seconds."}</p>
               </div>
+            </div>
             </div>
           </div>
         </section>
