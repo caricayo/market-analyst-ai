@@ -316,6 +316,22 @@ function extractPersistedTestCase(snapshot: PersistedSignalSnapshot): BtcTestCas
   };
 }
 
+function getLockedTestCaseForWindow(windowId: string) {
+  const snapshots = listSignalSnapshots()
+    .filter((snapshot) => snapshot.windowId === windowId)
+    .sort((left, right) => left.observedAt.localeCompare(right.observedAt));
+
+  for (const snapshot of snapshots) {
+    const testCase = extractPersistedTestCase(snapshot);
+    if (!testCase || testCase.recommendation.action === "no_buy") {
+      continue;
+    }
+    return testCase;
+  }
+
+  return null;
+}
+
 function getOutcomeResult(snapshot: PersistedSignalSnapshot): SignalOutcome | null {
   if (!snapshot.resolutionOutcome) {
     return null;
@@ -796,13 +812,14 @@ async function computeSnapshot() {
     features,
     riskLevel,
   });
-  const testCase = buildTestCaseSignal({
+  const computedTestCase = buildTestCaseSignal({
     candles,
     features,
     market: latestMarket,
     riskLevel,
     reversal,
   });
+  const testCase = getLockedTestCaseForWindow(window.id) ?? computedTestCase;
   const explanation = await buildSignalExplanation({
     recommendation,
     features,
