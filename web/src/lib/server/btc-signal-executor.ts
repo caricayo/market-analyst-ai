@@ -399,52 +399,51 @@ async function runTakerFallback(input: {
         : "Maker phase timed out. Falling back to taker entry for the locked side.",
   });
 
-  while (Date.now() < input.retryDeadline) {
-    const remainingBudgetDollars = getRemainingBudget(input.targetSpendDollars, progress.totalSpentDollars);
-    const minimumContracts = progress.totalFilledContracts > 0 ? 0 : 1;
-    const sizing = getExecutionSize(progress.lastKnownAsk, remainingBudgetDollars, minimumContracts);
-    if (sizing.submittedContracts < 1) break;
+  const refreshedMarket = await fetchKalshiWindowByTicker(input.windowTicker).catch(() => null);
+  const refreshedAsk = getSideAskPrice(refreshedMarket, input.side);
+  const closeTime = refreshedMarket?.closeTime ?? refreshedMarket?.expirationTime ?? null;
+  const closesAt = closeTime ? Date.parse(closeTime) : Number.NaN;
+  if (Number.isFinite(closesAt) && closesAt <= Date.now()) {
+    return { execution, progress, terminalError, stoppedForFunds: false, attemptCount };
+  }
+  if ((refreshedMarket?.status ?? "").toLowerCase() === "closed") {
+    return { execution, progress, terminalError, stoppedForFunds: false, attemptCount };
+  }
+  if (refreshedAsk !== null && refreshedAsk > 0) {
+    progress.lastKnownAsk = refreshedAsk;
+  }
 
-    try {
-      const attempt = await submitIocAttempt({
-        windowTicker: input.windowTicker,
-        side: input.side,
-        entryPriceDollars: progress.lastKnownAsk,
-        targetSpendDollars: remainingBudgetDollars,
-        minimumContracts,
-      });
+  const remainingBudgetDollars = getRemainingBudget(input.targetSpendDollars, progress.totalSpentDollars);
+  const minimumContracts = progress.totalFilledContracts > 0 ? 0 : 1;
+  const sizing = getExecutionSize(progress.lastKnownAsk, remainingBudgetDollars, minimumContracts);
+  if (sizing.submittedContracts < 1) {
+    return { execution, progress, terminalError, stoppedForFunds: false, attemptCount };
+  }
 
-      attemptCount += 1;
-      progress.totalSubmittedContracts += attempt.submittedContracts;
-      progress.lastOrderId = attempt.orderId ?? progress.lastOrderId;
-      progress.lastClientOrderId = attempt.clientOrderId ?? progress.lastClientOrderId;
-      progress.submittedAt = progress.submittedAt ?? new Date().toISOString();
+  try {
+    const attempt = await submitIocAttempt({
+      windowTicker: input.windowTicker,
+      side: input.side,
+      entryPriceDollars: progress.lastKnownAsk,
+      targetSpendDollars: remainingBudgetDollars,
+      minimumContracts,
+    });
 
-      if (attempt.filledContracts > 0) {
-        progress = updateProgressWithFill(progress, attempt.filledContracts, attempt.entryPriceDollars ?? progress.lastKnownAsk, "taker");
-      }
-    } catch (error) {
-      terminalError = error instanceof Error ? error.message : "Signal execution order failed.";
-      if (isInsufficientFundsMessage(terminalError)) {
-        await stopForInsufficientFunds(execution, `The taker fallback could not complete because funds were insufficient. ${terminalError}`);
-        return { execution, progress, terminalError, stoppedForFunds: true, attemptCount };
-      }
-      break;
+    attemptCount = 1;
+    progress.totalSubmittedContracts += attempt.submittedContracts;
+    progress.lastOrderId = attempt.orderId ?? progress.lastOrderId;
+    progress.lastClientOrderId = attempt.clientOrderId ?? progress.lastClientOrderId;
+    progress.submittedAt = progress.submittedAt ?? new Date().toISOString();
+
+    if (attempt.filledContracts > 0) {
+      progress = updateProgressWithFill(progress, attempt.filledContracts, attempt.entryPriceDollars ?? progress.lastKnownAsk, "taker");
     }
-
-    const refreshedRemainingBudget = getRemainingBudget(input.targetSpendDollars, progress.totalSpentDollars);
-    if (refreshedRemainingBudget <= 0) break;
-    if (Date.now() + signalConfig.executionMakerPollMs >= input.retryDeadline) break;
-
-    await sleep(signalConfig.executionMakerPollMs);
-    const refreshedMarket = await fetchKalshiWindowByTicker(input.windowTicker).catch(() => null);
-    const refreshedAsk = getSideAskPrice(refreshedMarket, input.side);
-    const closeTime = refreshedMarket?.closeTime ?? refreshedMarket?.expirationTime ?? null;
-    const closesAt = closeTime ? Date.parse(closeTime) : Number.NaN;
-
-    if (Number.isFinite(closesAt) && closesAt <= Date.now()) break;
-    if ((refreshedMarket?.status ?? "").toLowerCase() === "closed") break;
-    if (refreshedAsk !== null && refreshedAsk > 0) progress.lastKnownAsk = refreshedAsk;
+  } catch (error) {
+    terminalError = error instanceof Error ? error.message : "Signal execution order failed.";
+    if (isInsufficientFundsMessage(terminalError)) {
+      await stopForInsufficientFunds(execution, `The taker fallback could not complete because funds were insufficient. ${terminalError}`);
+      return { execution, progress, terminalError, stoppedForFunds: true, attemptCount };
+    }
   }
 
   return { execution, progress, terminalError, stoppedForFunds: false, attemptCount };
@@ -521,6 +520,7 @@ async function runMakerFirstEntry(input: { snapshot: Awaited<ReturnType<typeof g
     message: "First actionable signal locked the window. Working a maker-first resting order.",
   });
 
+  let makerOrderPlaced = false;
   while (Date.now() < makerDeadline && Date.now() < retryDeadline) {
     const liveSnapshot = await getBtc15mSignalSnapshot().catch(() => null);
     if (liveSnapshot?.window.market?.ticker !== execution.windowTicker) break;
@@ -548,20 +548,8 @@ async function runMakerFirstEntry(input: { snapshot: Awaited<ReturnType<typeof g
 
         const remainingContracts = parseRemainingContracts(order.order);
         const status = getOrderStatus(order.order);
-        const priceMoved = desiredPrice !== null && progress.restingPriceDollars !== null &&
-          Math.abs(Math.round((desiredPrice - progress.restingPriceDollars) * 100)) >= signalConfig.executionMakerRepriceCents;
 
         if (remainingContracts !== null && remainingContracts < 1) {
-          progress.restingOrderId = null;
-          progress.restingClientOrderId = null;
-          progress.restingPriceDollars = null;
-          currentRestingFilledContracts = 0;
-        } else if (priceMoved && status === "resting") {
-          const restingOrderId = progress.restingOrderId;
-          if (restingOrderId) {
-            await cancelKalshiOrder(restingOrderId).catch(() => undefined);
-          }
-          progress.makerCanceledAt = new Date().toISOString();
           progress.restingOrderId = null;
           progress.restingClientOrderId = null;
           progress.restingPriceDollars = null;
@@ -581,7 +569,7 @@ async function runMakerFirstEntry(input: { snapshot: Awaited<ReturnType<typeof g
       }
     }
 
-    if (!progress.restingOrderId && desiredPrice !== null && sizing.submittedContracts > 0) {
+    if (!makerOrderPlaced && !progress.restingOrderId && desiredPrice !== null && sizing.submittedContracts > 0) {
       try {
         const response = await submitKalshiOrder({
           action: "buy",
@@ -594,6 +582,7 @@ async function runMakerFirstEntry(input: { snapshot: Awaited<ReturnType<typeof g
           postOnly: true,
         });
 
+        makerOrderPlaced = true;
         progress.totalSubmittedContracts += sizing.submittedContracts;
         progress.submittedAt = progress.submittedAt ?? new Date().toISOString();
         progress.makerPlacedAt = progress.makerPlacedAt ?? progress.submittedAt;
@@ -635,6 +624,7 @@ async function runMakerFirstEntry(input: { snapshot: Awaited<ReturnType<typeof g
           await stopForInsufficientFunds(execution, terminalMessage);
           return;
         }
+        makerOrderPlaced = true;
       }
     }
 
