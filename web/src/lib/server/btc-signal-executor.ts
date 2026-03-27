@@ -87,8 +87,20 @@ function parseAverageFillPriceDollars(
   return Number.isFinite(directPrice) && directPrice > 0 ? directPrice : fallbackPriceDollars;
 }
 
-function getExecutionSize(entryPriceDollars: number) {
-  const submittedContracts = Math.max(1, Math.floor(signalConfig.executionStakeDollars / entryPriceDollars));
+function getExecutionSize(
+  entryPriceDollars: number,
+  targetSpendDollars = signalConfig.executionStakeDollars,
+  minimumContracts = 1,
+) {
+  if (!Number.isFinite(entryPriceDollars) || entryPriceDollars <= 0 || !Number.isFinite(targetSpendDollars)) {
+    return {
+      submittedContracts: 0,
+      maxCostDollars: 0,
+    };
+  }
+
+  const affordableContracts = Math.floor(targetSpendDollars / entryPriceDollars);
+  const submittedContracts = Math.max(minimumContracts, affordableContracts);
   return {
     submittedContracts,
     maxCostDollars: round(submittedContracts * entryPriceDollars, 2),
@@ -99,8 +111,25 @@ async function submitIocAttempt(input: {
   windowTicker: string;
   side: "yes" | "no";
   entryPriceDollars: number;
+  targetSpendDollars?: number;
+  minimumContracts?: number;
 }) {
-  const { submittedContracts, maxCostDollars } = getExecutionSize(input.entryPriceDollars);
+  const { submittedContracts, maxCostDollars } = getExecutionSize(
+    input.entryPriceDollars,
+    input.targetSpendDollars,
+    input.minimumContracts,
+  );
+  if (submittedContracts < 1) {
+    return {
+      submittedContracts: 0,
+      filledContracts: 0,
+      maxCostDollars: 0,
+      entryPriceDollars: input.entryPriceDollars,
+      orderId: null,
+      clientOrderId: null,
+    };
+  }
+
   const clientOrderId = buildClientOrderId(input.windowTicker, input.side);
   const response = await submitKalshiOrder({
     action: "buy",
@@ -126,6 +155,10 @@ async function submitIocAttempt(input: {
     orderId: response.order?.order_id ?? null,
     clientOrderId: response.order?.client_order_id ?? clientOrderId,
   };
+}
+
+function getRemainingBudget(targetSpendDollars: number, spentDollars: number) {
+  return Math.max(0, Number((targetSpendDollars - spentDollars).toFixed(4)));
 }
 
 async function hydrateOnce() {
@@ -286,7 +319,8 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
   }
 
   const entryPriceDollars = snapshot.recommendation.buyPriceDollars;
-  const { submittedContracts, maxCostDollars } = getExecutionSize(entryPriceDollars);
+  const targetSpendDollars = signalConfig.executionStakeDollars;
+  const { submittedContracts, maxCostDollars } = getExecutionSize(entryPriceDollars, targetSpendDollars, 1);
 
   const balance = await getKalshiBalance().catch(() => null);
   if (
@@ -319,61 +353,97 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
   }
 
   try {
-    const firstAttempt = await submitIocAttempt({
-      windowTicker: snapshot.window.market.ticker,
-      side: snapshot.recommendation.contractSide,
-      entryPriceDollars,
-    });
+    let attemptCount = 0;
+    let totalSubmittedContracts = 0;
+    let totalFilledContracts = 0;
+    let totalSpentDollars = 0;
+    let weightedFillCostDollars = 0;
+    let lastKnownAsk = entryPriceDollars;
+    let lastOrderId: string | null = null;
+    let lastClientOrderId: string | null = null;
+    let terminalError: string | null = null;
+    const retryDeadline = Date.now() + Math.max(0, snapshot.window.secondsToClose * 1_000);
 
-    let finalAttempt = firstAttempt;
-    let message: string;
-    let attemptCount = 1;
+    while (Date.now() < retryDeadline) {
+      const remainingBudgetDollars = getRemainingBudget(targetSpendDollars, totalSpentDollars);
+      const minimumContracts = totalFilledContracts > 0 ? 0 : 1;
+      const sizing = getExecutionSize(lastKnownAsk, remainingBudgetDollars, minimumContracts);
+      if (sizing.submittedContracts < 1) {
+        break;
+      }
 
-    if (firstAttempt.filledContracts < 1) {
-      const retryDeadline = Date.now() + Math.max(0, snapshot.window.secondsToClose * 1_000);
-      let lastKnownAsk = entryPriceDollars;
-
-      while (finalAttempt.filledContracts < 1 && Date.now() + 1_000 < retryDeadline) {
-        await sleep(1_000);
-        const refreshedMarket = await fetchKalshiWindowByTicker(snapshot.window.market.ticker).catch(() => null);
-        const refreshedAsk = getSideAskPrice(refreshedMarket, snapshot.recommendation.contractSide);
-        const closeTime = refreshedMarket?.closeTime ?? refreshedMarket?.expirationTime ?? null;
-        const closesAt = closeTime ? Date.parse(closeTime) : Number.NaN;
-
-        if (Number.isFinite(closesAt) && closesAt <= Date.now()) {
-          break;
-        }
-
-        if ((refreshedMarket?.status ?? "").toLowerCase() === "closed") {
-          break;
-        }
-
-        if (refreshedAsk === null || refreshedAsk <= 0) {
-          continue;
-        }
-
-        lastKnownAsk = refreshedAsk;
-        finalAttempt = await submitIocAttempt({
+      try {
+        const attempt = await submitIocAttempt({
           windowTicker: snapshot.window.market.ticker,
           side: snapshot.recommendation.contractSide,
-          entryPriceDollars: refreshedAsk,
+          entryPriceDollars: lastKnownAsk,
+          targetSpendDollars: remainingBudgetDollars,
+          minimumContracts,
         });
+
         attemptCount += 1;
+        totalSubmittedContracts += attempt.submittedContracts;
+        lastOrderId = attempt.orderId ?? lastOrderId;
+        lastClientOrderId = attempt.clientOrderId ?? lastClientOrderId;
+
+        if (attempt.filledContracts > 0) {
+          const fillPriceDollars = attempt.entryPriceDollars ?? lastKnownAsk;
+          totalFilledContracts += attempt.filledContracts;
+          totalSpentDollars += attempt.filledContracts * fillPriceDollars;
+          weightedFillCostDollars += attempt.filledContracts * fillPriceDollars;
+        }
+      } catch (error) {
+        terminalError = error instanceof Error ? error.message : "Signal execution order failed.";
+        break;
       }
 
-      if (finalAttempt.filledContracts < 1) {
-        message = `First actionable signal locked the window, but no IOC attempt filled after ${attemptCount} tries. Last refreshed ask was ${lastKnownAsk.toFixed(2)}.`;
-      } else {
-        message =
-          finalAttempt.filledContracts < finalAttempt.submittedContracts
-            ? `First actionable signal locked the window and partially filled ${finalAttempt.filledContracts} contracts after ${attemptCount} attempts.`
-            : `First actionable signal locked the window and filled ${finalAttempt.filledContracts} contracts after ${attemptCount} attempts.`;
+      const refreshedRemainingBudget = getRemainingBudget(targetSpendDollars, totalSpentDollars);
+      if (refreshedRemainingBudget <= 0) {
+        break;
       }
+
+      if (Date.now() + 1_000 >= retryDeadline) {
+        break;
+      }
+
+      await sleep(1_000);
+      const refreshedMarket = await fetchKalshiWindowByTicker(snapshot.window.market.ticker).catch(() => null);
+      const refreshedAsk = getSideAskPrice(refreshedMarket, snapshot.recommendation.contractSide);
+      const closeTime = refreshedMarket?.closeTime ?? refreshedMarket?.expirationTime ?? null;
+      const closesAt = closeTime ? Date.parse(closeTime) : Number.NaN;
+
+      if (Number.isFinite(closesAt) && closesAt <= Date.now()) {
+        break;
+      }
+
+      if ((refreshedMarket?.status ?? "").toLowerCase() === "closed") {
+        break;
+      }
+
+      if (refreshedAsk === null || refreshedAsk <= 0) {
+        continue;
+      }
+
+      lastKnownAsk = refreshedAsk;
+    }
+
+    const averageFillPriceDollars =
+      totalFilledContracts > 0 ? round(weightedFillCostDollars / totalFilledContracts, 4) : entryPriceDollars;
+    const remainingBudgetDollars = getRemainingBudget(targetSpendDollars, totalSpentDollars);
+    const canStillTopUp =
+      getExecutionSize(lastKnownAsk, remainingBudgetDollars, totalFilledContracts > 0 ? 0 : 1).submittedContracts > 0;
+    let message: string;
+
+    if (totalFilledContracts < 1) {
+      message = terminalError
+        ? `First actionable signal locked the window, but no contracts filled before execution failed after ${attemptCount} attempts. ${terminalError}`
+        : `First actionable signal locked the window, but no IOC attempt filled after ${attemptCount} tries. Last refreshed ask was ${lastKnownAsk.toFixed(2)}.`;
+    } else if (terminalError) {
+      message = `First actionable signal locked the window and filled ${totalFilledContracts} contracts for ${formatDollarApprox(totalSpentDollars)} before execution stopped. ${terminalError}`;
+    } else if (canStillTopUp) {
+      message = `First actionable signal locked the window and filled ${totalFilledContracts} contracts for ${formatDollarApprox(totalSpentDollars)} after ${attemptCount} attempts, but the full ${formatDollarApprox(targetSpendDollars)} target was not reached before the window stopped trading.`;
     } else {
-      message =
-        finalAttempt.filledContracts < finalAttempt.submittedContracts
-          ? `First actionable signal locked the window and partially filled ${finalAttempt.filledContracts} contracts.`
-          : `First actionable signal locked the window and filled ${finalAttempt.filledContracts} contracts.`;
+      message = `First actionable signal locked the window and filled ${totalFilledContracts} contracts for ${formatDollarApprox(totalSpentDollars)} after ${attemptCount} attempts.`;
     }
 
     await upsertSignalExecution({
@@ -381,9 +451,9 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
       windowId: execution.windowId,
       windowTicker: execution.windowTicker,
       status:
-        finalAttempt.filledContracts < 1
+        totalFilledContracts < 1
           ? "unfilled"
-          : finalAttempt.filledContracts < finalAttempt.submittedContracts
+          : canStillTopUp || terminalError
             ? "partial_fill"
             : "submitted",
       lockedAction: snapshot.recommendation.action,
@@ -391,12 +461,12 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
       decisionSnapshotId: null,
       decisionObservedAt: snapshot.generatedAt,
       submittedAt: new Date().toISOString(),
-      entryPriceDollars: finalAttempt.entryPriceDollars,
-      submittedContracts: finalAttempt.submittedContracts,
-      filledContracts: finalAttempt.filledContracts,
-      maxCostDollars: finalAttempt.maxCostDollars,
-      orderId: finalAttempt.orderId,
-      clientOrderId: finalAttempt.clientOrderId,
+      entryPriceDollars: averageFillPriceDollars,
+      submittedContracts: totalSubmittedContracts,
+      filledContracts: totalFilledContracts,
+      maxCostDollars: round(targetSpendDollars, 2),
+      orderId: lastOrderId,
+      clientOrderId: lastClientOrderId,
       message,
       resolutionOutcome: null,
       realizedPnlDollars: null,
@@ -424,6 +494,10 @@ async function maybeExecuteWindow(snapshot: Awaited<ReturnType<typeof getBtc15mS
       realizedPnlDollars: null,
     });
   }
+}
+
+function formatDollarApprox(value: number) {
+  return `$${value.toFixed(2)}`;
 }
 
 export async function processSignalExecutionCycle() {
