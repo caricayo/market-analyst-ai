@@ -242,7 +242,9 @@ export function TradingBotDashboard() {
 
   const snapshot = state.data;
   const recommendation = snapshot?.recommendation;
+  const testCase = snapshot?.testCase;
   const tone = actionTone(recommendation?.action ?? "no_buy");
+  const testCaseTone = actionTone(testCase?.recommendation.action ?? "no_buy");
   const reversal = snapshot?.reversal;
   const reversalSkin = reversalTone(reversal?.direction ?? "neutral");
   const executionControl = snapshot?.executionControl;
@@ -267,6 +269,15 @@ export function TradingBotDashboard() {
       .sort((left, right) => Math.abs(right[1]) - Math.abs(left[1]))
       .slice(0, 4);
   }, [reversal]);
+  const testCaseFactorRows = useMemo(() => {
+    if (!testCase?.factorScores) {
+      return [];
+    }
+
+    return Object.entries(testCase.factorScores)
+      .sort((left, right) => Math.abs(right[1]) - Math.abs(left[1]))
+      .slice(0, 6);
+  }, [testCase]);
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#070c11] px-4 py-4 text-slate-100 sm:px-6 lg:px-8">
@@ -496,6 +507,98 @@ export function TradingBotDashboard() {
                   ))
                 ) : (
                   <p className="text-sm text-slate-300">Factor scores will appear once the first live snapshot lands.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="rounded-[30px] border border-dashed border-cyan-300/25 bg-[rgba(8,18,28,0.92)] p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-cyan-100/65">Test Case</p>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  Shadow bot only. No execution path. This version adds hourly regime, flip-risk, chop, and candle-structure checks.
+                </p>
+              </div>
+              <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${testCaseTone.pill}`}>
+                {testCase?.recommendation.label ?? "No Buy"}
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <Stat
+                label="What It Buys"
+                value={
+                  testCase?.recommendation.action === "buy_yes"
+                    ? "YES"
+                    : testCase?.recommendation.action === "buy_no"
+                      ? "NO"
+                      : "Stand Down"
+                }
+                helper="This is logged and scored, but never auto-executed."
+              />
+              <Stat label="Hourly Regime" value={testCase?.hourlyRegime ?? "n/a"} helper={testCase?.hourlyTilt ?? "neutral"} />
+              <Stat label="Alignment" value={testCase?.alignment ?? "n/a"} helper="Whether the 15m call agrees with the last hour." />
+              <Stat label="Flip Risk" value={testCase?.flipRisk ?? "n/a"} helper={`Score ${formatNumber(testCase?.flipRiskScore, 2)}`} />
+              <Stat label="Range Filter" value={testCase?.rangeFilter ?? "n/a"} helper="Range and chop suppression layer." />
+              <Stat label="Structure Bias" value={testCase?.structureBias ?? "n/a"} helper={`Score ${formatNumber(testCase?.structureScore, 2)}`} />
+              <Stat label="Buy Accuracy" value={formatPercent(snapshot?.testCaseMetrics.openingActionableAccuracyPct, 1)} helper={`${formatNumber(snapshot?.testCaseMetrics.openingActionableWindows, 0)} resolved opening buys`} />
+              <Stat label="Opening Accuracy" value={formatPercent(snapshot?.testCaseMetrics.openingSuggestionAccuracyPct, 1)} helper={`${formatNumber(snapshot?.testCaseMetrics.openingSuggestionWindows, 0)} opening calls scored`} />
+              <Stat label="Paper PnL" value={formatMoney(snapshot?.testCaseMetrics.totalSuggestedPnlDollars)} helper={snapshot?.testCaseMetrics.avgSuggestedPnlDollars !== null ? `${formatMoney(snapshot?.testCaseMetrics.avgSuggestedPnlDollars)} average per opening buy` : "No resolved opening buys yet"} />
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Why The Test Case Thinks This</p>
+              <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-200">
+                {testCase?.reasons?.length ? (
+                  testCase.reasons.map((reason) => <p key={reason}>{reason}</p>)
+                ) : (
+                  <p>No shadow-only reasons are available yet.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Risk Flags</p>
+              <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-200">
+                {testCase?.riskFlags?.length ? (
+                  testCase.riskFlags.map((flag) => <p key={flag}>{flag}</p>)
+                ) : testCase?.recommendation.blockers?.length ? (
+                  testCase.recommendation.blockers.map((flag) => <p key={flag}>{flag}</p>)
+                ) : (
+                  <p>No extra test-case cautions are active right now.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            <div className="rounded-[30px] border border-white/10 bg-[rgba(10,16,24,0.9)] p-6">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Test Case Pricing</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <Stat label="Selected Ask" value={formatMoney(testCase?.recommendation.buyPriceDollars)} helper="Current ask for the shadow side." />
+                <Stat label="Fair Value" value={formatMoney(testCase?.recommendation.fairValueDollars, 4)} helper={`${formatPercent(testCase?.recommendation.modelProbability)} probability after the shadow adjustments`} />
+                <Stat label="Edge" value={formatMoney(testCase?.recommendation.edgeDollars, 4)} helper={testCase?.recommendation.edgePct !== null ? `${formatPercent(testCase?.recommendation.edgePct)} over ask` : "No edge"} />
+                <Stat label="Confidence" value={formatNumber(testCase?.recommendation.confidence, 0)} helper="Independent from the live bot's execution path." />
+              </div>
+            </div>
+
+            <div className="rounded-[30px] border border-white/10 bg-[rgba(10,16,24,0.9)] p-6">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Top Test Case Factors</p>
+              <div className="mt-4 grid gap-3">
+                {testCaseFactorRows.length ? (
+                  testCaseFactorRows.map(([label, value]) => (
+                    <div key={label} className="rounded-[22px] border border-white/10 bg-black/20 px-4 py-3">
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-sm font-medium text-white">{label}</p>
+                        <p className={`text-sm font-semibold ${testCaseTone.accent}`}>{formatNumber(value, 4)}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-300">Test-case factors will appear once the first live shadow snapshot lands.</p>
                 )}
               </div>
             </div>

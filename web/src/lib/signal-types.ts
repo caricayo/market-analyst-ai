@@ -6,6 +6,12 @@ export type SignalOutcome = "win" | "loss" | "skipped";
 export type ReversalWatchStatus = "none" | "building" | "soon";
 export type ReversalActiveStatus = "none" | "starting" | "active";
 export type ReversalDirection = "bullish" | "bearish" | "neutral";
+export type HourlyRegime = "uptrend" | "downtrend" | "range" | "stretched" | "chop";
+export type HourlyRegimeTilt = "bullish" | "bearish" | "neutral";
+export type TestCaseAlignment = "aligned" | "countertrend" | "neutral";
+export type TestCaseFlipRisk = "low" | "medium" | "high";
+export type TestCaseRangeFilter = "clean" | "range" | "chop";
+export type TestCaseStructureBias = "supports_yes" | "supports_no" | "neutral";
 export type SignalExecutionStatus =
   | "waiting"
   | "submitted"
@@ -110,6 +116,24 @@ export type BtcReversalSignal = {
   invalidatesBelow: number | null;
   invalidatesAbove: number | null;
   estimatedWindow: string | null;
+  factorScores: Record<string, number>;
+};
+
+export type BtcTestCaseSignal = {
+  hourlyRegime: HourlyRegime;
+  hourlyTilt: HourlyRegimeTilt;
+  alignment: TestCaseAlignment;
+  flipRisk: TestCaseFlipRisk;
+  flipRiskScore: number;
+  rangeFilter: TestCaseRangeFilter;
+  structureBias: TestCaseStructureBias;
+  structureScore: number;
+  modelAboveProbability: number;
+  modelBelowProbability: number;
+  modelConfidence: number;
+  recommendation: SignalRecommendation;
+  reasons: string[];
+  riskFlags: string[];
   factorScores: Record<string, number>;
 };
 
@@ -227,11 +251,13 @@ export type Btc15mSignalSnapshot = {
   features: BtcSignalFeatures | null;
   reversal: BtcReversalSignal | null;
   recommendation: SignalRecommendation | null;
+  testCase: BtcTestCaseSignal | null;
   executionControl: BtcSignalExecutionControl;
   execution: BtcSignalExecution | null;
   recentExecutions: BtcSignalExecution[];
   explanation: SignalExplanation;
   metrics: SignalPerformanceMetrics;
+  testCaseMetrics: SignalPerformanceMetrics;
   trackedMetrics: TrackedWinRateMetrics;
   trackedTrades: BtcTrackedTrade[];
   history: SignalHistoryEntry[];

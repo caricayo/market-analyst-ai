@@ -3,6 +3,9 @@ import { signalConfig } from "@/lib/server/signal-config";
 import type {
   BtcReversalSignal,
   BtcSignalFeatures,
+  BtcTestCaseSignal,
+  HourlyRegime,
+  HourlyRegimeTilt,
   KalshiBtcWindowSnapshot,
   SignalRecommendation,
   SignalRiskLevel,
@@ -168,6 +171,11 @@ function sigmoid(value: number) {
   return 1 / (1 + Math.exp(-value));
 }
 
+function logit(value: number) {
+  const bounded = clamp(value, 0.02, 0.98);
+  return Math.log(bounded / (1 - bounded));
+}
+
 function detectTrendBias(ema9: number | null, ema21: number | null, ema55: number | null): TrendBias {
   if (ema9 === null || ema21 === null || ema55 === null) {
     return "neutral";
@@ -183,6 +191,35 @@ function detectTrendBias(ema9: number | null, ema21: number | null, ema55: numbe
 
 function toPercentCents(value: number | null) {
   return value === null ? null : value * 100;
+}
+
+function sign(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value) || value === 0) {
+    return 0;
+  }
+  return value > 0 ? 1 : -1;
+}
+
+function latestDirectionChanges(candles: Candle[], lookback: number) {
+  const slice = candles.slice(-lookback);
+  if (slice.length < 3) {
+    return 0;
+  }
+
+  let changes = 0;
+  let previousDirection = 0;
+  for (let index = 1; index < slice.length; index += 1) {
+    const direction = sign(slice[index].close - slice[index - 1].close);
+    if (direction === 0) {
+      continue;
+    }
+    if (previousDirection !== 0 && direction !== previousDirection) {
+      changes += 1;
+    }
+    previousDirection = direction;
+  }
+
+  return changes;
 }
 
 function topReasons(
@@ -237,6 +274,90 @@ function topReasons(
 
 function averageVolume(candles: Candle[], lookback: number) {
   return average(candles.slice(-lookback).map((candle) => candle.volume));
+}
+
+function buildRecommendationFromProbabilities(input: {
+  market: KalshiBtcWindowSnapshot | null;
+  riskLevel: SignalRiskLevel;
+  modelAboveProbability: number;
+  modelBelowProbability: number;
+  modelConfidence: number;
+  reasons: string[];
+  extraBlockers?: string[];
+}) {
+  const { market, riskLevel, modelAboveProbability, modelBelowProbability, modelConfidence, reasons, extraBlockers = [] } = input;
+  const minimumEdge = signalConfig.minimumEdgeCents / 100;
+  const blockers = [...extraBlockers];
+  const yesAsk = market?.yesAskPrice ?? null;
+  const noAsk = market?.noAskPrice ?? null;
+  const yesEdge = yesAsk === null ? null : modelAboveProbability - yesAsk;
+  const noEdge = noAsk === null ? null : modelBelowProbability - noAsk;
+
+  if (riskLevel === "closing") {
+    blockers.push(`New buys are suppressed inside the last ${signalConfig.noBuyCloseSeconds} seconds of the window.`);
+  }
+
+  if (modelConfidence < signalConfig.minimumConfidence) {
+    blockers.push(`Model confidence is ${modelConfidence}, below the required ${signalConfig.minimumConfidence}.`);
+  }
+
+  if (market?.strikePrice === null || market?.strikePrice === undefined) {
+    blockers.push("Kalshi did not return a usable BTC strike for this window.");
+  }
+
+  const bestSide =
+    yesEdge !== null && noEdge !== null
+      ? yesEdge >= noEdge
+        ? "yes"
+        : "no"
+      : yesEdge !== null
+        ? "yes"
+        : noEdge !== null
+          ? "no"
+          : null;
+
+  const bestEdge = bestSide === "yes" ? yesEdge : bestSide === "no" ? noEdge : null;
+  const bestAsk = bestSide === "yes" ? yesAsk : bestSide === "no" ? noAsk : null;
+  const fairValue =
+    bestSide === "yes" ? modelAboveProbability : bestSide === "no" ? modelBelowProbability : null;
+
+  if (bestEdge === null || bestEdge < minimumEdge) {
+    blockers.push(`Model edge does not clear the ${signalConfig.minimumEdgeCents}c minimum.`);
+  }
+
+  const stakeMultiplier =
+    bestEdge === null
+      ? 0
+      : clamp(0.55 + (bestEdge * 100) / 18 + (modelConfidence - 50) / 100, 0.35, 1);
+  const suggestedStakeDollars = Number((signalConfig.stakeDollars * stakeMultiplier).toFixed(2));
+  const suggestedContracts =
+    bestAsk && bestAsk > 0 ? Math.max(0, Math.floor(suggestedStakeDollars / bestAsk)) : 0;
+
+  const actionable =
+    blockers.length === 0 &&
+    bestSide !== null &&
+    bestAsk !== null &&
+    fairValue !== null &&
+    suggestedContracts > 0;
+
+  return {
+    action: actionable ? (bestSide === "yes" ? "buy_yes" : "buy_no") : "no_buy",
+    contractSide: actionable ? bestSide : null,
+    label: actionable ? (bestSide === "yes" ? "Buy YES" : "Buy NO") : "No Buy",
+    buyPriceDollars: actionable ? bestAsk : null,
+    fairValueDollars: actionable ? Number(fairValue.toFixed(4)) : null,
+    edgeDollars: actionable && bestEdge !== null ? Number(bestEdge.toFixed(4)) : null,
+    edgePct:
+      actionable && fairValue !== null && bestAsk !== null && bestAsk > 0
+        ? Number((((fairValue - bestAsk) / bestAsk) * 100).toFixed(2))
+        : null,
+    modelProbability: actionable && fairValue !== null ? Number((fairValue * 100).toFixed(2)) : null,
+    confidence: modelConfidence,
+    suggestedStakeDollars: actionable ? suggestedStakeDollars : 0,
+    suggestedContracts: actionable ? suggestedContracts : 0,
+    reasons,
+    blockers,
+  } satisfies SignalRecommendation;
 }
 
 function findExtreme(
@@ -744,78 +865,284 @@ export function buildSignalRecommendation(input: {
   riskLevel: SignalRiskLevel;
 }): SignalRecommendation {
   const { market, features, riskLevel } = input;
-  const minimumEdge = signalConfig.minimumEdgeCents / 100;
   const reasons = topReasons(features.factorScores, features, market);
+  return buildRecommendationFromProbabilities({
+    market,
+    riskLevel,
+    modelAboveProbability: features.modelAboveProbability,
+    modelBelowProbability: features.modelBelowProbability,
+    modelConfidence: features.modelConfidence,
+    reasons,
+  });
+}
+
+export function buildTestCaseSignal(input: {
+  candles: Candle[];
+  features: BtcSignalFeatures;
+  market: KalshiBtcWindowSnapshot | null;
+  riskLevel: SignalRiskLevel;
+  reversal: BtcReversalSignal;
+}): BtcTestCaseSignal {
+  const { candles, features, market, riskLevel, reversal } = input;
+  const hourlySlice = candles.slice(-60);
+  const hourlyHigh = hourlySlice.length ? Math.max(...hourlySlice.map((candle) => candle.high)) : features.currentPrice;
+  const hourlyLow = hourlySlice.length ? Math.min(...hourlySlice.map((candle) => candle.low)) : features.currentPrice;
+  const hourlyRangePct =
+    hourlySlice.length && features.currentPrice > 0 ? ((hourlyHigh - hourlyLow) / features.currentPrice) * 100 : 0;
+  const hourlyMomentum = momentum(candles, 60) ?? momentum(candles, 30) ?? 0;
+  const hourlyVwap = vwap(hourlySlice);
+  const hourlyVwapDistanceAtr =
+    hourlyVwap !== null && (features.atr14 ?? 0) > 0 ? (features.currentPrice - hourlyVwap) / (features.atr14 ?? 1) : 0;
+  const alternationRatio =
+    hourlySlice.length >= 8 ? latestDirectionChanges(hourlySlice, Math.min(14, hourlySlice.length)) / Math.max(1, Math.min(14, hourlySlice.length) - 2) : 0;
+  const close = candles.at(-1);
+  const recentHigh = Math.max(...candles.slice(-6, -1).map((candle) => candle.high));
+  const recentLow = Math.min(...candles.slice(-6, -1).map((candle) => candle.low));
+  const currentBody = close ? Math.abs(close.close - close.open) : 0;
+  const upperWick = close ? close.high - Math.max(close.open, close.close) : 0;
+  const lowerWick = close ? Math.min(close.open, close.close) - close.low : 0;
+  const strikePrice = market?.strikePrice ?? null;
+  const strikeTolerance = Math.max((features.atr14 ?? 0) * 0.22, features.currentPrice * 0.00045, 10);
+
+  let hourlyRegime: HourlyRegime = "range";
+  let hourlyTilt: HourlyRegimeTilt = "neutral";
+
+  if (alternationRatio >= 0.58 && Math.abs(hourlyMomentum) < 0.25) {
+    hourlyRegime = "chop";
+  } else if (
+    Math.abs(hourlyVwapDistanceAtr) >= 1.15 &&
+    Math.abs(hourlyMomentum) >= 0.42 &&
+    (features.trendBias === "bullish" || features.trendBias === "bearish")
+  ) {
+    hourlyRegime = "stretched";
+    hourlyTilt = features.trendBias;
+  } else if (
+    hourlyMomentum >= 0.34 &&
+    features.trendBias === "bullish" &&
+    (hourlyVwap === null || features.currentPrice >= hourlyVwap)
+  ) {
+    hourlyRegime = "uptrend";
+    hourlyTilt = "bullish";
+  } else if (
+    hourlyMomentum <= -0.34 &&
+    features.trendBias === "bearish" &&
+    (hourlyVwap === null || features.currentPrice <= hourlyVwap)
+  ) {
+    hourlyRegime = "downtrend";
+    hourlyTilt = "bearish";
+  } else if (hourlyRangePct <= 0.95 || Math.abs(hourlyMomentum) < 0.18) {
+    hourlyRegime = "range";
+  }
+
+  const modelDirection = features.modelAboveProbability >= features.modelBelowProbability ? "above" : "below";
+  const directionSign = modelDirection === "above" ? 1 : -1;
+  const distanceSign = sign(features.distanceToStrike);
+  const reversalSign =
+    reversal.direction === "bullish" ? 1 : reversal.direction === "bearish" ? -1 : 0;
+  const momentumDisagreement =
+    sign(features.momentum5) !== 0 &&
+    sign(features.momentum15) !== 0 &&
+    sign(features.momentum5) !== sign(features.momentum15);
+  const strikeDisagreement = distanceSign !== 0 && distanceSign !== directionSign;
+  const reversalDisagreement = reversalSign !== 0 && reversalSign !== directionSign;
+  const nearStrike = Math.abs(features.distanceToStrikeAtr ?? 0) <= 0.3;
+  const failureToHoldAbove =
+    close !== undefined &&
+    strikePrice !== null &&
+    close.high > strikePrice + strikeTolerance * 0.15 &&
+    close.close < strikePrice;
+  const failureToHoldBelow =
+    close !== undefined &&
+    strikePrice !== null &&
+    close.low < strikePrice - strikeTolerance * 0.15 &&
+    close.close > strikePrice;
+  const wickImbalance =
+    currentBody > 0
+      ? (lowerWick - upperWick) / Math.max(currentBody, strikeTolerance * 0.08)
+      : 0;
+
+  let flipRiskScore = 0;
+  const factorScores: Record<string, number> = {};
+  const reasons: Array<{ label: string; score: number }> = [];
+  const riskFlags: string[] = [];
+
+  if (hourlyRegime === "uptrend") {
+    factorScores.hourlyRegime = 1.05;
+    reasons.push({ label: "The last hour is trending higher, so aligned upside continuations deserve more trust.", score: 1.05 });
+  } else if (hourlyRegime === "downtrend") {
+    factorScores.hourlyRegime = -1.05;
+    reasons.push({ label: "The last hour is trending lower, so aligned downside continuations deserve more trust.", score: 1.05 });
+  } else if (hourlyRegime === "stretched") {
+    factorScores.hourlyRegime = hourlyTilt === "bullish" ? -0.8 : hourlyTilt === "bearish" ? 0.8 : 0;
+    reasons.push({
+      label:
+        hourlyTilt === "bullish"
+          ? "The last hour is stretched up, which can trap late YES entries."
+          : hourlyTilt === "bearish"
+            ? "The last hour is stretched down, which can trap late NO entries."
+            : "The last hour is stretched without a clean directional read.",
+      score: 0.8,
+    });
+  } else if (hourlyRegime === "chop") {
+    factorScores.hourlyRegime = 0;
+    riskFlags.push("Hourly tape is choppy, so first-decision entries are more likely to flip.");
+  }
+
+  if (momentumDisagreement) {
+    flipRiskScore += 1.05;
+    factorScores.momentumConflict = -1.05 * directionSign;
+    riskFlags.push("5-minute and 15-minute momentum are disagreeing.");
+  }
+  if (strikeDisagreement) {
+    flipRiskScore += 1.2;
+    factorScores.strikeConflict = -1.2 * directionSign;
+    riskFlags.push("BTC is on the wrong side of the strike for the current live lean.");
+  }
+  if (reversalDisagreement) {
+    const reversalWeight = reversal.activeStatus === "active" ? 1.35 : reversal.watchStatus === "soon" ? 1.15 : 0.7;
+    flipRiskScore += reversalWeight;
+    factorScores.reversalConflict = -reversalWeight * directionSign;
+    riskFlags.push("The reversal layer is leaning against the live directional call.");
+  }
+  if (nearStrike) {
+    flipRiskScore += 0.7;
+    factorScores.strikePinning = -0.55 * directionSign;
+    riskFlags.push("Price is still hugging the strike, so late tape can easily flip the outcome.");
+  }
+  if (hourlyRegime === "chop" || alternationRatio >= 0.58) {
+    flipRiskScore += 0.85;
+    factorScores.chopTax = -0.85 * directionSign;
+  }
+
+  const flipRisk =
+    flipRiskScore >= 3.1 ? "high" : flipRiskScore >= 1.7 ? "medium" : "low";
+
+  const rangeFilter =
+    hourlyRegime === "chop" || alternationRatio >= 0.58
+      ? "chop"
+      : hourlyRegime === "range" || (hourlyRangePct <= 1.1 && Math.abs(hourlyMomentum) < 0.24)
+        ? "range"
+        : "clean";
+
+  const supportsYes =
+    distanceSign >= 0 &&
+    (wickImbalance > 0.45 || failureToHoldBelow || (close ? close.close > recentHigh : false));
+  const supportsNo =
+    distanceSign <= 0 &&
+    (wickImbalance < -0.45 || failureToHoldAbove || (close ? close.close < recentLow : false));
+  const structureBias =
+    supportsYes && !supportsNo ? "supports_yes" : supportsNo && !supportsYes ? "supports_no" : "neutral";
+  const structureScore = round(
+    structureBias === "supports_yes" ? Math.max(0.4, wickImbalance) : structureBias === "supports_no" ? Math.max(0.4, -wickImbalance) : 0,
+    3,
+  ) ?? 0;
+
+  if (structureBias === "supports_yes") {
+    factorScores.structure = 0.95;
+    reasons.push({ label: "Recent candle structure is holding above nearby support instead of failing the move.", score: 0.95 });
+  } else if (structureBias === "supports_no") {
+    factorScores.structure = -0.95;
+    reasons.push({ label: "Recent candle structure is failing rallies and leaning toward downside follow-through.", score: 0.95 });
+  } else {
+    riskFlags.push("Candle structure is mixed, with no clean hold or rejection sequence yet.");
+  }
+
+  const alignment =
+    hourlyTilt === "neutral"
+      ? "neutral"
+      : (hourlyTilt === "bullish" && modelDirection === "above") || (hourlyTilt === "bearish" && modelDirection === "below")
+        ? "aligned"
+        : "countertrend";
+
+  if (alignment === "aligned") {
+    factorScores.alignment = directionSign * 0.8;
+    reasons.push({ label: "The hourly regime agrees with the live 15-minute direction.", score: 0.8 });
+  } else if (alignment === "countertrend") {
+    factorScores.alignment = -directionSign * 0.95;
+    riskFlags.push("The live 15-minute call is fighting the larger one-hour regime.");
+  }
+
+  let adjustedRaw = logit(features.modelAboveProbability);
+  adjustedRaw += Object.values(factorScores).reduce((sum, value) => sum + value, 0) * 0.34;
+  adjustedRaw +=
+    hourlyRegime === "stretched" && hourlyTilt === "bullish"
+      ? -0.24
+      : hourlyRegime === "stretched" && hourlyTilt === "bearish"
+        ? 0.24
+        : 0;
+  adjustedRaw += structureBias === "supports_yes" ? 0.16 : structureBias === "supports_no" ? -0.16 : 0;
+  adjustedRaw += rangeFilter === "chop" ? -0.08 * directionSign : 0;
+
+  let adjustedAboveProbability = clamp(sigmoid(adjustedRaw), 0.02, 0.98);
+  if (rangeFilter !== "clean" || flipRisk !== "low") {
+    const shrink = flipRisk === "high" ? 0.32 : flipRisk === "medium" ? 0.2 : 0.1;
+    adjustedAboveProbability = clamp(0.5 + (adjustedAboveProbability - 0.5) * (1 - shrink), 0.02, 0.98);
+  }
+  const adjustedBelowProbability = Number((1 - adjustedAboveProbability).toFixed(4));
+  const testCaseConfidence = Math.round(
+    clamp(
+      50 +
+        Math.abs(adjustedAboveProbability - 0.5) * 100 -
+        flipRiskScore * 6 -
+        (rangeFilter === "chop" ? 7 : rangeFilter === "range" ? 3 : 0) +
+        (alignment === "aligned" ? 5 : alignment === "countertrend" ? -6 : 0),
+      50,
+      95,
+    ),
+  );
+
   const blockers: string[] = [];
-
-  const yesAsk = market?.yesAskPrice ?? null;
-  const noAsk = market?.noAskPrice ?? null;
-  const yesEdge = yesAsk === null ? null : features.modelAboveProbability - yesAsk;
-  const noEdge = noAsk === null ? null : features.modelBelowProbability - noAsk;
-
-  if (riskLevel === "closing") {
-    blockers.push(`New buys are suppressed inside the last ${signalConfig.noBuyCloseSeconds} seconds of the window.`);
+  if (alignment === "countertrend") {
+    blockers.push("Hourly regime is countertrend to the live 15-minute direction.");
+  }
+  if (flipRisk === "high") {
+    blockers.push("Flip-risk is high because the signal stack is internally unstable.");
+  }
+  if (rangeFilter === "chop") {
+    blockers.push("BTC is oscillating in chop rather than showing clean persistence.");
   }
 
-  if (features.modelConfidence < signalConfig.minimumConfidence) {
-    blockers.push(`Model confidence is ${features.modelConfidence}, below the required ${signalConfig.minimumConfidence}.`);
-  }
+  const orderedReasons = reasons
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 4)
+    .map((entry) => entry.label);
 
-  if (market?.strikePrice === null || market?.strikePrice === undefined) {
-    blockers.push("Kalshi did not return a usable BTC strike for this window.");
-  }
-
-  const bestSide =
-    yesEdge !== null && noEdge !== null
-      ? yesEdge >= noEdge
-        ? "yes"
-        : "no"
-      : yesEdge !== null
-        ? "yes"
-        : noEdge !== null
-          ? "no"
-          : null;
-
-  const bestEdge = bestSide === "yes" ? yesEdge : bestSide === "no" ? noEdge : null;
-  const bestAsk = bestSide === "yes" ? yesAsk : bestSide === "no" ? noAsk : null;
-  const fairValue =
-    bestSide === "yes" ? features.modelAboveProbability : bestSide === "no" ? features.modelBelowProbability : null;
-
-  if (bestEdge === null || bestEdge < minimumEdge) {
-    blockers.push(`Model edge does not clear the ${signalConfig.minimumEdgeCents}c minimum.`);
-  }
-
-  const stakeMultiplier =
-    bestEdge === null
-      ? 0
-      : clamp(0.55 + (bestEdge * 100) / 18 + (features.modelConfidence - 50) / 100, 0.35, 1);
-  const suggestedStakeDollars = Number((signalConfig.stakeDollars * stakeMultiplier).toFixed(2));
-  const suggestedContracts =
-    bestAsk && bestAsk > 0 ? Math.max(0, Math.floor(suggestedStakeDollars / bestAsk)) : 0;
-
-  const actionable =
-    blockers.length === 0 &&
-    bestSide !== null &&
-    bestAsk !== null &&
-    fairValue !== null &&
-    suggestedContracts > 0;
+  const recommendation = buildRecommendationFromProbabilities({
+    market,
+    riskLevel,
+    modelAboveProbability: Number(adjustedAboveProbability.toFixed(4)),
+    modelBelowProbability: adjustedBelowProbability,
+    modelConfidence: testCaseConfidence,
+    reasons: orderedReasons.length
+      ? orderedReasons
+      : ["The test case still falls back to the base 15-minute model because no extra regime edge is clear."],
+    extraBlockers: blockers,
+  });
 
   return {
-    action: actionable ? (bestSide === "yes" ? "buy_yes" : "buy_no") : "no_buy",
-    contractSide: actionable ? bestSide : null,
-    label: actionable ? (bestSide === "yes" ? "Buy YES" : "Buy NO") : "No Buy",
-    buyPriceDollars: actionable ? bestAsk : null,
-    fairValueDollars: actionable ? Number(fairValue.toFixed(4)) : null,
-    edgeDollars: actionable && bestEdge !== null ? Number(bestEdge.toFixed(4)) : null,
-    edgePct:
-      actionable && fairValue !== null && bestAsk !== null && bestAsk > 0
-        ? Number((((fairValue - bestAsk) / bestAsk) * 100).toFixed(2))
-        : null,
-    modelProbability: actionable && fairValue !== null ? Number((fairValue * 100).toFixed(2)) : null,
-    confidence: features.modelConfidence,
-    suggestedStakeDollars: actionable ? suggestedStakeDollars : 0,
-    suggestedContracts: actionable ? suggestedContracts : 0,
-    reasons,
-    blockers,
+    hourlyRegime,
+    hourlyTilt,
+    alignment,
+    flipRisk,
+    flipRiskScore: round(flipRiskScore, 3) ?? 0,
+    rangeFilter,
+    structureBias,
+    structureScore,
+    modelAboveProbability: Number(adjustedAboveProbability.toFixed(4)),
+    modelBelowProbability: adjustedBelowProbability,
+    modelConfidence: testCaseConfidence,
+    recommendation,
+    reasons:
+      orderedReasons.length > 0
+        ? orderedReasons
+        : ["The test case does not yet see a stronger alternative edge than the base model."],
+    riskFlags: Array.from(new Set(riskFlags)),
+    factorScores: Object.fromEntries(
+      Object.entries({
+        ...factorScores,
+        hourlyMomentum,
+        alternationRatio,
+      }).map(([key, value]) => [key, Number(value.toFixed(4))]),
+    ),
   };
 }

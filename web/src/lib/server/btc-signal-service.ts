@@ -16,7 +16,12 @@ import {
   hydrateSignalExecutions,
   listSignalExecutions,
 } from "@/lib/server/btc-signal-execution-store";
-import { buildBtcSignalFeatures, buildReversalSignal, buildSignalRecommendation } from "@/lib/server/btc-signal-model";
+import {
+  buildBtcSignalFeatures,
+  buildReversalSignal,
+  buildSignalRecommendation,
+  buildTestCaseSignal,
+} from "@/lib/server/btc-signal-model";
 import {
   appendSignalSnapshot,
   getLatestSignalSnapshot,
@@ -31,6 +36,7 @@ import type {
   BtcReversalSignal,
   Btc15mSignalSnapshot,
   BtcSignalExecution,
+  BtcTestCaseSignal,
   KalshiBtcWindowSnapshot,
   PersistedSignalExecution,
   PersistedSignalSnapshot,
@@ -139,6 +145,28 @@ function getPredictedProbability(snapshot: PersistedSignalSnapshot) {
     : snapshot.modelBelowProbability;
 }
 
+type DecisionSnapshotLike = {
+  action: "buy_yes" | "buy_no" | "no_buy";
+  buyPriceDollars: number | null;
+  suggestedContracts: number;
+  edgeDollars: number | null;
+  modelAboveProbability: number | null;
+  modelBelowProbability: number | null;
+  resolutionOutcome: "above" | "below" | null;
+};
+
+function getDecisionDirection(snapshot: DecisionSnapshotLike) {
+  return (snapshot.modelAboveProbability ?? 0) >= (snapshot.modelBelowProbability ?? 0)
+    ? "above"
+    : "below";
+}
+
+function getDecisionProbability(snapshot: DecisionSnapshotLike) {
+  return getDecisionDirection(snapshot) === "above"
+    ? snapshot.modelAboveProbability
+    : snapshot.modelBelowProbability;
+}
+
 function hasDecisionFlip(series: PersistedSignalSnapshot[]) {
   if (series.length <= 1) {
     return false;
@@ -168,6 +196,14 @@ function asFactorScores(value: unknown) {
   return Object.fromEntries(
     Object.entries(value).filter(([, entry]) => typeof entry === "number" && Number.isFinite(entry)),
   );
+}
+
+function asSignalAction(value: unknown) {
+  return value === "buy_yes" || value === "buy_no" || value === "no_buy" ? value : null;
+}
+
+function asContractSide(value: unknown) {
+  return value === "yes" || value === "no" ? value : null;
 }
 
 function extractPersistedReversal(snapshot: PersistedSignalSnapshot): BtcReversalSignal | null {
@@ -205,6 +241,74 @@ function extractPersistedReversal(snapshot: PersistedSignalSnapshot): BtcReversa
   };
 }
 
+function extractPersistedTestCase(snapshot: PersistedSignalSnapshot): BtcTestCaseSignal | null {
+  const raw = snapshot.features.testCase;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+
+  const record = raw as Record<string, unknown>;
+  const recommendationRaw = record.recommendation;
+  const action =
+    recommendationRaw && typeof recommendationRaw === "object" && !Array.isArray(recommendationRaw)
+      ? asSignalAction((recommendationRaw as Record<string, unknown>).action)
+      : null;
+
+  if (
+    (record.hourlyRegime !== "uptrend" &&
+      record.hourlyRegime !== "downtrend" &&
+      record.hourlyRegime !== "range" &&
+      record.hourlyRegime !== "stretched" &&
+      record.hourlyRegime !== "chop") ||
+    (record.hourlyTilt !== "bullish" && record.hourlyTilt !== "bearish" && record.hourlyTilt !== "neutral") ||
+    (record.alignment !== "aligned" && record.alignment !== "countertrend" && record.alignment !== "neutral") ||
+    (record.flipRisk !== "low" && record.flipRisk !== "medium" && record.flipRisk !== "high") ||
+    (record.rangeFilter !== "clean" && record.rangeFilter !== "range" && record.rangeFilter !== "chop") ||
+    (record.structureBias !== "supports_yes" &&
+      record.structureBias !== "supports_no" &&
+      record.structureBias !== "neutral") ||
+    !recommendationRaw ||
+    typeof recommendationRaw !== "object" ||
+    Array.isArray(recommendationRaw) ||
+    !action
+  ) {
+    return null;
+  }
+
+  const recommendationRecord = recommendationRaw as Record<string, unknown>;
+  return {
+    hourlyRegime: record.hourlyRegime,
+    hourlyTilt: record.hourlyTilt,
+    alignment: record.alignment,
+    flipRisk: record.flipRisk,
+    flipRiskScore: asNumber(record.flipRiskScore) ?? 0,
+    rangeFilter: record.rangeFilter,
+    structureBias: record.structureBias,
+    structureScore: asNumber(record.structureScore) ?? 0,
+    modelAboveProbability: asNumber(record.modelAboveProbability) ?? 0.5,
+    modelBelowProbability: asNumber(record.modelBelowProbability) ?? 0.5,
+    modelConfidence: asNumber(record.modelConfidence) ?? 50,
+    recommendation: {
+      action,
+      contractSide: asContractSide(recommendationRecord.contractSide),
+      label: asString(recommendationRecord.label) ?? "No Buy",
+      buyPriceDollars: asNumber(recommendationRecord.buyPriceDollars),
+      fairValueDollars: asNumber(recommendationRecord.fairValueDollars),
+      edgeDollars: asNumber(recommendationRecord.edgeDollars),
+      edgePct: asNumber(recommendationRecord.edgePct),
+      modelProbability: asNumber(recommendationRecord.modelProbability),
+      confidence: asNumber(recommendationRecord.confidence) ?? 50,
+      suggestedStakeDollars: asNumber(recommendationRecord.suggestedStakeDollars) ?? 0,
+      suggestedContracts: asNumber(recommendationRecord.suggestedContracts) ?? 0,
+      reasons: asStringArray(recommendationRecord.reasons),
+      blockers: asStringArray(recommendationRecord.blockers),
+    },
+    reasons: asStringArray(record.reasons),
+    riskFlags: asStringArray(record.riskFlags),
+    factorScores: asFactorScores(record.factorScores),
+  };
+}
+
 function getOutcomeResult(snapshot: PersistedSignalSnapshot): SignalOutcome | null {
   if (!snapshot.resolutionOutcome) {
     return null;
@@ -218,7 +322,37 @@ function getOutcomeResult(snapshot: PersistedSignalSnapshot): SignalOutcome | nu
   return expectedOutcome === snapshot.resolutionOutcome ? "win" : "loss";
 }
 
+function getOutcomeResultForDecision(snapshot: DecisionSnapshotLike): SignalOutcome | null {
+  if (!snapshot.resolutionOutcome) {
+    return null;
+  }
+
+  if (snapshot.action === "no_buy") {
+    return "skipped";
+  }
+
+  const expectedOutcome = snapshot.action === "buy_yes" ? "above" : "below";
+  return expectedOutcome === snapshot.resolutionOutcome ? "win" : "loss";
+}
+
 function getSuggestedPnl(snapshot: PersistedSignalSnapshot) {
+  if (
+    snapshot.action === "no_buy" ||
+    snapshot.buyPriceDollars === null ||
+    snapshot.suggestedContracts <= 0 ||
+    !snapshot.resolutionOutcome
+  ) {
+    return null;
+  }
+
+  const win =
+    (snapshot.action === "buy_yes" && snapshot.resolutionOutcome === "above") ||
+    (snapshot.action === "buy_no" && snapshot.resolutionOutcome === "below");
+  const perContract = win ? 1 - snapshot.buyPriceDollars : -snapshot.buyPriceDollars;
+  return round(perContract * snapshot.suggestedContracts, 2);
+}
+
+function getSuggestedPnlForDecision(snapshot: DecisionSnapshotLike) {
   if (
     snapshot.action === "no_buy" ||
     snapshot.buyPriceDollars === null ||
@@ -292,7 +426,7 @@ function listRecentExecutionStatuses(limit = 8) {
   return listSignalExecutions(limit).map((execution) => toPublicExecutionStatus(execution)).filter(Boolean) as BtcSignalExecution[];
 }
 
-function buildCalibrationBuckets(snapshots: PersistedSignalSnapshot[]) {
+function buildCalibrationBuckets<T extends DecisionSnapshotLike>(snapshots: T[]) {
   const ranges = [
     { label: "50-54%", min: 0.5, max: 0.55 },
     { label: "55-59%", min: 0.55, max: 0.6 },
@@ -304,15 +438,15 @@ function buildCalibrationBuckets(snapshots: PersistedSignalSnapshot[]) {
 
   return ranges.map((range) => {
     const bucketSnapshots = snapshots.filter((snapshot) => {
-      const predictedProbability = getPredictedProbability(snapshot) ?? 0;
+      const predictedProbability = getDecisionProbability(snapshot) ?? 0;
       return predictedProbability >= range.min && predictedProbability < range.max;
     });
     const hits = bucketSnapshots.filter(
-      (snapshot) => snapshot.resolutionOutcome === getPredictedDirection(snapshot),
+      (snapshot) => snapshot.resolutionOutcome === getDecisionDirection(snapshot),
     ).length;
     const avgPredictedProbability =
       bucketSnapshots.length > 0
-        ? bucketSnapshots.reduce((sum, snapshot) => sum + (getPredictedProbability(snapshot) ?? 0), 0) /
+        ? bucketSnapshots.reduce((sum, snapshot) => sum + (getDecisionProbability(snapshot) ?? 0), 0) /
           bucketSnapshots.length
         : null;
 
@@ -327,33 +461,27 @@ function buildCalibrationBuckets(snapshots: PersistedSignalSnapshot[]) {
   });
 }
 
-function buildPerformanceMetrics(): SignalPerformanceMetrics {
-  const resolvedWindowIds = new Set(
-    listSignalWindows()
-      .filter((window) => window.status === "resolved" && window.resolutionOutcome)
-      .map((window) => window.id),
-  );
-  const resolvedSeries = getWindowSnapshotSeries().filter((entry) =>
-    resolvedWindowIds.has(entry.windowId),
-  );
-  const openingSnapshots = resolvedSeries.map((entry) => entry.first);
-  const latestSnapshots = resolvedSeries.map((entry) => entry.latest);
+function buildPerformanceMetrics<T extends DecisionSnapshotLike>(
+  openingSnapshots: T[],
+  latestSnapshots: T[],
+  flipWindows: number,
+  resolvedWindows: number,
+): SignalPerformanceMetrics {
   const actionableSnapshots = openingSnapshots.filter(
     (snapshot) => snapshot.action !== "no_buy" && snapshot.buyPriceDollars !== null,
   );
   const openingHits = openingSnapshots.filter(
-    (snapshot) => snapshot.resolutionOutcome === getPredictedDirection(snapshot),
+    (snapshot) => snapshot.resolutionOutcome === getDecisionDirection(snapshot),
   ).length;
   const finalHits = latestSnapshots.filter(
-    (snapshot) => snapshot.resolutionOutcome === getPredictedDirection(snapshot),
+    (snapshot) => snapshot.resolutionOutcome === getDecisionDirection(snapshot),
   ).length;
   const actionableHits = actionableSnapshots.filter(
-    (snapshot) => getOutcomeResult(snapshot) === "win",
+    (snapshot) => getOutcomeResultForDecision(snapshot) === "win",
   ).length;
   const noBuyWindows = openingSnapshots.filter((snapshot) => snapshot.action === "no_buy").length;
-  const flipWindows = resolvedSeries.filter((entry) => hasDecisionFlip(entry.snapshots)).length;
   const totalSuggestedPnl = actionableSnapshots.reduce(
-    (sum, snapshot) => sum + (getSuggestedPnl(snapshot) ?? 0),
+    (sum, snapshot) => sum + (getSuggestedPnlForDecision(snapshot) ?? 0),
     0,
   );
   const avgEdgeCents =
@@ -363,7 +491,7 @@ function buildPerformanceMetrics(): SignalPerformanceMetrics {
       : null;
 
   return {
-    resolvedWindows: resolvedWindowIds.size,
+    resolvedWindows,
     openingSuggestionWindows: openingSnapshots.length,
     openingSuggestionAccuracyPct:
       openingSnapshots.length > 0 ? round((openingHits / openingSnapshots.length) * 100, 1) : null,
@@ -374,7 +502,7 @@ function buildPerformanceMetrics(): SignalPerformanceMetrics {
       latestSnapshots.length > 0 ? round((finalHits / latestSnapshots.length) * 100, 1) : null,
     flipWindows,
     flipRatePct:
-      resolvedSeries.length > 0 ? round((flipWindows / resolvedSeries.length) * 100, 1) : null,
+      openingSnapshots.length > 0 ? round((flipWindows / openingSnapshots.length) * 100, 1) : null,
     noBuyWindows,
     noBuyRatePct: openingSnapshots.length > 0 ? round((noBuyWindows / openingSnapshots.length) * 100, 1) : null,
     avgEdgeCents: avgEdgeCents !== null ? round(avgEdgeCents, 2) : null,
@@ -383,6 +511,71 @@ function buildPerformanceMetrics(): SignalPerformanceMetrics {
       actionableSnapshots.length > 0 ? round(totalSuggestedPnl / actionableSnapshots.length, 2) : null,
     calibration: buildCalibrationBuckets(openingSnapshots),
   };
+}
+
+function buildLivePerformanceMetrics(): SignalPerformanceMetrics {
+  const resolvedWindowIds = new Set(
+    listSignalWindows()
+      .filter((window) => window.status === "resolved" && window.resolutionOutcome)
+      .map((window) => window.id),
+  );
+  const resolvedSeries = getWindowSnapshotSeries().filter((entry) =>
+    resolvedWindowIds.has(entry.windowId),
+  );
+  const openingSnapshots = resolvedSeries.map((entry) => entry.first);
+  const latestSnapshots = resolvedSeries.map((entry) => entry.latest);
+  const flipWindows = resolvedSeries.filter((entry) => hasDecisionFlip(entry.snapshots)).length;
+  return buildPerformanceMetrics(openingSnapshots, latestSnapshots, flipWindows, resolvedWindowIds.size);
+}
+
+function buildTestCasePerformanceMetrics(): SignalPerformanceMetrics {
+  const resolvedWindowIds = new Set(
+    listSignalWindows()
+      .filter((window) => window.status === "resolved" && window.resolutionOutcome)
+      .map((window) => window.id),
+  );
+  const resolvedSeries = getWindowSnapshotSeries().filter((entry) =>
+    resolvedWindowIds.has(entry.windowId),
+  );
+  const openingSnapshots = resolvedSeries
+    .map((entry) => {
+      const testCase = extractPersistedTestCase(entry.first);
+      return testCase
+        ? {
+            action: testCase.recommendation.action,
+            buyPriceDollars: testCase.recommendation.buyPriceDollars,
+            suggestedContracts: testCase.recommendation.suggestedContracts,
+            edgeDollars: testCase.recommendation.edgeDollars,
+            modelAboveProbability: testCase.modelAboveProbability,
+            modelBelowProbability: testCase.modelBelowProbability,
+            resolutionOutcome: entry.first.resolutionOutcome,
+          }
+        : null;
+    })
+    .filter(Boolean) as DecisionSnapshotLike[];
+  const latestSnapshots = resolvedSeries
+    .map((entry) => {
+      const testCase = extractPersistedTestCase(entry.latest);
+      return testCase
+        ? {
+            action: testCase.recommendation.action,
+            buyPriceDollars: testCase.recommendation.buyPriceDollars,
+            suggestedContracts: testCase.recommendation.suggestedContracts,
+            edgeDollars: testCase.recommendation.edgeDollars,
+            modelAboveProbability: testCase.modelAboveProbability,
+            modelBelowProbability: testCase.modelBelowProbability,
+            resolutionOutcome: entry.latest.resolutionOutcome,
+          }
+        : null;
+    })
+    .filter(Boolean) as DecisionSnapshotLike[];
+  const flipWindows = resolvedSeries.filter((entry) => {
+    const first = extractPersistedTestCase(entry.first);
+    const latest = extractPersistedTestCase(entry.latest);
+    return !!first && !!latest && first.recommendation.action !== latest.recommendation.action;
+  }).length;
+
+  return buildPerformanceMetrics(openingSnapshots, latestSnapshots, flipWindows, openingSnapshots.length);
 }
 
 async function resolveWindowOutcome(window: PersistedSignalWindow) {
@@ -502,6 +695,7 @@ async function computeSnapshot() {
       features: null,
       reversal: null,
       recommendation: null,
+      testCase: null,
       executionControl,
       execution: null,
       recentExecutions: listRecentExecutionStatuses(),
@@ -512,7 +706,8 @@ async function computeSnapshot() {
         conviction: [],
         caution: ["The app needs an active KXBTC15M market before it can score a trade."],
       },
-      metrics: buildPerformanceMetrics(),
+      metrics: buildLivePerformanceMetrics(),
+      testCaseMetrics: buildTestCasePerformanceMetrics(),
       trackedMetrics: buildTrackedMetrics(),
       trackedTrades: listPublicTrackedTrades(),
       history: mapHistory(),
@@ -553,6 +748,7 @@ async function computeSnapshot() {
           features: null,
           reversal: null,
           recommendation: null,
+          testCase: null,
           executionControl,
           execution: market?.ticker ? toPublicExecutionStatus(getSignalExecutionByWindowTicker(market.ticker)) : null,
           recentExecutions: listRecentExecutionStatuses(),
@@ -563,7 +759,8 @@ async function computeSnapshot() {
             conviction: [],
             caution: ["The live BTC feed returned too few candles for the model."],
           },
-          metrics: buildPerformanceMetrics(),
+          metrics: buildLivePerformanceMetrics(),
+          testCaseMetrics: buildTestCasePerformanceMetrics(),
           trackedMetrics: buildTrackedMetrics(),
           trackedTrades: listPublicTrackedTrades(),
           history: mapHistory(),
@@ -588,6 +785,13 @@ async function computeSnapshot() {
     market: latestMarket,
     features,
     riskLevel,
+  });
+  const testCase = buildTestCaseSignal({
+    candles,
+    features,
+    market: latestMarket,
+    riskLevel,
+    reversal,
   });
   const explanation = await buildSignalExplanation({
     recommendation,
@@ -630,6 +834,23 @@ async function computeSnapshot() {
       momentum15: features.momentum15,
       trendBias: features.trendBias,
       reversal,
+      testCase: {
+        hourlyRegime: testCase.hourlyRegime,
+        hourlyTilt: testCase.hourlyTilt,
+        alignment: testCase.alignment,
+        flipRisk: testCase.flipRisk,
+        flipRiskScore: testCase.flipRiskScore,
+        rangeFilter: testCase.rangeFilter,
+        structureBias: testCase.structureBias,
+        structureScore: testCase.structureScore,
+        modelAboveProbability: testCase.modelAboveProbability,
+        modelBelowProbability: testCase.modelBelowProbability,
+        modelConfidence: testCase.modelConfidence,
+        recommendation: testCase.recommendation,
+        reasons: testCase.reasons,
+        riskFlags: testCase.riskFlags,
+        factorScores: testCase.factorScores,
+      },
     },
     reasons: recommendation.reasons,
     blockers: recommendation.blockers,
@@ -658,11 +879,13 @@ async function computeSnapshot() {
     features,
     reversal,
     recommendation,
+    testCase,
     executionControl,
     execution: toPublicExecutionStatus(getSignalExecutionByWindowTicker(latestMarket.ticker)),
     recentExecutions: listRecentExecutionStatuses(),
     explanation,
-    metrics: buildPerformanceMetrics(),
+    metrics: buildLivePerformanceMetrics(),
+    testCaseMetrics: buildTestCasePerformanceMetrics(),
     trackedMetrics: buildTrackedMetrics(),
     trackedTrades: listPublicTrackedTrades(),
     history: mapHistory(),
